@@ -32,7 +32,7 @@ module.exports = (req, res, next) => {
       picture: 1,
       tagLine: 1,
       level: 1, // Include user level/role
-      isActive: 1, // Include activation status
+      status: 1, // Include status instead of isActive
       activationToken: 1, // Include activation token (for admin operations)
       tokenExpiry: 1, // Include token expiry date
       createdAt: 1, // Include creation timestamp

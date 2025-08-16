@@ -6,13 +6,13 @@ const validator = require("validator");
 const isEmpty = require("../utils/isEmpty");
 
 module.exports = (req, res, next) => {
-  let { email, password } = req.fields; // <-- companyId from request
+  let { email, password } = req.fields;
   const companyId = req.headers["x-company-id"]; // read from header
 
   let errors = {};
   isEmpty(email) && (errors.email = "Username (or email) required.");
   isEmpty(password) && (errors.password = "Password required.");
-  isEmpty(companyId) && (errors.companyId = "Company ID required."); // Validate companyId
+  isEmpty(companyId) && (errors.companyId = "Company ID required.");
   if (Object.keys(errors).length > 0) return res.status(400).json(errors);
 
   email = email.toLowerCase();
@@ -26,7 +26,7 @@ module.exports = (req, res, next) => {
       lastName: user.lastName,
       picture: user.picture,
       username: user.username,
-      companyId: user.companyId, // Include companyId in JWT
+      companyId: user.companyId,
     };
     jwt.sign(
       payload,
@@ -39,7 +39,8 @@ module.exports = (req, res, next) => {
     );
   };
 
-  const sendError = () => res.status(400).json({ password: "Wrong password." });
+  const sendError = (message = "Wrong password.") =>
+    res.status(400).json({ password: message });
 
   // Query includes companyId
   let query;
@@ -47,10 +48,47 @@ module.exports = (req, res, next) => {
   else query = { username: email, companyId };
 
   User.findOne(query)
-    .populate([{ path: "picture", strictPopulate: false }])
-    .populate([{ path: "endpoint", strictPopulate: false }])
+    .populate([
+      {
+        path: "picture",
+        strictPopulate: false,
+        match: { _id: { $exists: true } }, // Only populate if File model exists
+      },
+    ])
+    .populate([
+      {
+        path: "endpoint",
+        strictPopulate: false,
+        match: { _id: { $exists: true } }, // Only populate if Endpoint model exists
+      },
+    ])
     .then((user) => {
       if (!user) return res.status(404).json({ email: "User not found." });
+
+      // Check user status
+      if (user.status !== "active") {
+        const statusMessages = {
+          pending:
+            "Account not activated. Please check your email for the activation link.",
+          expired:
+            "Activation link has expired. Please contact your administrator for a new invitation.",
+          deactivated:
+            "Account has been deactivated. Please contact your administrator.",
+        };
+
+        return res.status(403).json({
+          error:
+            statusMessages[user.status] || "Account access is not available.",
+        });
+      }
+
+      // Check if user has a password (should have one after activation)
+      if (!user.password) {
+        return res.status(403).json({
+          error: "Account setup incomplete. Please contact your administrator.",
+        });
+      }
+
       argon2
         .verify(user.password, password)
         .then((correct) => (correct ? sendResponse(user) : sendError()));
