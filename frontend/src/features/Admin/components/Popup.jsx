@@ -61,7 +61,7 @@ function UserTierSelect({ value, onChange, currentUserLevel }) {
           <option value="">Select User Role</option>
           {availableTiers.map((tier) => (
             <option key={tier.value} value={tier.value} selected={value === tier.value}>
-              {tier.label} - {value}
+              {tier.label}
             </option>
           ))}
         </select>
@@ -109,6 +109,8 @@ function AddPeers({ onClose, type, user }) {
   const { addToast } = useToasts();
   const [currentUser] = useGlobal('user');
   const currentUserLevel = currentUser?.level || '';
+
+  console.log("Sala USer" + user);
 
   const [firstName, setFirstName] = useState(user ? user.firstName : '');
   const [lastName, setLastName] = useState(user ? user.lastName : '');
