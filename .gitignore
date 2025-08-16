@@ -11,3 +11,4 @@ frontend/build
 frontend/dist
 version.sh
 version.json
+info.txt
