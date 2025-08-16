@@ -110,7 +110,7 @@ function AddPeers({ onClose, type, user }) {
   const [currentUser] = useGlobal('user');
   const currentUserLevel = currentUser?.level || '';
 
-  console.log("Sala USer" + user);
+  console.log("Sala USer" , user);
 
   const [firstName, setFirstName] = useState(user ? user.firstName : '');
   const [lastName, setLastName] = useState(user ? user.lastName : '');
