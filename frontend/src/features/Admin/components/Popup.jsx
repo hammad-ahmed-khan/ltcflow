@@ -9,11 +9,11 @@ function Input({
   icon, placeholder, type, onChange, required, value,
 }) {
   return (
-    <div className="uk-margin-small-top">
+    <div className="uk-margin-small-top uk-width-1-1">
       <div className="uk-inline uk-width-1-1">
         <span className="uk-form-icon uk-form-icon-flip" data-uk-icon={`icon: ${icon}`} onChange={onChange} />
         <input
-          className="uk-input uk-margin-remove"
+          className="uk-input uk-margin-remove uk-width-1-1"
           required={required}
           placeholder={placeholder}
           value={value}
@@ -49,19 +49,18 @@ function UserTierSelect({ value, onChange, currentUserLevel }) {
   const availableTiers = getAvailableTiers();
 
   return (
-    <div className="uk-margin-small-top">
+    <div className="uk-margin-small-top uk-width-1-1">
       <div className="uk-inline uk-width-1-1">
         <span className="uk-form-icon uk-form-icon-flip" data-uk-icon="icon: users" />
         <select
           className="uk-select uk-margin-remove uk-width-1-1"
-          value={value}
           onChange={onChange}
           required
-          style={{ paddingLeft: '40px', width: '100%' }}
+          style={{ paddingRight: '40px', width: '100%' }}
         >
           <option value="">Select User Role</option>
           {availableTiers.map((tier) => (
-            <option key={tier.value} value={tier.value}>
+            <option key={tier.value} value={tier.value} selected={value === tier.value}>
               {tier.label}
             </option>
           ))}
@@ -72,7 +71,7 @@ function UserTierSelect({ value, onChange, currentUserLevel }) {
           className="uk-text-small uk-margin-small-top uk-flex uk-flex-middle uk-padding-small uk-border-rounded" 
           style={{ 
             color: '#555', 
-            paddingLeft: '40px',
+            paddingRight: '40px',
             backgroundColor: value === 'user' ? '#f0f9ff' : 
                             value === 'manager' ? '#f8fafc' : 
                             '#fffbeb',
