@@ -57,117 +57,207 @@ function Admin() {
   // Helper function to get role badge color  
   const getRoleBadgeStyle = (level) => {
     const styles = {
-      'user': { backgroundColor: '#e3f2fd', color: '#1976d2' },
-      'manager': { backgroundColor: '#e8f5e8', color: '#2e7d32' },
-      'admin': { backgroundColor: '#fff3e0', color: '#f57c00' },
-      'root': { backgroundColor: '#ffebee', color: '#c62828' }
+      'user': { backgroundColor: '#e3f2fd', color: '#1976d2', border: '1px solid #bbdefb' },
+      'manager': { backgroundColor: '#f3e5f5', color: '#7b1fa2', border: '1px solid #ce93d8' },
+      'admin': { backgroundColor: '#fff3e0', color: '#f57c00', border: '1px solid #ffcc02' },
+      'root': { backgroundColor: '#ffebee', color: '#c62828', border: '1px solid #ef9a9a' }
     };
-    return styles[level] || { backgroundColor: '#f5f5f5', color: '#666' };
+    return styles[level] || { backgroundColor: '#f5f5f5', color: '#666', border: '1px solid #ddd' };
   };
 
-  // Handle user activation/deactivation
-  const handleUserActivation = async (userData, action) => {
-    try {
-      setLoading(prev => ({ ...prev, [userData.id]: true }));
-      
-      const response = await apiClient.post('/api/user/status', {
-        userId: userData.id,
-        action: action // 'activate' or 'deactivate'
-      });
+  // Helper function to format dates
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  };
 
-      if (response.data.status === 'success') {
-        addToast(`User ${action}d successfully`, { appearance: 'success' });
-        refreshUserList();
-      }
+  // Helper function to get time ago
+  const getTimeAgo = (dateString) => {
+    if (!dateString) return 'Never';
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    
+    if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffMinutes > 0) return `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+    return 'Just now';
+  };
+
+  // Resend invitation
+  const resendInvitation = async (userId, userEmail) => {
+    setLoading(prev => ({...prev, [`resend_${userId}`]: true}));
+    try {
+      const response = await apiClient.post('/api/regenerate-activation', { userId });
+      addToast(`Invitation resent to ${userEmail}`, {
+        appearance: 'success',
+        autoDismiss: true,
+      });
+      refreshUserList();
     } catch (error) {
-      addToast(`Failed to ${action} user`, { appearance: 'error' });
+      addToast('Failed to resend invitation', {
+        appearance: 'error',
+        autoDismiss: true,
+      });
     } finally {
-      setLoading(prev => ({ ...prev, [userData.id]: false }));
+      setLoading(prev => ({...prev, [`resend_${userId}`]: false}));
     }
   };
 
-  // Handle resend activation
-  const handleResendActivation = async (userData) => {
+  // Toggle user status
+  const toggleUserStatus = async (userId, currentStatus, username) => {
+    let newStatus;
+    switch (currentStatus) {
+      case 'pending':
+      case 'expired':
+        newStatus = 'active';
+        break;
+      case 'active':
+        newStatus = 'deactivated';
+        break;
+      case 'deactivated':
+        newStatus = 'active';
+        break;
+      default:
+        newStatus = 'active';
+    }
+    
+    setLoading(prev => ({...prev, [`toggle_${userId}`]: true}));
     try {
-      setLoading(prev => ({ ...prev, [userData.id]: true }));
-      
-      const response = await apiClient.post('/api/user/resend-activation', {
-        userId: userData.id
+      const response = await apiClient.post('/api/toggle-user-status', { 
+        userId, 
+        newStatus 
       });
-
-      if (response.data.status === 'success') {
-        addToast('Activation email sent successfully', { appearance: 'success' });
-      }
+      addToast(`User ${username} status changed to ${newStatus}`, {
+        appearance: 'success',
+        autoDismiss: true,
+      });
+      refreshUserList();
     } catch (error) {
-      addToast('Failed to send activation email', { appearance: 'error' });
+      addToast(`Failed to update user status`, {
+        appearance: 'error',
+        autoDismiss: true,
+      });
     } finally {
-      setLoading(prev => ({ ...prev, [userData.id]: false }));
+      setLoading(prev => ({...prev, [`toggle_${userId}`]: false}));
     }
   };
 
-  // Handle cancel activation  
-  const handleCancelActivation = async (userData) => {
-    try {
-      setLoading(prev => ({ ...prev, [userData.id]: true }));
-      
-      const response = await apiClient.post('/api/user/cancel-activation', {
-        userId: userData.id
-      });
-
-      if (response.data.status === 'success') {
-        addToast('User invitation cancelled', { appearance: 'success' });
-        refreshUserList();
+  // Enhanced status badge for invitation status
+  const getDetailedStatusBadge = (user) => {
+    const { status, tokenExpiry, createdAt, updatedAt } = user;
+    
+    const statusConfig = {
+      'active': {
+        icon: FiUserCheck,
+        bgColor: '#e8f5e8',
+        textColor: '#2e7d2e',
+        borderColor: '#a3d977',
+        label: 'Active',
+        timestamp: getTimeAgo(updatedAt)
+      },
+      'pending': {
+        icon: FiClock,
+        bgColor: '#fff3e0',
+        textColor: '#f57c00',
+        borderColor: '#ffcc02',
+        label: 'Pending',
+        timestamp: getTimeAgo(createdAt)
+      },
+      'expired': {
+        icon: FiUserX,
+        bgColor: '#ffebee',
+        textColor: '#c62828',
+        borderColor: '#ef9a9a',
+        label: 'Expired',
+        timestamp: getTimeAgo(tokenExpiry)
+      },
+      'deactivated': {
+        icon: FiUserX,
+        bgColor: '#f5f5f5',
+        textColor: '#666',
+        borderColor: '#ddd',
+        label: 'Deactivated',
+        timestamp: getTimeAgo(updatedAt)
       }
-    } catch (error) {
-      addToast('Failed to cancel invitation', { appearance: 'error' });
-    } finally {
-      setLoading(prev => ({ ...prev, [userData.id]: false }));
-    }
+    };
+
+    const config = statusConfig[status] || statusConfig['pending'];
+    const IconComponent = config.icon;
+    
+    return (
+      <div className="uk-flex uk-flex-column uk-flex-center">
+        <span style={{
+          backgroundColor: config.bgColor,
+          color: config.textColor,
+          border: `1px solid ${config.borderColor}`,
+          padding: '4px 8px',
+          borderRadius: '12px',
+          fontSize: '12px',
+          fontWeight: '500',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px'
+        }}>
+          <IconComponent size={12} />
+          {config.label}
+        </span>
+        <span style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>
+          {config.timestamp}
+        </span>
+      </div>
+    );
   };
 
   const columns = [
     {
-      name: 'Name',
-      selector: row => `${row.firstName} ${row.lastName}`,
+      name: 'User Info',
+      selector: (row) => row.firstName,
       sortable: true,
-      cell: row => (
-        <div style={{ display: 'flex', flexDirection: 'column', padding: '8px 0' }}>
-          <span style={{ fontWeight: 'bold', marginBottom: '2px' }}>
+      width: '200px',
+      cell: (row) => (
+        <div className="uk-flex uk-flex-column">
+          <div style={{ fontWeight: '500', fontSize: '14px' }}>
             {row.firstName} {row.lastName}
-          </span>
-          <span style={{ fontSize: '12px', color: '#666' }}>
+          </div>
+          <div style={{ fontSize: '12px', color: '#666' }}>
             @{row.username}
-          </span>
+          </div>
+          <div style={{ fontSize: '11px', color: '#999' }}>
+            {row.email}
+          </div>
         </div>
       ),
     },
     {
-      name: 'Email',
-      selector: row => row.email,
+      name: 'Invitation Status',
+      selector: (row) => row.isActive,
       sortable: true,
-      cell: row => (
-        <div style={{ fontSize: '13px' }}>
-          {row.email}
-        </div>
-      ),
+      width: '120px',
+      cell: (row) => getDetailedStatusBadge(row),
     },
     {
       name: 'Role',
-      selector: row => row.level,
+      selector: (row) => row.level,
       sortable: true,
-      cell: row => {
+      width: '130px',
+      cell: (row) => {
         const roleInfo = formatUserRole(row.level);
-        const badgeStyle = getRoleBadgeStyle(row.level);
         return (
-          <span
+          <span 
             style={{
-              ...badgeStyle,
+              ...getRoleBadgeStyle(row.level),
               padding: '4px 8px',
               borderRadius: '12px',
-              fontSize: '11px',
-              fontWeight: 'bold',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
+              fontSize: '12px',
+              fontWeight: '500',
+              display: 'inline-block',
+              textAlign: 'center',
+              cursor: 'help'
             }}
             title={roleInfo.tooltip}
           >
@@ -177,181 +267,180 @@ function Admin() {
       },
     },
     {
-      name: 'Status',
-      selector: row => row.status,
-      sortable: true,
-      cell: row => {
-        const statusStyles = {
-          'active': { backgroundColor: '#e8f5e8', color: '#2e7d32', icon: FiUserCheck },
-          'pending': { backgroundColor: '#fff3e0', color: '#f57c00', icon: FiClock },
-          'expired': { backgroundColor: '#ffebee', color: '#c62828', icon: FiUserX },
-          'deactivated': { backgroundColor: '#f5f5f5', color: '#666', icon: FiUserX }
-        };
+      name: 'Invitation Details',
+      sortable: false,
+      width: '160px',
+      cell: (row) => (
+        <div className="uk-flex uk-flex-column uk-text-small">
+          <div style={{ fontSize: '11px', color: '#666' }}>
+            <strong>Created:</strong> {formatDate(row.createdAt)}
+          </div>
+          {row.tokenExpiry && !row.isActive && (
+            <div style={{ fontSize: '11px', color: row.tokenExpiry && new Date() > new Date(row.tokenExpiry) ? '#c62828' : '#f57c00' }}>
+              <strong>Expires:</strong> {formatDate(row.tokenExpiry)}
+            </div>
+          )}
+          {row.isActive && (
+            <div style={{ fontSize: '11px', color: '#2e7d2e' }}>
+              <strong>Activated:</strong> {formatDate(row.updatedAt)}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      name: 'Quick Actions',
+      sortable: false,
+      width: '200px',
+      cell: (row) => {
+        const canResend = ['pending', 'expired'].includes(row.status);
         
-        const style = statusStyles[row.status] || statusStyles.deactivated;
-        const IconComponent = style.icon;
+        const getActionButton = () => {
+          switch (row.status) {
+            case 'pending':
+            case 'expired':
+              return {
+                text: 'Activate User',
+                className: 'uk-button-success',
+                title: 'Manually activate this user account'
+              };
+            case 'active':
+              return {
+                text: 'Deactivate User',
+                className: 'uk-button-danger',
+                title: 'Deactivate this user account'
+              };
+            case 'deactivated':
+              return {
+                text: 'Reactivate User',
+                className: 'uk-button-success',
+                title: 'Reactivate this user account'
+              };
+            default:
+              return {
+                text: 'Activate User',
+                className: 'uk-button-success',
+                title: 'Activate this user account'
+              };
+          }
+        };
+
+        const actionButton = getActionButton();
         
         return (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <IconComponent size={14} color={style.color} />
-            <span
-              style={{
-                ...style,
-                padding: '4px 8px',
-                borderRadius: '12px',
-                fontSize: '11px',
-                fontWeight: 'bold',
-                textTransform: 'capitalize'
-              }}
-            >
-              {row.status}
-            </span>
+          <div className="uk-flex uk-flex-column uk-flex-center" style={{ gap: '4px' }}>
+            <div className="uk-flex" style={{ gap: '4px' }}>
+              {canResend && (
+                <button
+                  className="uk-button uk-button-small uk-button-primary"
+                  style={{ 
+                    fontSize: '10px', 
+                    padding: '4px 8px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onClick={() => resendInvitation(row.id, row.email)}
+                  disabled={loading[`resend_${row.id}`]}
+                  title="Resend invitation email to this user"
+                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                >
+                  {loading[`resend_${row.id}`] ? (
+                    <div data-uk-spinner="ratio: 0.5" />
+                  ) : (
+                    <>
+                      <FiMail size={12} style={{ marginRight: '4px' }} />
+                      Resend Invite
+                    </>
+                  )}
+                </button>
+              )}
+              
+              <button
+                className={`uk-button uk-button-small ${actionButton.className}`}
+                style={{ 
+                  fontSize: '10px', 
+                  padding: '4px 8px',
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => toggleUserStatus(row.id, row.status, row.username)}
+                disabled={loading[`toggle_${row.id}`]}
+                title={actionButton.title}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              >
+                {loading[`toggle_${row.id}`] ? (
+                  <div data-uk-spinner="ratio: 0.5" />
+                ) : (
+                  <>
+                    {row.status === 'active' ? (
+                      <FiToggleRight size={12} style={{ marginRight: '4px' }} />
+                    ) : (
+                      <FiToggleLeft size={12} style={{ marginRight: '4px' }} />
+                    )}
+                    {actionButton.text}
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         );
       },
     },
     {
-      name: 'Actions',
-      cell: row => (
-        <div className="data-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* Show different actions based on status */}
-          {row.status === 'pending' && (
-            <>
-              <a
-                onClick={() => handleResendActivation(row)}
-                style={{
-                  color: '#2e7d32',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#e8f5e8',
-                  border: 'none',
-                  textDecoration: 'none'
-                }}
-                title="Resend activation email"
-              >
-                <FiMail size={12} />
-                Resend
-              </a>
-              <a
-                onClick={() => handleCancelActivation(row)}
-                style={{
-                  color: '#c62828',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: '#ffebee',
-                  border: 'none',
-                  textDecoration: 'none'
-                }}
-                title="Cancel activation"
-              >
-                <FiX size={12} />
-                Cancel
-              </a>
-            </>
-          )}
-          
-          {row.status === 'active' && (
-            <a
-              onClick={() => handleUserActivation(row, 'deactivate')}
-              style={{
-                color: '#f57c00',
-                cursor: 'pointer',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                backgroundColor: '#fff3e0',
-                border: 'none',
-                textDecoration: 'none'
-              }}
-              title="Deactivate user"
-            >
-              <FiToggleLeft size={12} />
-              Deactivate
-            </a>
-          )}
-          
-          {row.status === 'deactivated' && (
-            <a
-              onClick={() => handleUserActivation(row, 'activate')}
-              style={{
-                color: '#2e7d32',
-                cursor: 'pointer',
-                fontSize: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                backgroundColor: '#e8f5e8',
-                border: 'none',
-                textDecoration: 'none'
-              }}
-              title="Activate user"
-            >
-              <FiToggleRight size={12} />
-              Activate
-            </a>
-          )}
-
-          {/* Edit button - always show */}
+      name: 'Manage',
+      sortable: false,
+      width: '100px',
+      cell: (row) => (
+        <div className="uk-flex uk-flex-column" style={{ gap: '4px' }}>
           <a
+            className="uk-link-text uk-text-small"
             onClick={() => {
               setUser(row);
               setPopup('edit');
             }}
-            style={{
-              color: '#1976d2',
+            style={{ 
+              fontSize: '11px', 
               cursor: 'pointer',
-              fontSize: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              backgroundColor: '#e3f2fd',
-              border: 'none',
-              textDecoration: 'none'
+              transition: 'all 0.2s ease',
+              padding: '2px 4px',
+              borderRadius: '4px'
             }}
-            title="Edit user details"
+            title="Edit this user's profile and permissions"
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#f8f8f8';
+              e.target.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'transparent';
+              e.target.style.transform = 'scale(1)';
+            }}
           >
-            Edit
+            Edit User
           </a>
-
-          {/* Delete button - always show */}
           <a
+            className="uk-link-text uk-text-small uk-text-danger"
             onClick={() => {
               setUser(row);
               setPopup('delete');
             }}
-            style={{
-              color: '#c62828',
+            style={{ 
+              fontSize: '11px', 
               cursor: 'pointer',
-              fontSize: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              backgroundColor: '#ffebee',
-              border: 'none',
-              textDecoration: 'none'
+              transition: 'all 0.2s ease',
+              padding: '2px 4px',
+              borderRadius: '4px'
             }}
-            title="Delete user permanently"
+            title="Permanently delete this user and all associated data"
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#ffebee';
+              e.target.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'transparent';
+              e.target.style.transform = 'scale(1)';
+            }}
           >
-            Delete
+            Delete User
           </a>
         </div>
       ),
@@ -389,148 +478,231 @@ function Admin() {
 
   const data = getFilteredUsers();
 
-  // Calculate user statistics for analytics - FIXED COUNTS
+  // Calculate user statistics for analytics
   const getUserStatistics = () => {
     const totalUsers = users.length;
     const activeUsers = users.filter(u => u.status === 'active').length;
     const pendingUsers = users.filter(u => u.status === 'pending').length;
     const expiredUsers = users.filter(u => u.status === 'expired').length;
     const deactivatedUsers = users.filter(u => u.status === 'deactivated').length;
-
-    return {
-      total: totalUsers,
-      active: activeUsers,
-      pending: pendingUsers,
-      expired: expiredUsers,
-      deactivated: deactivatedUsers
-    };
+    
+    return { totalUsers, activeUsers, pendingUsers, expiredUsers, deactivatedUsers };
   };
 
   const stats = getUserStatistics();
 
   return (
-    <div className="admin">
+    <div className="admin content uk-flex uk-flex-column">
       <TopBar back={back} />
-      <div className="data-table">
-        <div className="data-create">
-          <button
-            className="uk-button uk-button-honey"
-            onClick={() => setPopup('create')}
-          >
-            <FiUserPlus style={{ marginRight: '8px' }} />
-            Invite User
-          </button>
+      
+      <div className="search-bar uk-flex uk-flex-center uk-flex-middle">
+        <div className="icon" onClick={() => searchInput.current.focus()}>
+          <FiSearch />
         </div>
-
-        {/* Status filter tabs with FIXED STYLING */}
-        <div style={{ 
-          display: 'flex', 
-          borderBottom: '2px solid #e0e0e0', 
-          marginBottom: '20px',
-          backgroundColor: '#f8f9fa'
-        }}>
-          {[
-            { key: 'all', label: 'All Users', count: stats.total },
-            { key: 'active', label: 'Active', count: stats.active },
-            { key: 'pending', label: 'Pending', count: stats.pending },
-            { key: 'expired', label: 'Expired', count: stats.expired },
-            { key: 'deactivated', label: 'Deactivated', count: stats.deactivated }
-          ].map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setStatusFilter(tab.key)}
-              style={{
-                padding: '12px 20px',
-                border: 'none',
-                borderBottom: statusFilter === tab.key ? '3px solid #1976d2' : '3px solid transparent',
-                // FIXED: Selected tab styling
-                backgroundColor: statusFilter === tab.key ? '#ffffff' : 'transparent',
-                color: statusFilter === tab.key ? '#1976d2' : '#666',
-                fontWeight: statusFilter === tab.key ? 'bold' : 'normal',
-                cursor: 'pointer',
-                fontSize: '14px',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              {tab.label} ({tab.count})
-            </button>
-          ))}
+        <div className="uk-inline search">
+          <input className="uk-input uk-border-pill" placeholder="Search users..." ref={searchInput} onChange={onChange} />
         </div>
-
-        {/* Search bar */}
-        <div className="search-bar" style={{ marginBottom: '20px' }}>
-          <div style={{ position: 'relative', maxWidth: '400px' }}>
-            <FiSearch 
+        <button 
+          className="uk-button uk-button-default uk-margin-small-left"
+          onClick={refreshUserList}
+          title="Refresh the user list to see latest changes"
+          style={{ transition: 'all 0.2s ease' }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'scale(1.05)';
+            e.target.style.backgroundColor = '#f8f8f8';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'scale(1)';
+            e.target.style.backgroundColor = '';
+          }}
+        >
+          <FiRefreshCw size={16} />
+        </button>
+      </div>
+      
+      {/* Status Filter Tabs with Counts */}
+      <div className="uk-flex uk-flex-center uk-margin-small">
+        <div className="uk-subnav uk-subnav-pill" data-uk-subnav>
+          <li className={statusFilter === 'all' ? 'uk-active' : ''}>
+            <a 
+              onClick={() => setStatusFilter('all')}
+              title="Show all users regardless of status"
               style={{ 
-                position: 'absolute', 
-                left: '12px', 
-                top: '50%', 
-                transform: 'translateY(-50%)', 
-                color: '#666' 
-              }} 
-            />
-            <input
-              ref={searchInput}
-              type="text"
-              placeholder="Search users..."
-              value={searchText}
-              onChange={onChange}
-              style={{
-                width: '100%',
-                padding: '10px 10px 10px 40px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '14px'
-              }}
-            />
-          </div>
-        </div>
-
-        {/* User statistics summary */}
-        <div style={{ 
-          marginBottom: '20px', 
-          padding: '15px', 
-          backgroundColor: '#f8f9fa', 
-          borderRadius: '6px',
-          border: '1px solid #e9ecef'
-        }}>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center' 
-          }}>
-            <div>
-              <span style={{ fontWeight: 'bold', fontSize: '16px' }}>
-                {statusFilter === 'all' ? 
-                 `Showing all ${data.length} users` : 
-                 statusFilter === 'active' ? `Showing ${data.length} active users` :
-                 statusFilter === 'pending' ? `Showing ${data.length} pending users` :
-                 statusFilter === 'expired' ? `Showing ${data.length} expired invitations` :
-                 `Showing ${data.length} deactivated users`}
-              </span>
-            </div>
-            <button
-              onClick={refreshUserList}
-              style={{
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '8px 12px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                backgroundColor: '#fff',
-                cursor: 'pointer',
-                fontSize: '12px'
+                color: statusFilter === 'all' ? '#333' : 'inherit', // Dark text when active
+                whiteSpace: 'nowrap' // Prevent text wrapping
               }}
+              onMouseEnter={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '#f8f8f8')}
+              onMouseLeave={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '')}
             >
-              <FiRefreshCw size={12} />
-              Refresh
-            </button>
-          </div>
+              All
+              <span style={{
+                backgroundColor: statusFilter === 'all' ? '#333' : '#666', // Darker when active
+                color: 'white',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: '500',
+                minWidth: '20px',
+                textAlign: 'center'
+              }}>
+                {stats.totalUsers}
+              </span>
+            </a>
+          </li>
+          <li className={statusFilter === 'active' ? 'uk-active' : ''}>
+            <a 
+              onClick={() => setStatusFilter('active')}
+              title="Show only users who have completed registration"
+              style={{ 
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: statusFilter === 'active' ? '#333' : 'inherit', // Dark text when active
+                whiteSpace: 'nowrap' // Prevent text wrapping
+              }}
+              onMouseEnter={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '#f8f8f8')}
+              onMouseLeave={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '')}
+            >
+              Active
+              <span style={{
+                backgroundColor: statusFilter === 'active' ? '#1e5f1e' : '#2e7d2e', // Darker green when active
+                color: 'white',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: '500',
+                minWidth: '20px',
+                textAlign: 'center'
+              }}>
+                {stats.activeUsers}
+              </span>
+            </a>
+          </li>
+          <li className={statusFilter === 'pending' ? 'uk-active' : ''}>
+            <a 
+              onClick={() => setStatusFilter('pending')}
+              title="Show users with pending invitations"
+              style={{ 
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: statusFilter === 'pending' ? '#333' : 'inherit',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '#f8f8f8')}
+              onMouseLeave={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '')}
+            >
+              Pending
+              <span style={{
+                backgroundColor: statusFilter === 'pending' ? '#cc5500' : '#f57c00',
+                color: 'white',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: '500',
+                minWidth: '20px',
+                textAlign: 'center'
+              }}>
+                {stats.pendingUsers}
+              </span>
+            </a>
+          </li>
+          <li className={statusFilter === 'expired' ? 'uk-active' : ''}>
+            <a 
+              onClick={() => setStatusFilter('expired')}
+              title="Show users with expired invitations"
+              style={{ 
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: statusFilter === 'expired' ? '#333' : 'inherit',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '#f8f8f8')}
+              onMouseLeave={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '')}
+            >
+              Expired
+              <span style={{
+                backgroundColor: statusFilter === 'expired' ? '#8b1a1a' : '#c62828',
+                color: 'white',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: '500',
+                minWidth: '20px',
+                textAlign: 'center'
+              }}>
+                {stats.expiredUsers}
+              </span>
+            </a>
+          </li>
+          <li className={statusFilter === 'deactivated' ? 'uk-active' : ''}>
+            <a 
+              onClick={() => setStatusFilter('deactivated')}
+              title="Show deactivated users"
+              style={{ 
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: statusFilter === 'deactivated' ? '#333' : 'inherit',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '#f8f8f8')}
+              onMouseLeave={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '')}
+            >
+              Deactivated
+              <span style={{
+                backgroundColor: statusFilter === 'deactivated' ? '#666' : '#999',
+                color: 'white',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: '500',
+                minWidth: '20px',
+                textAlign: 'center'
+              }}>
+                {stats.deactivatedUsers}
+              </span>
+            </a>
+          </li>
         </div>
-
-        {/* Data table */}
-        <div style={{ backgroundColor: '#fff', borderRadius: '6px', overflow: 'hidden' }}>
+      </div>
+      
+      <div className="content uk-flex uk-flex-center uk-flex-middle uk-flex-column">
+        <div className="data-table" style={{ background: '#fff', width: '100%', maxWidth: '1200px' }}>
+          <div className="data-create uk-flex uk-flex-between uk-flex-middle">
+            <button 
+              className="uk-button uk-button-primary" 
+              onClick={() => setPopup('create')}
+              style={{ transition: 'all 0.2s ease' }}
+              title="Send an invitation to a new user to join your organization"
+              onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
+              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+            >
+              <FiUserPlus size={16} style={{ marginRight: '8px' }} />
+              Invite User
+            </button>
+            <div className="uk-text-small uk-text-muted">
+              {statusFilter === 'all' ? `Showing all ${data.length} users` : 
+               statusFilter === 'active' ? `Showing ${data.length} active users` :
+               statusFilter === 'pending' ? `Showing ${data.length} pending users` :
+               statusFilter === 'expired' ? `Showing ${data.length} expired invitations` :
+               `Showing ${data.length} deactivated users`}
+            </div>
+          </div>
           <DataTable
             columns={columns}
             data={data}
