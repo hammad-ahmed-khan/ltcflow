@@ -5,5 +5,11 @@
   "private": true,
   "engines": {
     "node": "18.x.x"
+  },
+  "dependencies": {
+    "colors": "^1.4.0",
+    "prompts": "^2.4.2",
+    "uuid": "^11.1.0",
+    "validator": "^13.15.15"
   }
 }
