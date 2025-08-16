@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# Build outputs
+frontend/build/
+frontend/dist/
+
+# Data files
+backend/data/
+
+# Deployment
+.deploy/
+deploy/
+
+# IDE
+.idea/
+
+# Scripts
+version.sh
+version.json
+info.txt
+
+# Environment files
+.env
+.env.*
+
+# Logs
+*.log
+logs/
