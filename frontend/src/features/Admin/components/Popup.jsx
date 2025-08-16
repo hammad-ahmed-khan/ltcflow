@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useGlobal } from 'reactn';
 import './Popup.sass';
 import { FiX } from 'react-icons/fi';
 import { useToasts } from 'react-toast-notifications';
@@ -24,8 +25,91 @@ function Input({
   );
 }
 
+function UserTierSelect({ value, onChange, currentUserLevel }) {
+  // Define available tiers based on current user's level
+  const getAvailableTiers = () => {
+    const allTiers = [
+      { value: 'user', label: 'Standard User', description: 'Can only chat with assigned groups' },
+      { value: 'manager', label: 'Group Manager', description: 'Can create groups and join any group' },
+      { value: 'admin', label: 'Administrator', description: 'Can administrate the system' }
+    ];
+
+    if (currentUserLevel === 'root') {
+      // Super Admin can create all user types
+      return allTiers;
+    } else if (currentUserLevel === 'admin') {
+      // Administrators cannot create other administrators
+      return allTiers.slice(0, 2);
+    } else {
+      // Other users cannot create users (this shouldn't happen in normal flow)
+      return [];
+    }
+  };
+
+  const availableTiers = getAvailableTiers();
+
+  return (
+    <div className="uk-margin-small-top">
+      <div className="uk-inline uk-width-1-1">
+        <span className="uk-form-icon uk-form-icon-flip" data-uk-icon="icon: users" />
+        <select
+          className="uk-select uk-margin-remove uk-width-1-1"
+          value={value}
+          onChange={onChange}
+          required
+          style={{ paddingLeft: '40px', width: '100%' }}
+        >
+          <option value="">Select User Role</option>
+          {availableTiers.map((tier) => (
+            <option key={tier.value} value={tier.value}>
+              {tier.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {value && (
+        <div 
+          className="uk-text-small uk-margin-small-top uk-flex uk-flex-middle uk-padding-small uk-border-rounded" 
+          style={{ 
+            color: '#555', 
+            paddingLeft: '40px',
+            backgroundColor: value === 'user' ? '#f0f9ff' : 
+                            value === 'manager' ? '#f8fafc' : 
+                            '#fffbeb',
+            border: `1px solid ${
+              value === 'user' ? '#3b82f6' : 
+              value === 'manager' ? '#6366f1' : 
+              '#f59e0b'
+            }`,
+            borderRadius: '6px'
+          }}
+        >
+          <span 
+            className="uk-margin-small-right" 
+            data-uk-icon={`icon: ${
+              value === 'user' ? 'user' : 
+              value === 'manager' ? 'users' : 
+              'star'
+            }; ratio: 0.9`}
+            style={{ 
+              color: value === 'user' ? '#3b82f6' : 
+                     value === 'manager' ? '#6366f1' : 
+                     '#f59e0b'
+            }}
+          />
+          <span style={{ fontWeight: '500' }}>
+            {availableTiers.find(tier => tier.value === value)?.description}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AddPeers({ onClose, type, user }) {
   const { addToast } = useToasts();
+  const [currentUser] = useGlobal('user');
+  const currentUserLevel = currentUser?.level || '';
 
   const [firstName, setFirstName] = useState(user ? user.firstName : '');
   const [lastName, setLastName] = useState(user ? user.lastName : '');
@@ -33,6 +117,7 @@ function AddPeers({ onClose, type, user }) {
   const [username, setUsername] = useState(user ? user.username : '');
   const [password, setPassword] = useState('');
   const [repeatPassword, setRepeatPassword] = useState('');
+  const [userTier, setUserTier] = useState(user ? user.level : '');
   const [errors, setErrors] = useState(null);
 
   const okToast = (content) => {
@@ -70,6 +155,7 @@ function AddPeers({ onClose, type, user }) {
         repeatPassword,
         firstName,
         lastName,
+        level: userTier, // Include user tier in creation
       });
       okToast(`User ${username} has been created`);
       onClose(true);
@@ -89,6 +175,7 @@ function AddPeers({ onClose, type, user }) {
         repeatPassword,
         firstName,
         lastName,
+        level: userTier, // Include user tier in update
         user,
       });
       okToast(`User ${username} has been edited`);
@@ -108,6 +195,30 @@ function AddPeers({ onClose, type, user }) {
       errorToast(`Failed to delete user ${username}`);
     }
   };
+
+  // Check if current user has permission to manage users
+  const canManageUsers = ['root', 'admin'].includes(currentUserLevel);
+
+  if (!canManageUsers) {
+    return (
+      <div className="admin-overlay">
+        <div className="box">
+          <div className="top-controls">
+            <div className="title">Access Denied</div>
+            <div className="close" onClick={onClose}>
+              <FiX />
+            </div>
+          </div>
+          <div className="uk-flex uk-flex-column uk-flex-center uk-flex-middle" style={{ padding: '20px' }}>
+            <div className="uk-text-center">You don't have permission to manage users.</div>
+            <button className="uk-button uk-button-secondary uk-margin-top" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-overlay">
@@ -134,6 +245,7 @@ function AddPeers({ onClose, type, user }) {
                 onChange={(e) => setUsername(e.target.value)}
               />
               {errors && errors.username && <div className="admin-form-error">{errors.username}</div>}
+              
               <Input
                 icon="mail"
                 placeholder="Email"
@@ -143,6 +255,7 @@ function AddPeers({ onClose, type, user }) {
                 onChange={(e) => setEmail(e.target.value)}
               />
               {errors && errors.email && <div className="admin-form-error">{errors.email}</div>}
+              
               <Input
                 icon="pencil"
                 placeholder="First Name"
@@ -152,6 +265,7 @@ function AddPeers({ onClose, type, user }) {
                 onChange={(e) => setFirstName(e.target.value)}
               />
               {errors && errors.firstName && <div className="admin-form-error">{errors.firstName}</div>}
+              
               <Input
                 icon="pencil"
                 placeholder="Last Name"
@@ -161,6 +275,14 @@ function AddPeers({ onClose, type, user }) {
                 onChange={(e) => setLastName(e.target.value)}
               />
               {errors && errors.lastName && <div className="admin-form-error">{errors.lastName}</div>}
+
+              <UserTierSelect
+                value={userTier}
+                onChange={(e) => setUserTier(e.target.value)}
+                currentUserLevel={currentUserLevel}
+              />
+              {errors && errors.level && <div className="admin-form-error">{errors.level}</div>}
+              
               <Input
                 icon="lock"
                 placeholder="Password"
@@ -170,6 +292,7 @@ function AddPeers({ onClose, type, user }) {
                 onChange={(e) => setPassword(e.target.value)}
               />
               {errors && errors.password && <div className="admin-form-error">{errors.password}</div>}
+              
               <Input
                 icon="lock"
                 placeholder="Repeat Password"
@@ -179,6 +302,7 @@ function AddPeers({ onClose, type, user }) {
                 onChange={(e) => setRepeatPassword(e.target.value)}
               />
               {errors && errors.repeatPassword && <div className="admin-form-error">{errors.repeatPassword}</div>}
+              
               <button type="submit" style={{ marginBottom: 4 }} className="uk-button uk-button-honey uk-margin-top">
                 {type === 'edit' ? 'Update' : 'Create'}
                 {' '}
@@ -188,7 +312,7 @@ function AddPeers({ onClose, type, user }) {
                 Cancel
               </button>
               {type === 'edit' && (
-                <div className="uk-text-center notice">Leave password blank if you don not want to change it.</div>
+                <div className="uk-text-center notice">Leave password blank if you do not want to change it.</div>
               )}
             </form>
             <div className="padding" />
