@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useGlobal } from 'reactn';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import jwtDecode from 'jwt-decode';
 import { useDispatch } from 'react-redux';
 import { useToasts } from 'react-toast-notifications';
@@ -11,29 +11,32 @@ import Input from './components/Input';
 import './Login.sass';
 import Config from '../../config';
 import login from '../../actions/login';
-import register from '../../actions/register';
 import setAuthToken from '../../actions/setAuthToken';
 import initIO from '../../actions/initIO';
 import getInfo from '../../actions/getInfo';
+import apiClient from '../../api/apiClient';
 import backgroundImage from '../../assets/background.jpg';
 
 function Login() {
   const dispatch = useDispatch();
   const { addToast } = useToasts();
+  const location = useLocation();
   const [info, setInfo] = useState({});
 
+  // Login form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [keep, setKeep] = useState(true);
   const [loginErrors, setLoginErrors] = useState({});
 
-  const [registerUsername, setRegisterUsername] = useState('');
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerFirstName, setRegisterFirstName] = useState('');
-  const [registerLastName, setRegisterLastName] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [registerRepeatPassword, setRegisterRepeatPassword] = useState('');
-  const [registerErrors, setRegisterErrors] = useState({});
+  // Activation form state
+  const [activationToken, setActivationToken] = useState('');
+  const [activationEmail, setActivationEmail] = useState('');
+  const [activationPassword, setActivationPassword] = useState('');
+  const [activationRepeatPassword, setActivationRepeatPassword] = useState('');
+  const [activationErrors, setActivationErrors] = useState({});
+  const [activationLoading, setActivationLoading] = useState(false);
+  const [isActivationMode, setIsActivationMode] = useState(false);
 
   const setToken = useGlobal('token')[1];
   const setUser = useGlobal('user')[1];
@@ -60,10 +63,18 @@ function Login() {
       );
     }
 
+    // Check if we're coming from an activation link
+    const urlParams = new URLSearchParams(location.search);
+    const tokenFromUrl = urlParams.get('token');
+    if (tokenFromUrl) {
+      setActivationToken(tokenFromUrl);
+      setIsActivationMode(true);
+    }
+
     getInfo().then((res) => {
       setInfo(res.data);
     });
-  }, []);
+  }, [location]);
 
   const onLogin = async (e) => {
     e.preventDefault();
@@ -80,36 +91,91 @@ function Login() {
       await setEntryPath(null);
     } catch (e) {
       let errors = {};
-      if (!e.response || typeof e.response.data !== 'object') errors.generic = 'Could not connect to server.';
-      else errors = e.response.data;
+      if (!e.response || typeof e.response.data !== 'object') {
+        errors.generic = 'Could not connect to server.';
+      } else {
+        errors = e.response.data;
+      }
       setLoginErrors(errors);
     }
   };
 
-  const onRegister = async (e) => {
+  const onActivation = async (e) => {
     e.preventDefault();
-    try {
-      await register({
-        username: registerUsername,
-        email: registerEmail,
-        firstName: registerFirstName,
-        lastName: registerLastName,
-        password: registerPassword,
-        repeatPassword: registerRepeatPassword,
-      });
-      const res = await login(registerEmail, registerPassword);
-      setRegisterErrors({});
-      if (keep) localStorage.setItem('token', res.data.token);
-      setAuthToken(res.data.token);
-      setUser(jwtDecode(res.data.token));
-      setToken(res.data.token);
-      dispatch(initIO(res.data.token));
-    } catch (e) {
-      let errors = {};
-      if (!e.response || typeof e.response.data !== 'object') errors.generic = 'Could not connect to server.';
-      else errors = e.response.data;
-      setRegisterErrors(errors);
+    setActivationLoading(true);
+    setActivationErrors({});
+
+    // Client-side validation
+    const newErrors = {};
+    if (!activationToken) newErrors.token = 'Activation token is required';
+    if (!activationEmail) newErrors.email = 'Email address is required';
+    if (!activationPassword) newErrors.password = 'Password is required';
+    if (!activationRepeatPassword) newErrors.repeatPassword = 'Please confirm your password';
+    if (activationPassword !== activationRepeatPassword) {
+      newErrors.password = 'Passwords do not match';
+      newErrors.repeatPassword = 'Passwords do not match';
     }
+    if (activationPassword.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters long';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setActivationErrors(newErrors);
+      setActivationLoading(false);
+      return;
+    }
+
+    try {
+      const response = await apiClient.post('/api/activate-user', {
+        token: activationToken,
+        email: activationEmail,
+        password: activationPassword,
+        repeatPassword: activationRepeatPassword
+      });
+
+      if (response.data.status === 'success') {
+        addToast('Account activated successfully! You can now log in.', {
+          appearance: 'success',
+          autoDismiss: true,
+        });
+        
+        // Switch back to login form
+        setIsActivationMode(false);
+        setActivationToken('');
+        setActivationEmail('');
+        setActivationPassword('');
+        setActivationRepeatPassword('');
+        
+        // Pre-fill email for login
+        if (response.data.user && response.data.user.email) {
+          setEmail(response.data.user.email);
+        }
+      }
+    } catch (error) {
+      let errors = {};
+      if (!error.response || typeof error.response.data !== 'object') {
+        errors.generic = 'Could not connect to server.';
+      } else if (error.response.data.error) {
+        errors.generic = error.response.data.error;
+      } else {
+        errors = error.response.data;
+      }
+      setActivationErrors(errors);
+    } finally {
+      setActivationLoading(false);
+    }
+  };
+
+  const toggleToActivation = () => {
+    setIsActivationMode(true);
+    setLoginErrors({});
+    setActivationErrors({});
+  };
+
+  const toggleToLogin = () => {
+    setIsActivationMode(false);
+    setLoginErrors({});
+    setActivationErrors({});
   };
 
   const loginInfo = Object.keys(loginErrors).map((key) => (
@@ -118,9 +184,9 @@ function Login() {
     </div>
   ));
 
-  const registerInfo = Object.keys(registerErrors).map((key) => (
+  const activationInfo = Object.keys(activationErrors).map((key) => (
     <div className="uk-text-center" key={key}>
-      <span className="uk-text-danger">{registerErrors[key]}</span>
+      <span className="uk-text-danger">{activationErrors[key]}</span>
     </div>
   ));
 
@@ -139,19 +205,22 @@ function Login() {
             <Logo />
 
             <div className="toggle-credits">
-              <form className="toggle-class" onSubmit={onLogin}>
+              {/* Login Form */}
+              <form className="toggle-class" onSubmit={onLogin} hidden={isActivationMode}>
                 <fieldset className="uk-fieldset">
                   {loginInfo}
                   <Input
                     icon="user"
                     placeholder="Username (or email)"
                     type="text"
+                    value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                   <Input
                     icon="lock"
                     placeholder="Password"
                     type="password"
+                    value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
                   <div className="uk-margin-small">
@@ -174,49 +243,74 @@ function Login() {
                 </fieldset>
               </form>
 
-              <form className="toggle-class" onSubmit={onRegister} hidden>
-                {registerInfo}
-                <Input
-                  icon="user"
-                  placeholder="Username"
-                  type="text"
-                  onChange={(e) => setRegisterUsername(e.target.value)}
-                />
-                <Input
-                  icon="mail"
-                  placeholder="Email"
-                  type="email"
-                  onChange={(e) => setRegisterEmail(e.target.value)}
-                />
-                <Input
-                  icon="pencil"
-                  placeholder="First Name"
-                  type="text"
-                  onChange={(e) => setRegisterFirstName(e.target.value)}
-                />
-                <Input
-                  icon="pencil"
-                  placeholder="Last Name"
-                  type="text"
-                  onChange={(e) => setRegisterLastName(e.target.value)}
-                />
-                <Input
-                  icon="lock"
-                  placeholder="Password"
-                  type="password"
-                  onChange={(e) => setRegisterPassword(e.target.value)}
-                />
-                <Input
-                  icon="lock"
-                  placeholder="Repeat Password"
-                  type="password"
-                  onChange={(e) => setRegisterRepeatPassword(e.target.value)}
-                />
-                <div className="uk-margin-bottom">
-                  <button type="submit" className="uk-button uk-button-primary uk-border-pill uk-width-1-1">
-                    REGISTER
-                  </button>
-                </div>
+              {/* Activation Form (replaces registration) */}
+              <form className="toggle-class" onSubmit={onActivation} hidden={!isActivationMode}>
+                <fieldset className="uk-fieldset">
+                  <div className="uk-text-center uk-margin-bottom">
+                    <h3 className="uk-text-bold">Activate Your Account</h3>
+                    <p className="uk-text-small uk-text-muted">
+                      Enter your activation token, email address, and set your password
+                    </p>
+                  </div>
+                  
+                  {activationInfo}
+                  
+                  <Input
+                    icon="key"
+                    placeholder="Activation Token"
+                    type="text"
+                    value={activationToken}
+                    onChange={(e) => setActivationToken(e.target.value)}
+                    required
+                  />
+                  <Input
+                    icon="mail"
+                    placeholder="Your Email Address"
+                    type="email"
+                    value={activationEmail}
+                    onChange={(e) => setActivationEmail(e.target.value)}
+                    required
+                  />
+                  <Input
+                    icon="lock"
+                    placeholder="Password"
+                    type="password"
+                    value={activationPassword}
+                    onChange={(e) => setActivationPassword(e.target.value)}
+                    required
+                  />
+                  <Input
+                    icon="lock"
+                    placeholder="Confirm Password"
+                    type="password"
+                    value={activationRepeatPassword}
+                    onChange={(e) => setActivationRepeatPassword(e.target.value)}
+                    required
+                  />
+                  
+                  <div className="uk-margin-bottom">
+                    <button 
+                      type="submit" 
+                      className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
+                      disabled={activationLoading}
+                    >
+                      {activationLoading ? (
+                        <>
+                          <div data-uk-spinner="ratio: 0.8" className="uk-margin-small-right" />
+                          ACTIVATING...
+                        </>
+                      ) : (
+                        'ACTIVATE ACCOUNT'
+                      )}
+                    </button>
+                  </div>
+                  
+                  <div className="uk-text-center">
+                    <p className="uk-text-small uk-text-muted">
+                      By activating your account, you agree to our terms of service.
+                    </p>
+                  </div>
+                </fieldset>
               </form>
 
               <form className="toggle-password" hidden>
@@ -230,24 +324,34 @@ function Login() {
 
               <div>
                 <div className="uk-text-center">
-                  <a
-                    className="uk-link-reset uk-text-small toggle-class"
-                    data-uk-toggle="target: .toggle-class ;animation: uk-animation-fade"
-                  >
-                    Need an account? Register now!
-                  </a>
-                  <a
-                    className="uk-link-reset uk-text-small toggle-class"
-                    data-uk-toggle="target: .toggle-class ;animation: uk-animation-fade"
-                    hidden
-                  >
-                    <span data-uk-icon="arrow-left" />
-                    {' '}
-                    Back to Login
-                  </a>
+                  {!isActivationMode ? (
+                    <a
+                      className="uk-link-reset uk-text-small"
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleToActivation();
+                      }}
+                    >
+                      Have an activation token? Activate account!
+                    </a>
+                  ) : (
+                    <a
+                      className="uk-link-reset uk-text-small"
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleToLogin();
+                      }}
+                    >
+                      <span data-uk-icon="arrow-left" />
+                      {' '}
+                      Back to Login
+                    </a>
+                  )}
                 </div>
 
-                {info.nodemailerEnabled && (
+                {info.nodemailerEnabled && !isActivationMode && (
                   <div className="uk-text-center" style={{ marginTop: 12 }}>
                     <a className="uk-link-reset uk-text-small" href="#">
                       <Link to="/forgot-password">Forgot your password?</Link>
