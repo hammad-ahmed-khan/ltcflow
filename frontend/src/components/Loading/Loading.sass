@@ -1,0 +1,92 @@
+// Loading Component Styles
+
+.loading-fullscreen
+  z-index: 9999
+  backdrop-filter: blur(2px)
+
+.loading-overlay
+  min-height: 200px
+
+.loading-content
+  .uk-text-lead
+    font-weight: 300
+    opacity: 0.8
+
+// Dots Loading Animation
+.loading-dots
+  display: flex
+  justify-content: center
+  align-items: center
+  gap: 8px
+  
+  .dot
+    width: 12px
+    height: 12px
+    border-radius: 50%
+    background-color: #1e87f0
+    animation: dotPulse 1.4s infinite ease-in-out both
+    
+    &:nth-child(1)
+      animation-delay: -0.32s
+      
+    &:nth-child(2) 
+      animation-delay: -0.16s
+
+@keyframes dotPulse
+  0%, 80%, 100%
+    transform: scale(0)
+    opacity: 0.5
+  40%
+    transform: scale(1)
+    opacity: 1
+
+// Pulse Loading Animation  
+.loading-pulse
+  width: 40px
+  height: 40px
+  border-radius: 50%
+  background-color: #1e87f0
+  animation: pulse 1.5s infinite ease-in-out
+  
+@keyframes pulse
+  0%
+    transform: scale(0)
+    opacity: 1
+  100%
+    transform: scale(1)
+    opacity: 0
+
+// Size variations for pulse
+.loading-content
+  &.loading-small .loading-pulse
+    width: 24px
+    height: 24px
+    
+  &.loading-large .loading-pulse
+    width: 56px
+    height: 56px
+    
+  &.loading-xlarge .loading-pulse
+    width: 72px  
+    height: 72px
+
+// Dark theme support
+.uk-light .loading-dots .dot,
+.uk-light .loading-pulse
+  background-color: #fff
+
+.uk-dark .loading-dots .dot,
+.uk-dark .loading-pulse  
+  background-color: #1e87f0
+
+// Fade in animation for loading content
+.loading-content
+  animation: fadeIn 0.3s ease-in-out
+
+@keyframes fadeIn
+  from
+    opacity: 0
+    transform: translateY(-10px)
+  to  
+    opacity: 1
+    transform: translateY(0)

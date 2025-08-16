@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Builder Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            background: linear-gradient(45deg, #fff, #e0e7ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .tab {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .tab.active {
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #4a5568;
+            margin-bottom: 25px;
+            font-size: 1.6rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 14px;
+        }
+
+        .form-group input, 
+        .form-group textarea, 
+        .form-group select {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-group input:focus, 
+        .form-group textarea:focus, 
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 5px;
+            outline: none;
+        }
+
+        .slider-value {
+            background: #667eea;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 45px;
+            text-align: center;
+        }
+
+        .file-upload {
+            position: relative;
+            display: block;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-upload-label {
+            display: block;
+            padding: 30px;
+            border: 2px dashed #cbd5e0;
+            border-radius: 15px;
+            text-align: center;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            transition: all 0.3s ease;
+            font-size: 16px;
+        }
+
+        .file-upload:hover .file-upload-label {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #edf2f7 0%, #e2e8f0 100%);
+            transform: translateY(-2px);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #667eea;
+            color: #667eea;
+        }
+
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.5s ease;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background-image: linear-gradient(
+                -45deg,
+                rgba(255, 255, 255, .2) 25%,
+                transparent 25%,
+                transparent 50%,
+                rgba(255, 255, 255, .2) 50%,
+                rgba(255, 255, 255, .2) 75%,
+                transparent 75%,
+                transparent
+            );
+            background-size: 50px 50px;
+            animation: move 2s linear infinite;
+        }
+
+        @keyframes move {
+            0% { background-position: 0 0; }
+            100% { background-position: 50px 50px; }
+        }
+
+        .status-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 20px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+            backdrop-filter: blur(15px);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 12px;
+            border-left: 4px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .status-item:hover {
+            transform: translateX(5px);
+        }
+
+        .status-success {
+            color: #38a169;
+            border-left-color: #38a169;
+        }
+
+        .status-processing {
+            color: #ed8936;
+            border-left-color: #ed8936;
+        }
+
+        .status-error {
+            color: #e53e3e;
+            border-left-color: #e53e3e;
+        }
+
+        .chat-interface {
+            grid-column: 1 / -1;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+            backdrop-filter: blur(15px);
+        }
+
+        .chat-messages {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            scroll-behavior: smooth;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            padding: 16px 20px;
+            border-radius: 15px;
+            max-width: 80%;
+            position: relative;
+            animation: fadeInUp 0.3s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.agent {
+            background: white;
+            color: #2d3748;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .message-header {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            min-height: 50px;
+            resize: vertical;
+        }
+
+        .chat-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .model-selector {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 14px;
+        }
+
+        .knowledge-sources {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .source-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .source-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .source-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .advanced-settings {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .setting-group {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .setting-group h4 {
+            color: #4a5568;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #cbd5e0;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: #667eea;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .toggle-switch.active::after {
+            left: 28px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .tabs {
+                flex-wrap: wrap;
+            }
+            
+            .header h1 {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 AI Agent Builder Pro</h1>
+            <p>Create intelligent agents with advanced RAG capabilities, multi-modal support, and enterprise features</p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('configuration')">🔧 Configuration</button>
+            <button class="tab" onclick="showTab('knowledge')">📚 Knowledge Base</button>
+            <button class="tab" onclick="showTab('testing')">💬 Testing</button>
+            <button class="tab" onclick="showTab('analytics')">📊 Analytics</button>
+            <button class="tab" onclick="showTab('advanced')">⚙️ Advanced</button>
+        </div>
+
+        <!-- Configuration Tab -->
+        <div id="configuration" class="tab-content active">
+            <div class="main-content">
+                <!-- Basic Agent Configuration -->
+                <div class="card">
+                    <h2>🤖 Agent Configuration</h2>
+                    <form id="agentForm">
+                        <div class="form-group">
+                            <label for="agentName">Agent Name</label>
+                            <input type="text" id="agentName" name="agentName" placeholder="My AI Assistant" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="agentDescription">Description</label>
+                            <textarea id="agentDescription" name="agentDescription" rows="3" placeholder="Describe your agent's purpose and capabilities"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="agentType">Agent Type</label>
+                            <select id="agentType" name="agentType">
+                                <option value="general">General Assistant</option>
+                                <option value="research">Research Specialist</option>
+                                <option value="customer_support">Customer Support</option>
+                                <option value="technical">Technical Expert</option>
+                                <option value="creative">Creative Writing</option>
+                                <option value="educational">Educational Tutor</option>
+                            </select>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="language">Primary Language</label>
+                                <select id="language" name="language">
+                                    <option value="en">English</option>
+                                    <option value="es">Spanish</option>
+                                    <option value="fr">French</option>
+                                    <option value="de">German</option>
+                                    <option value="zh">Chinese</option>
+                                    <option value="ja">Japanese</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="responseStyle">Response Style</label>
+                                <select id="responseStyle" name="responseStyle">
+                                    <option value="professional">Professional</option>
+                                    <option value="casual">Casual</option>
+                                    <option value="technical">Technical</option>
+                                    <option value="friendly">Friendly</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="systemPrompt">System Prompt</label>
+                            <textarea id="systemPrompt" name="systemPrompt" rows="5" placeholder="You are a helpful AI assistant that..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn">🚀 Create Agent</button>
+                    </form>
+                </div>
+
+                <!-- Model Configuration -->
+                <div class="card">
+                    <h2>🎛️ Model Parameters</h2>
+                    
+                    <div class="form-group">
+                        <label for="modelProvider">Model Provider</label>
+                        <select id="modelProvider" name="modelProvider">
+                            <option value="openai">OpenAI (GPT-4)</option>
+                            <option value="anthropic">Anthropic (Claude)</option>
+                            <option value="google">Google (Gemini)</option>
+                            <option value="cohere">Cohere</option>
+                            <option value="local">Local Model</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="temperature">Temperature</label>
+                        <div class="slider-container">
+                            <input type="range" id="temperature" name="temperature" min="0" max="1" step="0.1" value="0.7">
+                            <span class="slider-value" id="tempValue">0.7</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="maxTokens">Max Response Tokens</label>
+                        <div class="slider-container">
+                            <input type="range" id="maxTokens" name="maxTokens" min="50" max="4000" step="50" value="1000">
+                            <span class="slider-value" id="maxTokensValue">1000</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="topP">Top-p (Nucleus Sampling)</label>
+                        <div class="slider-container">
+                            <input type="range" id="topP" name="topP" min="0.1" max="1" step="0.1" value="0.9">
+                            <span class="slider-value" id="topPValue">0.9</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="frequencyPenalty">Frequency Penalty</label>
+                        <div class="slider-container">
+                            <input type="range" id="frequencyPenalty" name="frequencyPenalty" min="0" max="2" step="0.1" value="0">
+                            <span class="slider-value" id="frequencyPenaltyValue">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RAG Configuration -->
+                <div class="card">
+                    <h2>🔍 RAG Configuration</h2>
+                    
+                    <div class="form-group">
+                        <label for="retrievalStrategy">Retrieval Strategy</label>
+                        <select id="retrievalStrategy" name="retrievalStrategy">
+                            <option value="similarity">Semantic Similarity</option>
+                            <option value="hybrid">Hybrid (Semantic + Keyword)</option>
+                            <option value="keyword">Keyword Search</option>
+                            <option value="rerank">Semantic + Reranking</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="topK">Top-K Results</label>
+                            <input type="number" id="topK" name="topK" value="5" min="1" max="20">
+                        </div>
+                        <div class="form-group">
+                            <label for="similarityThreshold">Similarity Threshold</label>
+                            <input type="number" id="similarityThreshold" name="similarityThreshold" value="0.7" min="0" max="1" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="contextWindow">Context Window Strategy</label>
+                        <select id="contextWindow" name="contextWindow">
+                            <option value="fixed">Fixed Window</option>
+                            <option value="sliding">Sliding Window</option>
+                            <option value="summarize">Summarize Old Context</option>
+                            <option value="compress">Context Compression</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="citationMode">Citation Mode</label>
+                        <select id="citationMode" name="citationMode">
+                            <option value="inline">Inline Citations</option>
+                            <option value="footnotes">Footnotes</option>
+                            <option value="bibliography">Bibliography</option>
+                            <option value="none">No Citations</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Knowledge Base Tab -->
+        <div id="knowledge" class="tab-content">
+            <div class="main-content">
+                <!-- Document Upload -->
+                <div class="card">
+                    <h2>📄 Document Upload</h2>
+                    <div class="form-group">
+                        <label>Upload Documents</label>
+                        <div class="file-upload">
+                            <input type="file" id="documentUpload" multiple accept=".pdf,.txt,.docx,.md,.csv,.json,.xml,.html">
+                            <label for="documentUpload" class="file-upload-label">
+                                📁 Drop files here or click to browse
+                                <br><small>Supported: PDF, TXT, DOCX, MD, CSV, JSON, XML, HTML</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="chunkSize">Chunk Size (characters)</label>
+                            <input type="number" id="chunkSize" value="1000" min="100" max="5000">
+                        </div>
+                        <div class="form-group">
+                            <label for="chunkOverlap">Chunk Overlap (characters)</label>
+                            <input type="number" id="chunkOverlap" value="200" min="0" max="1000">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="chunkingStrategy">Chunking Strategy</label>
+                        <select id="chunkingStrategy" name="chunkingStrategy">
+                            <option value="fixed">Fixed Size</option>
+                            <option value="semantic">Semantic Chunking</option>
+                            <option value="paragraph">Paragraph-based</option>
+                            <option value="sentence">Sentence-based</option>
+                            <option value="recursive">Recursive Text Splitter</option>
+                        </select>
+                    </div>
+
+                    <button type="button" id="processDocuments" class="btn btn-secondary">📚 Process Documents</button>
+                    
+                    <div class="progress-bar" id="progressBar" style="display: none;">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+
+                <!-- Web Sources -->
+                <div class="card">
+                    <h2>🌐 Web Sources</h2>
+                    
+                    <div class="form-group">
+                        <label for="webUrls">Website URLs (one per line)</label>
+                        <textarea id="webUrls" rows="4" placeholder="https://example.com/page1&#10;https://example.com/page2"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="crawlDepth">Crawl Depth</label>
+                            <input type="number" id="crawlDepth" value="1" min="1" max="5">
+                        </div>
+                        <div class="form-group">
+                            <label for="maxPages">Max Pages</label>
+                            <input type="number" id="maxPages" value="10" min="1" max="100">
+                        </div>
+                    </div>
+
+                    <button type="button" id="crawlWeb" class="btn">🕷️ Crawl Websites</button>
+                </div>
+
+                <!-- API Sources -->
+                <div class="card">
+                    <h2>🔌 API Sources</h2>
+                    
+                    <div class="form-group">
+                        <label for="apiEndpoint">API Endpoint</label>
+                        <input type="url" id="apiEndpoint" placeholder="https://api.example.com/data">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="apiHeaders">Headers (JSON)</label>
+                        <textarea id="apiHeaders" rows="3" placeholder='{"Authorization": "Bearer token", "Content-Type": "application/json"}'></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="updateFrequency">Update Frequency</label>
+                        <select id="updateFrequency">
+                            <option value="manual">Manual</option>
+                            <option value="hourly">Hourly</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                    </div>
+
+                    <button type="button" id="addApiSource" class="btn">🔗 Add API Source</button>
+                </div>
+
+                <!-- Embedding Configuration -->
+                <div class="card">
+                    <h2>🧠 Embedding Configuration</h2>
+                    
+                    <div class="form-group">
+                        <label for="embeddingModel">Embedding Model</label>
+                        <select id="embeddingModel">
+                            <option value="openai-ada-002">OpenAI Ada-002</option>
+                            <option value="sentence-transformers/all-MiniLM-L6-v2">MiniLM-L6-v2 (Fast)</option>
+                            <option value="sentence-transformers/all-mpnet-base-v2">MPNet-base-v2 (Accurate)</option>
+                            <option value="cohere-embed">Cohere Embed</option>
+                            <option value="google-palm-embed">Google PaLM Embed</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="vectorDatabase">Vector Database</label>
+                        <select id="vectorDatabase">
+                            <option value="pinecone">Pinecone</option>
+                            <option value="chroma">ChromaDB</option>
+                            <option value="weaviate">Weaviate</option>
+                            <option value="qdrant">Qdrant</option>
+                            <option value="faiss">FAISS (Local)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="embeddingDimensions">Embedding Dimensions</label>
+                            <input type="number" id="embeddingDimensions" value="1536" min="128" max="4096">
+                        </div>
+                        <div class="form-group">
+                            <label for="indexType">Index Type</label>
+                            <select id="indexType">
+                                <option value="hnsw">HNSW</option>
+                                <option value="ivf">IVF</option>
+                                <option value="flat">Flat</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="button" id="configureEmbeddings" class="btn btn-outline">⚡ Configure Embeddings</button>
+                </div>
+            </div>
+
+            <!-- Knowledge Sources Panel -->
+            <div class="knowledge-sources">
+                <h3>📊 Knowledge Sources</h3>
+                <div id="sourcesList">
+                    <!-- Sources will be populated here -->
+                </div>
+                
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="totalDocuments">0</div>
+                        <div class="metric-label">Documents</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="totalChunks">0</div>
+                        <div class="metric-label">Chunks</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="totalTokens">0</div>
+                        <div class="metric-label">Tokens</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="lastUpdated">Never</div>
+                        <div class="metric-label">Last Updated</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Testing Tab -->
+        <div id="testing" class="tab-content">
+            <div class="chat-interface">
+                <h2>💬 Test Your Agent</h2>
+                
+                <div class="chat-controls">
+                    <select class="model-selector" id="testModel">
+                        <option value="current">Current Agent</option>
+                        <option value="baseline">Baseline (No RAG)</option>
+                        <option value="compare">A/B Compare</option>
+                    </select>
+                    
+                    <button class="btn btn-outline" id="clearChat">🗑️ Clear Chat</button>
+                    <button class="btn btn-outline" id="exportChat">💾 Export Chat</button>
+                </div>
+
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message agent">
+                        <div class="message-header">AI Agent • Just now</div>
+                        Welcome! Upload some documents and create an agent to get started. I'm ready to help you test your RAG-powered AI assistant.
+                    </div>
+                </div>
+                
+                <div class="chat-input-container">
+                    <textarea class="chat-input" id="chatInput" placeholder="Ask your agent something..." rows="2" disabled></textarea>
+                    <button class="btn" id="sendMessage" disabled>Send</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="analytics" class="tab-content">
+            <div class="main-content">
+                <div class="card">
+                    <h2>📈 Usage Analytics</h2>
+                    
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-value" id="totalQueries">0</div>
+                            <div class="metric-label">Total Queries</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="avgResponseTime">0ms</div>
+                            <div class="metric-label">Avg Response Time</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="successRate">100%</div>
+                            <div class="metric-label">Success Rate</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="userSatisfaction">4.8</div>
+                            <div class="metric-label">User Rating</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Query Performance Chart</label>
+                        <div style="height: 300px; background: #f7fafc; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #666;">
+                            📊 Chart will be displayed here
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>🎯 RAG Performance</h2>
+                    
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-value" id="retrievalAccuracy">95%</div>
+                            <div class="metric-label">Retrieval Accuracy</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="avgRelevanceScore">0.85</div>
+                            <div class="metric-label">Avg Relevance</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="contextUtilization">78%</div>
+                            <div class="metric-label">Context Usage</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value" id="hallucination Rate">2.1%</div>
+                            <div class="metric-label">Hallucination Rate</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Recent Queries Analysis</label>
+                        <div id="recentQueries" style="background: #f7fafc; border-radius: 12px; padding: 20px; max-height: 300px; overflow-y: auto;">
+                            <!-- Recent queries will be populated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>🔍 Content Analysis</h2>
+                    
+                    <div class="form-group">
+                        <label>Knowledge Gap Detection</label>
+                        <div id="knowledgeGaps" style="background: #f7fafc; border-radius: 12px; padding: 20px;">
+                            <div style="text-align: center; color: #666; padding: 40px;">
+                                🔍 Analyzing content gaps...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Most Referenced Sources</label>
+                        <div id="topSources" style="background: #f7fafc; border-radius: 12px; padding: 20px;">
+                            <!-- Top sources will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Tab -->
+        <div id="advanced" class="tab-content">
+            <div class="advanced-settings">
+                <div class="card">
+                    <h2>🔧 Advanced RAG Settings</h2>
+                    
+                    <div class="setting-group">
+                        <h4>Query Processing</h4>
+                        
+                        <div class="form-group">
+                            <label>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    Query Expansion
+                                    <div class="toggle-switch" id="queryExpansion"></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    Query Rewriting
+                                    <div class="toggle-switch active" id="queryRewriting"></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="queryExpansionModel">Query Expansion Model</label>
+                            <select id="queryExpansionModel">
+                                <option value="wordnet">WordNet Synonyms</option>
+                                <option value="llm">LLM-based Expansion</option>
+                                <option value="embedding">Embedding Similarity</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h4>Retrieval Enhancement</h4>
+                        
+                        <div class="form-group">
+                            <label>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    Multi-query Retrieval
+                                    <div class="toggle-switch active" id="multiQuery"></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    Contextual Compression
+                                    <div class="toggle-switch" id="contextualCompression"></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="rerankingModel">Re-ranking Model</label>
+                            <select id="rerankingModel">
+                                <option value="cross-encoder">Cross-encoder</option>
+                                <option value="cohere-rerank">Cohere Rerank</option>
+                                <option value="bge-reranker">BGE Reranker</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>🛡️ Security & Privacy</h2>
+                    
+                    <div class="setting-group">
+                        <h4>Data Protection</h4>
+                        
+                        <div class="form-group">
+                            <label>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    PII Detection & Masking
+                                    <div class="toggle-switch active" id="piiProtection"></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    Content Filtering
+                                    <div class="toggle-switch active" id="contentFiltering"></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="dataRetention">Data Retention (days)</label>
+                            <input type="number" id="dataRetention" value="90" min="1" max="365">
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h4>Access Control</h4>
+                        
+                        <div class="form-group">
+                            <label for="authMethod">Authentication Method</label>
+                            <select id="authMethod">
+                                <option value="none">None</option>
+                                <option value="api_key">API Key</option>
+                                <option value="oauth">OAuth 2.0</option>
+                                <option value="jwt">JWT Tokens</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="rateLimit">Rate Limit (requests/minute)</label>
+                            <input type="number" id="rateLimit" value="60" min="1" max="1000">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>⚡ Performance Optimization</h2>
+                    
+                    <div class="setting-group">
+                        <h4>Caching</h4>
+                        
+                        <div class="form-group">
+                            <label>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    Response Caching
+                                    <div class="toggle-switch active" id="responseCache"></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    Embedding Caching
+                                    <div class="toggle-switch active" id="embeddingCache"></div>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="cacheExpiry">Cache Expiry (hours)</label>
+                            <input type="number" id="cacheExpiry" value="24" min="1" max="168">
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <h4>Scaling</h4>
+                        
+                        <div class="form-group">
+                            <label for="maxConcurrent">Max Concurrent Requests</label>
+                            <input type="number" id="maxConcurrent" value="10" min="1" max="100">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="timeoutSeconds">Request Timeout (seconds)</label>
+                            <input type="number" id="timeoutSeconds" value="30" min="5" max="300">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>🔄 Integration & Export</h2>
+                    
+                    <div class="form-group">
+                        <label for="apiEndpointUrl">API Endpoint URL</label>
+                        <input type="text" id="apiEndpointUrl" readonly value="https://your-domain.com/api/chat/agent-id" style="background: #f7fafc;">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Webhook URL (for notifications)</label>
+                        <input type="url" id="webhookUrl" placeholder="https://your-app.com/webhook">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exportFormat">Export Format</label>
+                        <select id="exportFormat">
+                            <option value="json">JSON</option>
+                            <option value="yaml">YAML</option>
+                            <option value="docker">Docker Compose</option>
+                            <option value="k8s">Kubernetes</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-outline" id="exportConfig">📤 Export Config</button>
+                        <button class="btn btn-outline" id="generateAPI">🔗 Generate API</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Panel -->
+        <div class="status-panel" id="statusPanel">
+            <h3>🎛️ System Status</h3>
+            <div class="status-grid" id="statusGrid">
+                <div class="status-item status-success">
+                    <span>🟢 Database Connection</span>
+                    <span>Connected</span>
+                </div>
+                <div class="status-item status-success">
+                    <span>🟢 Vector Database</span>
+                    <span>Operational</span>
+                </div>
+                <div class="status-item status-success">
+                    <span>🟢 Embedding Service</span>
+                    <span>Ready</span>
+                </div>
+                <div class="status-item status-success">
+                    <span>🟢 LLM Provider</span>
+                    <span>Connected</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let currentAgent = null;
+        let isProcessing = false;
+        let activeTab = 'configuration';
+        let chatHistory = [];
+        let knowledgeBase = {
+            documents: 0,
+            chunks: 0,
+            tokens: 0,
+            sources: []
+        };
+
+        // DOM elements
+        const agentForm = document.getElementById('agentForm');
+        const documentUpload = document.getElementById('documentUpload');
+        const processDocuments = document.getElementById('processDocuments');
+        const chatInput = document.getElementById('chatInput');
+        const sendMessage = document.getElementById('sendMessage');
+        const chatMessages = document.getElementById('chatMessages');
+
+        // Initialize sliders
+        const sliders = [
+            { id: 'temperature', valueId: 'tempValue' },
+            { id: 'maxTokens', valueId: 'maxTokensValue' },
+            { id: 'topP', valueId: 'topPValue' },
+            { id: 'frequencyPenalty', valueId: 'frequencyPenaltyValue' }
+        ];
+
+        sliders.forEach(slider => {
+            const element = document.getElementById(slider.id);
+            const valueElement = document.getElementById(slider.valueId);
+            if (element && valueElement) {
+                element.addEventListener('input', (e) => {
+                    valueElement.textContent = e.target.value;
+                });
+            }
+        });
+
+        // Tab functionality
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            const selectedContent = document.getElementById(tabName);
+            if (selectedContent) {
+                selectedContent.classList.add('active');
+            }
+            
+            // Add active class to selected tab
+            event.target.classList.add('active');
+            activeTab = tabName;
+        }
+
+        // Toggle switch functionality
+        document.querySelectorAll('.toggle-switch').forEach(toggle => {
+            toggle.addEventListener('click', function() {
+                this.classList.toggle('active');
+            });
+        });
+
+        // File upload handling with drag & drop
+        const fileUpload = document.querySelector('.file-upload-label');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            fileUpload.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            fileUpload.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            fileUpload.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            fileUpload.style.borderColor = '#667eea';
+            fileUpload.style.background = 'linear-gradient(135deg, #edf2f7 0%, #e2e8f0 100%)';
+            fileUpload.style.transform = 'translateY(-2px)';
+        }
+
+        function unhighlight(e) {
+            fileUpload.style.borderColor = '#cbd5e0';
+            fileUpload.style.background = 'linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%)';
+            fileUpload.style.transform = 'translateY(0)';
+        }
+
+        fileUpload.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            documentUpload.files = files;
+            
+            const event = new Event('change', { bubbles: true });
+            documentUpload.dispatchEvent(event);
+        }
+
+        // Document upload handling
+        documentUpload.addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files.length > 0) {
+                const fileList = Array.from(files).map(f => `${f.name} (${formatFileSize(f.size)})`).join(', ');
+                updateStatus(`📄 Documents selected: ${fileList}`, 'processing');
+                updateKnowledgeMetrics();
+            }
+        });
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Agent form submission
+        agentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(agentForm);
+            updateStatus('🚀 Creating agent...', 'processing');
+
+            // Simulate API call
+            setTimeout(() => {
+                currentAgent = {
+                    id: 'agent_' + Date.now(),
+                    name: formData.get('agentName'),
+                    description: formData.get('agentDescription'),
+                    created: new Date().toISOString()
+                };
+                
+                updateStatus('✅ Agent created successfully!', 'success');
+                enableChat();
+                updateAnalytics();
+            }, 2000);
+        });
+
+        // Document processing
+        processDocuments.addEventListener('click', async () => {
+            if (!documentUpload.files.length) {
+                alert('Please select documents first');
+                return;
+            }
+
+            if (isProcessing) return;
+            isProcessing = true;
+
+            showProgress();
+            updateStatus('📚 Processing documents...', 'processing');
+
+            // Simulate document processing
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 20;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    
+                    // Update knowledge base metrics
+                    knowledgeBase.documents += documentUpload.files.length;
+                    knowledgeBase.chunks += documentUpload.files.length * 15; // Simulated
+                    knowledgeBase.tokens += documentUpload.files.length * 2000; // Simulated
+                    
+                    updateKnowledgeMetrics();
+                    updateStatus(`✅ Processed ${documentUpload.files.length} documents`, 'success');
+                    hideProgress();
+                    isProcessing = false;
+                }
+                updateProgress(progress);
+            }, 200);
+        });
+
+        // Chat functionality
+        sendMessage.addEventListener('click', sendChatMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+
+        async function sendChatMessage() {
+            const message = chatInput.value.trim();
+            if (!message || !currentAgent) return;
+
+            // Add user message to chat
+            addMessage(message, 'user');
+            chatInput.value = '';
+
+            // Simulate AI response
+            setTimeout(() => {
+                const responses = [
+                    "Based on the documents you've uploaded, I can provide you with detailed information about that topic.",
+                    "Let me search through your knowledge base to find the most relevant information.",
+                    "I found several relevant sources in your documents. Here's what I can tell you...",
+                    "According to the information in your knowledge base, here are the key points:",
+                    "I've analyzed the relevant documents and here's a comprehensive answer to your question."
+                ];
+                
+                const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+                addMessage(randomResponse, 'agent');
+                
+                // Update analytics
+                updateAnalytics();
+            }, 1000 + Math.random() * 2000);
+        }
+
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'message-header';
+            headerDiv.textContent = sender === 'user' ? 'You • Just now' : 'AI Agent • Just now';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.textContent = text;
+            
+            messageDiv.appendChild(headerDiv);
+            messageDiv.appendChild(contentDiv);
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            chatHistory.push({ sender, text, timestamp: new Date().toISOString() });
+        }
+
+        function enableChat() {
+            chatInput.disabled = false;
+            sendMessage.disabled = false;
+            chatInput.placeholder = 'Ask your agent something...';
+        }
+
+        function updateStatus(message, type) {
+            const statusGrid = document.getElementById('statusGrid');
+            const statusItem = document.createElement('div');
+            statusItem.className = `status-item status-${type}`;
+            statusItem.innerHTML = `
+                <span>${message}</span>
+                <span>${getStatusIcon(type)}</span>
+            `;
+            statusGrid.appendChild(statusItem);
+            
+            // Remove old status items if too many
+            if (statusGrid.children.length > 8) {
+                statusGrid.removeChild(statusGrid.firstChild);
+            }
+        }
+
+        function getStatusIcon(type) {
+            switch (type) {
+                case 'success': return '✅';
+                case 'processing': return '⏳';
+                case 'error': return '❌';
+                default: return '🔵';
+            }
+        }
+
+        function showProgress() {
+            document.getElementById('progressBar').style.display = 'block';
+        }
+
+        function hideProgress() {
+            document.getElementById('progressBar').style.display = 'none';
+            document.getElementById('progressFill').style.width = '0%';
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressFill').style.width = Math.min(percent, 100) + '%';
+        }
+
+        function updateKnowledgeMetrics() {
+            document.getElementById('totalDocuments').textContent = knowledgeBase.documents;
+            document.getElementById('totalChunks').textContent = knowledgeBase.chunks.toLocaleString();
+            document.getElementById('totalTokens').textContent = knowledgeBase.tokens.toLocaleString();
+            document.getElementById('lastUpdated').textContent = new Date().toLocaleDateString();
+        }
+
+        function updateAnalytics() {
+            // Update query metrics
+            const totalQueries = chatHistory.filter(msg => msg.sender === 'user').length;
+            document.getElementById('totalQueries').textContent = totalQueries;
+            
+            // Simulate other metrics
+            document.getElementById('avgResponseTime').textContent = Math.floor(800 + Math.random() * 400) + 'ms';
+            document.getElementById('successRate').textContent = (95 + Math.random() * 5).toFixed(1) + '%';
+            document.getElementById('userSatisfaction').textContent = (4.5 + Math.random() * 0.5).toFixed(1);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStatus('🟢 System initialized', 'success');
+            updateKnowledgeMetrics();
+            
+            // Add some sample knowledge sources
+            setTimeout(() => {
+                const sampleSources = [
+                    { name: 'company-handbook.pdf', type: 'pdf', chunks: 45, icon: '📋' },
+                    { name: 'product-specs.docx', type: 'docx', chunks: 32, icon: '📊' },
+                    { name: 'faq-data.txt', type: 'txt', chunks: 18, icon: '❓' }
+                ];
+                
+                const sourcesList = document.getElementById('sourcesList');
+                sampleSources.forEach(source => {
+                    const sourceDiv = document.createElement('div');
+                    sourceDiv.className = 'source-item';
+                    sourceDiv.innerHTML = `
+                        <div class="source-info">
+                            <div class="source-icon" style="background: #e2e8f0;">${source.icon}</div>
+                            <div>
+                                <div style="font-weight: 600;">${source.name}</div>
+                                <div style="font-size: 12px; color: #666;">${source.chunks} chunks</div>
+                            </div>
+                        </div>
+                        <button class="btn-danger" style="padding: 6px 12px; font-size: 12px;">Remove</button>
+                    `;
+                    sourcesList.appendChild(sourceDiv);
+                });
+            }, 1000);
+        });
+
+        // Export functionality
+        document.getElementById('exportConfig')?.addEventListener('click', () => {
+            const config = {
+                agent: currentAgent,
+                knowledgeBase: knowledgeBase,
+                settings: {
+                    temperature: document.getElementById('temperature').value,
+                    maxTokens: document.getElementById('maxTokens').value,
+                    embeddingModel: document.getElementById('embeddingModel').value
+                }
+            };
+            
+            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'agent-config.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        // Clear chat functionality
+        document.getElementById('clearChat')?.addEventListener('click', () => {
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = `
+                <div class="message agent">
+                    <div class="message-header">AI Agent • Just now</div>
+                    Chat cleared. How can I help you today?
+                </div>
+            `;
+            chatHistory = [];
+        });
+    </script>
+</body>
+</html>

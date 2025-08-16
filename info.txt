@@ -1,0 +1,34 @@
+Droplet
+104.131.186.3
+\58z2)yn8=7xUycE(7zyV
+
+
+
+ltc_master
+9@jaJ3Ol1:!5
+
+
+Aap sab ko PAKISTAN ka youm e Azadi Mubarak ho
+Allah watan e aziz ko hamesha salamat rakhy
+Aameen
+
+
+Godaddy
+
+Key
+31vU8mfCV1_PcKM9frxvHLvJEknZq3UkB
+
+Secret
+GBr4eGThWbJzELg4FEQQnU
+
+mongodb
+root
+&uf\Hl[)3s82.sviDo>!W
+
+ltcflow
+r6c?ZW7?6R=Ra@l`a67uT
+
+mongosh "mongodb://ltcflow:r6c%3FZW7%3F6R%3DRa%40l%60a67uT@localhost:27017/ltcflow?authSource=admin"
+mongosh --host localhost --port 27017 --username ltcflow --password 'r6c?ZW7?6R=Ra@l`a67uT' --authenticationDatabase admin ltcflow
+
+
