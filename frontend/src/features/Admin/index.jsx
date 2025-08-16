@@ -108,22 +108,37 @@ function Admin() {
     }
   };
 
-  // Cancel invitation or toggle user status
-  const toggleUserStatus = async (userId, currentStatus, username, isPending = false) => {
-    const action = isPending ? 'cancel invitation' : (currentStatus ? 'deactivate' : 'activate');
+  // Toggle user status
+  const toggleUserStatus = async (userId, currentStatus, username) => {
+    let newStatus;
+    switch (currentStatus) {
+      case 'pending':
+      case 'expired':
+        newStatus = 'active';
+        break;
+      case 'active':
+        newStatus = 'deactivated';
+        break;
+      case 'deactivated':
+        newStatus = 'active';
+        break;
+      default:
+        newStatus = 'active';
+    }
+    
     setLoading(prev => ({...prev, [`toggle_${userId}`]: true}));
     try {
       const response = await apiClient.post('/api/toggle-user-status', { 
         userId, 
-        isActive: !currentStatus 
+        newStatus 
       });
-      addToast(`${isPending ? 'Invitation cancelled' : `User ${username} ${action}d`} successfully`, {
+      addToast(`User ${username} status changed to ${newStatus}`, {
         appearance: 'success',
         autoDismiss: true,
       });
       refreshUserList();
     } catch (error) {
-      addToast(`Failed to ${action} user`, {
+      addToast(`Failed to update user status`, {
         appearance: 'error',
         autoDismiss: true,
       });
@@ -134,56 +149,68 @@ function Admin() {
 
   // Enhanced status badge for invitation status
   const getDetailedStatusBadge = (user) => {
-    const { isActive, tokenExpiry, createdAt } = user;
+    const { status, tokenExpiry, createdAt, updatedAt } = user;
     
-    if (isActive) {
-      return (
-        <div className="uk-flex uk-flex-column uk-flex-center">
-          <span style={{
-            backgroundColor: '#e8f5e8',
-            color: '#2e7d2e',
-            border: '1px solid #a3d977',
-            padding: '4px 8px',
-            borderRadius: '12px',
-            fontSize: '12px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}>
-            <FiUserCheck size={12} />
-            Registered
-          </span>
-          <span style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>
-            {getTimeAgo(user.updatedAt)}
-          </span>
-        </div>
-      );
-    } else {
-      const isExpired = tokenExpiry && new Date() > new Date(tokenExpiry);
-      return (
-        <div className="uk-flex uk-flex-column uk-flex-center">
-          <span style={{
-            backgroundColor: isExpired ? '#ffebee' : '#fff3e0',
-            color: isExpired ? '#c62828' : '#f57c00',
-            border: `1px solid ${isExpired ? '#ef9a9a' : '#ffcc02'}`,
-            padding: '4px 8px',
-            borderRadius: '12px',
-            fontSize: '12px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}>
-            {isExpired ? <FiUserX size={12} /> : <FiClock size={12} />}
-            {isExpired ? 'Expired' : 'Invited'}
-          </span>
-          <span style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>
-            {isExpired ? getTimeAgo(tokenExpiry) : getTimeAgo(createdAt)}
-          </span>
-        </div>
-      );
-    }
+    const statusConfig = {
+      'active': {
+        icon: FiUserCheck,
+        bgColor: '#e8f5e8',
+        textColor: '#2e7d2e',
+        borderColor: '#a3d977',
+        label: 'Active',
+        timestamp: getTimeAgo(updatedAt)
+      },
+      'pending': {
+        icon: FiClock,
+        bgColor: '#fff3e0',
+        textColor: '#f57c00',
+        borderColor: '#ffcc02',
+        label: 'Pending',
+        timestamp: getTimeAgo(createdAt)
+      },
+      'expired': {
+        icon: FiUserX,
+        bgColor: '#ffebee',
+        textColor: '#c62828',
+        borderColor: '#ef9a9a',
+        label: 'Expired',
+        timestamp: getTimeAgo(tokenExpiry)
+      },
+      'deactivated': {
+        icon: FiUserX,
+        bgColor: '#f5f5f5',
+        textColor: '#666',
+        borderColor: '#ddd',
+        label: 'Deactivated',
+        timestamp: getTimeAgo(updatedAt)
+      }
+    };
+
+    const config = statusConfig[status] || statusConfig['pending'];
+    const IconComponent = config.icon;
+    
+    return (
+      <div className="uk-flex uk-flex-column uk-flex-center">
+        <span style={{
+          backgroundColor: config.bgColor,
+          color: config.textColor,
+          border: `1px solid ${config.borderColor}`,
+          padding: '4px 8px',
+          borderRadius: '12px',
+          fontSize: '12px',
+          fontWeight: '500',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px'
+        }}>
+          <IconComponent size={12} />
+          {config.label}
+        </span>
+        <span style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>
+          {config.timestamp}
+        </span>
+      </div>
+    );
   };
 
   const columns = [
@@ -266,13 +293,44 @@ function Admin() {
       sortable: false,
       width: '200px',
       cell: (row) => {
-        const isPending = !row.isActive;
-        const isExpired = row.tokenExpiry && new Date() > new Date(row.tokenExpiry);
+        const canResend = ['pending', 'expired'].includes(row.status);
+        
+        const getActionButton = () => {
+          switch (row.status) {
+            case 'pending':
+            case 'expired':
+              return {
+                text: 'Activate User',
+                className: 'uk-button-success',
+                title: 'Manually activate this user account'
+              };
+            case 'active':
+              return {
+                text: 'Deactivate User',
+                className: 'uk-button-danger',
+                title: 'Deactivate this user account'
+              };
+            case 'deactivated':
+              return {
+                text: 'Reactivate User',
+                className: 'uk-button-success',
+                title: 'Reactivate this user account'
+              };
+            default:
+              return {
+                text: 'Activate User',
+                className: 'uk-button-success',
+                title: 'Activate this user account'
+              };
+          }
+        };
+
+        const actionButton = getActionButton();
         
         return (
           <div className="uk-flex uk-flex-column uk-flex-center" style={{ gap: '4px' }}>
             <div className="uk-flex" style={{ gap: '4px' }}>
-              {isPending && !isExpired && (
+              {canResend && (
                 <button
                   className="uk-button uk-button-small uk-button-primary"
                   style={{ 
@@ -298,20 +356,15 @@ function Admin() {
               )}
               
               <button
-                className={`uk-button uk-button-small ${
-                  isPending ? 'uk-button-danger' : (row.isActive ? 'uk-button-danger' : 'uk-button-success')
-                }`}
+                className={`uk-button uk-button-small ${actionButton.className}`}
                 style={{ 
                   fontSize: '10px', 
                   padding: '4px 8px',
                   transition: 'all 0.2s ease'
                 }}
-                onClick={() => toggleUserStatus(row.id, row.isActive, row.username, isPending)}
+                onClick={() => toggleUserStatus(row.id, row.status, row.username)}
                 disabled={loading[`toggle_${row.id}`]}
-                title={
-                  isPending ? 'Cancel this user\'s pending invitation' : 
-                  row.isActive ? 'Deactivate this user\'s account access' : 'Activate this user\'s account access'
-                }
+                title={actionButton.title}
                 onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
                 onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
               >
@@ -319,26 +372,12 @@ function Admin() {
                   <div data-uk-spinner="ratio: 0.5" />
                 ) : (
                   <>
-                    {isPending ? (
-                      <>
-                        <FiX size={12} style={{ marginRight: '4px' }} />
-                        Cancel Invitation
-                      </>
+                    {row.status === 'active' ? (
+                      <FiToggleRight size={12} style={{ marginRight: '4px' }} />
                     ) : (
-                      <>
-                        {row.isActive ? (
-                          <>
-                            <FiToggleRight size={12} style={{ marginRight: '4px' }} />
-                            Deactivate User
-                          </>
-                        ) : (
-                          <>
-                            <FiToggleLeft size={12} style={{ marginRight: '4px' }} />
-                            Activate User
-                          </>
-                        )}
-                      </>
+                      <FiToggleLeft size={12} style={{ marginRight: '4px' }} />
                     )}
+                    {actionButton.text}
                   </>
                 )}
               </button>
@@ -417,7 +456,7 @@ function Admin() {
       email: user.email,
       username: user.username,
       level: user.level,
-      isActive: user.isActive,
+      status: user.status,
       tokenExpiry: user.tokenExpiry,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -425,15 +464,13 @@ function Admin() {
 
     switch (statusFilter) {
       case 'active':
-        return allUsers.filter(user => user.isActive);
+        return allUsers.filter(user => user.status === 'active');
       case 'pending':
-        return allUsers.filter(user => 
-          !user.isActive && (!user.tokenExpiry || new Date() <= new Date(user.tokenExpiry))
-        );
+        return allUsers.filter(user => user.status === 'pending');
+      case 'expired':
+        return allUsers.filter(user => user.status === 'expired');
       case 'deactivated':
-        return allUsers.filter(user => 
-          !user.isActive && user.tokenExpiry && new Date() > new Date(user.tokenExpiry)
-        );
+        return allUsers.filter(user => user.status === 'deactivated');
       default:
         return allUsers;
     }
@@ -444,15 +481,12 @@ function Admin() {
   // Calculate user statistics for analytics
   const getUserStatistics = () => {
     const totalUsers = users.length;
-    const activeUsers = users.filter(u => u.isActive).length;
-    const pendingInvites = users.filter(u => 
-      !u.isActive && (!u.tokenExpiry || new Date() <= new Date(u.tokenExpiry))
-    ).length;
-    const expiredInvites = users.filter(u => 
-      !u.isActive && u.tokenExpiry && new Date() > new Date(u.tokenExpiry)
-    ).length;
+    const activeUsers = users.filter(u => u.status === 'active').length;
+    const pendingUsers = users.filter(u => u.status === 'pending').length;
+    const expiredUsers = users.filter(u => u.status === 'expired').length;
+    const deactivatedUsers = users.filter(u => u.status === 'deactivated').length;
     
-    return { totalUsers, activeUsers, pendingInvites, expiredInvites };
+    return { totalUsers, activeUsers, pendingUsers, expiredUsers, deactivatedUsers };
   };
 
   const stats = getUserStatistics();
@@ -485,125 +519,8 @@ function Admin() {
           <FiRefreshCw size={16} />
         </button>
       </div>
-
-      {/* Analytics Summary Card */}
-      <div className="uk-container uk-container-small uk-margin-small">
-        <div className="uk-card uk-card-default uk-card-small uk-border-rounded" style={{ 
-          backgroundColor: '#fafafa',
-          border: '1px solid #e5e5e5'
-        }}>
-          <div className="uk-card-body uk-padding-small">
-            <div className="uk-grid-small uk-child-width-1-4@m uk-child-width-1-2@s uk-text-center" data-uk-grid>
-              <div>
-                <div className="uk-flex uk-flex-column uk-flex-center">
-                  <div style={{ 
-                    fontSize: '24px', 
-                    fontWeight: 'bold', 
-                    color: '#666',
-                    lineHeight: '1'
-                  }}>
-                    {stats.totalUsers}
-                  </div>
-                  <div style={{ 
-                    fontSize: '12px', 
-                    color: '#999',
-                    marginTop: '2px'
-                  }}>
-                    Total Users
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div className="uk-flex uk-flex-column uk-flex-center">
-                  <div style={{ 
-                    fontSize: '24px', 
-                    fontWeight: 'bold', 
-                    color: '#2e7d2e',
-                    lineHeight: '1'
-                  }}>
-                    {stats.activeUsers}
-                  </div>
-                  <div style={{ 
-                    fontSize: '12px', 
-                    color: '#999',
-                    marginTop: '2px'
-                  }}>
-                    Registered
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div className="uk-flex uk-flex-column uk-flex-center">
-                  <div style={{ 
-                    fontSize: '24px', 
-                    fontWeight: 'bold', 
-                    color: '#f57c00',
-                    lineHeight: '1'
-                  }}>
-                    {stats.pendingInvites}
-                  </div>
-                  <div style={{ 
-                    fontSize: '12px', 
-                    color: '#999',
-                    marginTop: '2px'
-                  }}>
-                    Pending Invites
-                  </div>
-                </div>
-              </div>
-              <div>
-                <div className="uk-flex uk-flex-column uk-flex-center">
-                  <div style={{ 
-                    fontSize: '24px', 
-                    fontWeight: 'bold', 
-                    color: '#c62828',
-                    lineHeight: '1'
-                  }}>
-                    {stats.expiredInvites}
-                  </div>
-                  <div style={{ 
-                    fontSize: '12px', 
-                    color: '#999',
-                    marginTop: '2px'
-                  }}>
-                    Expired Invites
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {/* Quick Stats Bar */}
-            <div className="uk-margin-small-top">
-              <div style={{ 
-                height: '6px', 
-                backgroundColor: '#e5e5e5', 
-                borderRadius: '3px',
-                overflow: 'hidden',
-                display: 'flex'
-              }}>
-                {stats.totalUsers > 0 && (
-                  <>
-                    <div style={{ 
-                      width: `${(stats.activeUsers / stats.totalUsers) * 100}%`,
-                      backgroundColor: '#2e7d2e'
-                    }} title={`${((stats.activeUsers / stats.totalUsers) * 100).toFixed(1)}% Registered`} />
-                    <div style={{ 
-                      width: `${(stats.pendingInvites / stats.totalUsers) * 100}%`,
-                      backgroundColor: '#f57c00'
-                    }} title={`${((stats.pendingInvites / stats.totalUsers) * 100).toFixed(1)}% Pending`} />
-                    <div style={{ 
-                      width: `${(stats.expiredInvites / stats.totalUsers) * 100}%`,
-                      backgroundColor: '#c62828'
-                    }} title={`${((stats.expiredInvites / stats.totalUsers) * 100).toFixed(1)}% Expired`} />
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
       
-      {/* Status Filter Tabs */}
+      {/* Status Filter Tabs with Counts */}
       <div className="uk-flex uk-flex-center uk-margin-small">
         <div className="uk-subnav uk-subnav-pill" data-uk-subnav>
           <li className={statusFilter === 'all' ? 'uk-active' : ''}>
@@ -612,12 +529,29 @@ function Admin() {
               title="Show all users regardless of status"
               style={{ 
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: statusFilter === 'all' ? '#333' : 'inherit', // Dark text when active
+                whiteSpace: 'nowrap' // Prevent text wrapping
               }}
               onMouseEnter={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '#f8f8f8')}
               onMouseLeave={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '')}
             >
-              All Users
+              All
+              <span style={{
+                backgroundColor: statusFilter === 'all' ? '#333' : '#666', // Darker when active
+                color: 'white',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: '500',
+                minWidth: '20px',
+                textAlign: 'center'
+              }}>
+                {stats.totalUsers}
+              </span>
             </a>
           </li>
           <li className={statusFilter === 'active' ? 'uk-active' : ''}>
@@ -626,40 +560,122 @@ function Admin() {
               title="Show only users who have completed registration"
               style={{ 
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: statusFilter === 'active' ? '#333' : 'inherit', // Dark text when active
+                whiteSpace: 'nowrap' // Prevent text wrapping
               }}
               onMouseEnter={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '#f8f8f8')}
               onMouseLeave={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '')}
             >
-              Registered
+              Active
+              <span style={{
+                backgroundColor: statusFilter === 'active' ? '#1e5f1e' : '#2e7d2e', // Darker green when active
+                color: 'white',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: '500',
+                minWidth: '20px',
+                textAlign: 'center'
+              }}>
+                {stats.activeUsers}
+              </span>
             </a>
           </li>
           <li className={statusFilter === 'pending' ? 'uk-active' : ''}>
             <a 
               onClick={() => setStatusFilter('pending')}
-              title="Show users with pending invitations awaiting activation"
+              title="Show users with pending invitations"
               style={{ 
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: statusFilter === 'pending' ? '#333' : 'inherit',
+                whiteSpace: 'nowrap'
               }}
               onMouseEnter={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '#f8f8f8')}
               onMouseLeave={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '')}
             >
-              Pending Invitations
+              Pending
+              <span style={{
+                backgroundColor: statusFilter === 'pending' ? '#cc5500' : '#f57c00',
+                color: 'white',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: '500',
+                minWidth: '20px',
+                textAlign: 'center'
+              }}>
+                {stats.pendingUsers}
+              </span>
+            </a>
+          </li>
+          <li className={statusFilter === 'expired' ? 'uk-active' : ''}>
+            <a 
+              onClick={() => setStatusFilter('expired')}
+              title="Show users with expired invitations"
+              style={{ 
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: statusFilter === 'expired' ? '#333' : 'inherit',
+                whiteSpace: 'nowrap'
+              }}
+              onMouseEnter={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '#f8f8f8')}
+              onMouseLeave={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '')}
+            >
+              Expired
+              <span style={{
+                backgroundColor: statusFilter === 'expired' ? '#8b1a1a' : '#c62828',
+                color: 'white',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: '500',
+                minWidth: '20px',
+                textAlign: 'center'
+              }}>
+                {stats.expiredUsers}
+              </span>
             </a>
           </li>
           <li className={statusFilter === 'deactivated' ? 'uk-active' : ''}>
             <a 
               onClick={() => setStatusFilter('deactivated')}
-              title="Show deactivated users and expired invitations"
+              title="Show deactivated users"
               style={{ 
                 cursor: 'pointer',
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: statusFilter === 'deactivated' ? '#333' : 'inherit',
+                whiteSpace: 'nowrap'
               }}
               onMouseEnter={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '#f8f8f8')}
               onMouseLeave={(e) => !e.target.closest('li').classList.contains('uk-active') && (e.target.style.backgroundColor = '')}
             >
               Deactivated
+              <span style={{
+                backgroundColor: statusFilter === 'deactivated' ? '#666' : '#999',
+                color: 'white',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: '500',
+                minWidth: '20px',
+                textAlign: 'center'
+              }}>
+                {stats.deactivatedUsers}
+              </span>
             </a>
           </li>
         </div>
@@ -681,8 +697,9 @@ function Admin() {
             </button>
             <div className="uk-text-small uk-text-muted">
               {statusFilter === 'all' ? `Showing all ${data.length} users` : 
-               statusFilter === 'active' ? `Showing ${data.length} registered users` :
-               statusFilter === 'pending' ? `Showing ${data.length} pending invitations` :
+               statusFilter === 'active' ? `Showing ${data.length} active users` :
+               statusFilter === 'pending' ? `Showing ${data.length} pending users` :
+               statusFilter === 'expired' ? `Showing ${data.length} expired invitations` :
                `Showing ${data.length} deactivated users`}
             </div>
           </div>

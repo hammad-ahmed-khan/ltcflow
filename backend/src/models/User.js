@@ -16,8 +16,13 @@ const UserSchema = new Schema(
     },
     companyId: { type: Schema.Types.ObjectId, ref: "Company", required: true },
 
-    // Activation system fields
-    isActive: { type: Boolean, default: false },
+    // New status field instead of isActive
+    status: {
+      type: String,
+      enum: ["pending", "active", "deactivated", "expired"],
+      default: "pending",
+    },
+
     activationToken: { type: String, default: null },
     tokenExpiry: { type: Date, default: null },
 
