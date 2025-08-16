@@ -1,0 +1,9 @@
+{
+  "name": "clover",
+  "author": "Honeyside",
+  "version": "2.9.3",
+  "private": true,
+  "engines": {
+    "node": "18.x.x"
+  }
+}
