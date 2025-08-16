@@ -1,41 +1,45 @@
-import './TopBar.sass';
-import {
-  FiMoreHorizontal, FiSettings, FiHome, FiPlusCircle, FiCpu,
-} from 'react-icons/fi';
-import { useGlobal } from 'reactn';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import './Popup.sass';
+import { FiX } from 'react-icons/fi';
 import { useToasts } from 'react-toast-notifications';
-import { useSelector } from 'react-redux';
-import getMeetingRoom from '../../../actions/getMeetingRoom';
-import Picture from '../../../components/Picture';
+import { postCreate, postUpdate, postDelete } from '../../../actions/admin';
 
-function TopBar() {
-  const onlineUsers = useSelector((state) => state.io.onlineUsers);
-  const io = useSelector((state) => state.io.io);
-  const [nav, setNav] = useGlobal('nav');
-  const setToken = useGlobal('token')[1];
-  const setPanel = useGlobal('panel')[1];
-  const setOver = useGlobal('over')[1];
-  const [user, setUser] = useGlobal('user');
-  const setAudio = useGlobal('audio')[1];
-  const setVideo = useGlobal('video')[1];
-  const setCallDirection = useGlobal('callDirection')[1];
+function Input({
+  icon, placeholder, type, onChange, required, value,
+}) {
+  return (
+    <div className="uk-margin-small-top">
+      <div className="uk-inline uk-width-1-1">
+        <span className="uk-form-icon uk-form-icon-flip" data-uk-icon={`icon: ${icon}`} onChange={onChange} />
+        <input
+          className="uk-input uk-margin-remove"
+          required={required}
+          placeholder={placeholder}
+          value={value}
+          type={type}
+          onChange={onChange}
+        />
+      </div>
+    </div>
+  );
+}
 
-  const navigate = useNavigate();
-  const location = useLocation();
+function AddPeers({ onClose, type, user }) {
   const { addToast } = useToasts();
 
-  const logout = async () => {
-    io.disconnect();
-    const { username } = user;
-    localStorage.removeItem('token');
-    await setToken(null);
-    await setUser({});
-    addToast(`User ${username} logged out!`, {
+  const [firstName, setFirstName] = useState(user ? user.firstName : '');
+  const [lastName, setLastName] = useState(user ? user.lastName : '');
+  const [email, setEmail] = useState(user ? user.email : '');
+  const [username, setUsername] = useState(user ? user.username : '');
+  const [password, setPassword] = useState('');
+  const [repeatPassword, setRepeatPassword] = useState('');
+  const [errors, setErrors] = useState(null);
+
+  const okToast = (content) => {
+    addToast(content, {
       appearance: 'success',
       autoDismiss: true,
     });
-    navigate('/login', { replace: true });
   };
 
   const errorToast = (content) => {
@@ -45,110 +49,173 @@ function TopBar() {
     });
   };
 
-  const newMeeting = async () => {
-    await setAudio(true);
-    await setVideo(true);
-    await setCallDirection('meeting');
-    try {
-      const res = await getMeetingRoom();
-      navigate(`/meeting/${res.data._id}`, { replace: true });
-    } catch (e) {
-      errorToast('Server error. Unable to initiate call.');
+  const getTitle = () => {
+    switch (type) {
+      case 'create':
+        return 'Create user';
+      case 'edit':
+        return `Edit ${user.username.substr(0, 16)}${user.username.length > 16 ? '...' : ''}`;
+      default:
+        return `Delete ${user.username.substr(0, 16)}${user.username.length > 16 ? '...' : ''}`;
     }
   };
 
-  const getStatus = () => {
-    if (onlineUsers.filter((u) => u.id === user.id && u.status === 'busy').length > 0) return 'busy';
-    if (onlineUsers.filter((u) => u.id === user.id && u.status === 'online').length > 0) return 'online';
-    if (onlineUsers.filter((u) => u.id === user.id && u.status === 'away').length > 0) return 'away';
-    return null;
+  const createUser = async (e) => {
+    e.preventDefault();
+    try {
+      await postCreate({
+        username,
+        email,
+        password,
+        repeatPassword,
+        firstName,
+        lastName,
+      });
+      okToast(`User ${username} has been created`);
+      onClose(true);
+    } catch (e) {
+      if (e && e.response) setErrors(e.response.data);
+      errorToast(`Failed to create user ${username}`);
+    }
   };
 
-  // Role-based permission checks
-  const canAccessAdmin = ['root', 'admin'].includes(user.level);
-  const canCreateGroups = ['root', 'admin', 'manager'].includes(user.level);
-  const canCreateMeetings = ['root', 'admin', 'manager'].includes(user.level);
+  const updateUser = async (e) => {
+    e.preventDefault();
+    try {
+      await postUpdate({
+        username,
+        email,
+        password,
+        repeatPassword,
+        firstName,
+        lastName,
+        user,
+      });
+      okToast(`User ${username} has been edited`);
+      onClose(true);
+    } catch (e) {
+      if (e && e.response) setErrors(e.response.data);
+      errorToast(`Failed to edit user ${username}`);
+    }
+  };
+
+  const deleteUser = async (email, username) => {
+    try {
+      await postDelete({ email, username });
+      okToast(`User ${username} has been deleted`);
+      onClose(true);
+    } catch (e) {
+      errorToast(`Failed to delete user ${username}`);
+    }
+  };
 
   return (
-    <div className="top-bar uk-flex uk-flex-between uk-flex-middle">
-      <div className="uk-flex uk-flex-middle">
-        <div
-          className="profile"
-          onClick={() => {
-            setOver(true);
-            setNav('rooms');
-            navigate('/', { replace: true });
-          }}
-        >
-          <Picture user={user || {}} />
-        </div>
-        {getStatus() && <div className={`dot ${getStatus()}`} />}
-      </div>
-      <div className="nav">
-        {canAccessAdmin && (
-          <div
-            className={`button${location.pathname.startsWith('/admin') ? ' active' : ''}`}
-            onClick={() => {
-              setOver(true);
-              navigate('/admin', { replace: true });
-            }}
-          >
-            <FiCpu />
+    <div className="admin-overlay">
+      <div className="box">
+        <div className="top-controls">
+          <div className="title">{getTitle()}</div>
+          <div className="close" onClick={onClose}>
+            <FiX />
           </div>
-        )}
-        <div
-          className="button mobile"
-          onClick={() => {
-            setOver(true);
-            navigate('/', { replace: true });
-          }}
-        >
-          <FiHome />
         </div>
-        {canCreateGroups && (
-          <div className="button" onClick={() => setPanel('createGroup')}>
-            <FiPlusCircle />
+
+        <div className="data-editor" hidden={!['create', 'edit'].includes(type)}>
+          <div className="uk-flex uk-flex-column uk-flex-center uk-flex-middle admin-delete">
+            <form
+              className="uk-flex uk-flex-column uk-flex-center uk-flex-middle"
+              onSubmit={(e) => (type === 'edit' ? updateUser(e) : createUser(e))}
+            >
+              <Input
+                icon="user"
+                placeholder="Username"
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+              {errors && errors.username && <div className="admin-form-error">{errors.username}</div>}
+              <Input
+                icon="mail"
+                placeholder="Email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+              {errors && errors.email && <div className="admin-form-error">{errors.email}</div>}
+              <Input
+                icon="pencil"
+                placeholder="First Name"
+                type="text"
+                required
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+              />
+              {errors && errors.firstName && <div className="admin-form-error">{errors.firstName}</div>}
+              <Input
+                icon="pencil"
+                placeholder="Last Name"
+                type="text"
+                required
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+              />
+              {errors && errors.lastName && <div className="admin-form-error">{errors.lastName}</div>}
+              <Input
+                icon="lock"
+                placeholder="Password"
+                type="password"
+                required={type === 'create'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              {errors && errors.password && <div className="admin-form-error">{errors.password}</div>}
+              <Input
+                icon="lock"
+                placeholder="Repeat Password"
+                type="password"
+                required={type === 'create'}
+                value={repeatPassword}
+                onChange={(e) => setRepeatPassword(e.target.value)}
+              />
+              {errors && errors.repeatPassword && <div className="admin-form-error">{errors.repeatPassword}</div>}
+              <button type="submit" style={{ marginBottom: 4 }} className="uk-button uk-button-honey uk-margin-top">
+                {type === 'edit' ? 'Update' : 'Create'}
+                {' '}
+                User
+              </button>
+              <button className="uk-button uk-button-secondary" onClick={onClose}>
+                Cancel
+              </button>
+              {type === 'edit' && (
+                <div className="uk-text-center notice">Leave password blank if you don not want to change it.</div>
+              )}
+            </form>
+            <div className="padding" />
           </div>
-        )}
-        <div
-          className={`button${nav === 'settings' ? ' active' : ''}`}
-          onClick={() => {
-            setNav('settings');
-          }}
-        >
-          <FiSettings />
         </div>
-        <div className="uk-inline">
-          <div className="button" type="button">
-            <FiMoreHorizontal />
-          </div>
-          <div data-uk-dropdown="mode: click; offset: 5; boundary: .top-bar">
-            {canCreateMeetings && (
-              <div className="link" onClick={() => newMeeting()}>
-                New Meeting
-              </div>
-            )}
-            {canCreateGroups && (
-              <div className="link" onClick={() => setPanel('createGroup')}>
-                New Group
-              </div>
-            )}
-            {canAccessAdmin && <div className="divider" />}
-            {canAccessAdmin && (
-              <div
-                className="link"
-                onClick={() => {
-                  setOver(true);
-                  navigate('/admin', { replace: true });
-                }}
-              >
-                Admin Panel
-              </div>
-            )}
-            <div className="divider" />
-            <div className="link" onClick={logout}>
-              Logout
+
+        <div className="data-editor" hidden={type !== 'delete'}>
+          <div className="uk-flex uk-flex-column uk-flex-center uk-flex-middle admin-delete">
+            <div className="uk-text-center">
+              Are you sure you want to delete user @
+              {user && user.username}
+              ?
             </div>
+            <button
+              className="uk-button uk-button-honey uk-margin-top"
+              style={{ marginBottom: 4 }}
+              onClick={() => deleteUser(user.email, user.username)}
+            >
+              Delete User
+            </button>
+            <button className="uk-button uk-button-secondary" onClick={onClose}>
+              Cancel
+            </button>
+            <div className="uk-text-center notice">
+              Messages sent by the user will not be deleted. A deleted user can not be recovered.
+            </div>
+            <div className="padding" />
           </div>
         </div>
       </div>
@@ -156,4 +223,4 @@ function TopBar() {
   );
 }
 
-export default TopBar;
+export default AddPeers;
