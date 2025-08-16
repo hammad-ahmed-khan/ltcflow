@@ -8,12 +8,12 @@ module.exports = async (req, res, next) => {
   let email = xss(req.fields.email);
   let firstName = xss(req.fields.firstName);
   let lastName = xss(req.fields.lastName);
-  let { password, repeatPassword, user } = req.fields;
+  let { password, repeatPassword, user, level } = req.fields;
   const companyId = req.headers["x-company-id"]; // Read from header
 
-  // Check if user has root level access
-  if (req.user.level !== 'root') {
-    return res.status(401).json({ error: '401 Unauthorized User' });
+  // Check if user has permission to edit users
+  if (!['root', 'admin'].includes(req.user.level)) {
+    return res.status(401).json({ error: 'Unauthorized User' });
   }
 
   // Validate companyId
@@ -30,35 +30,61 @@ module.exports = async (req, res, next) => {
 
   !validator.isEmail(email) && (errors.email = 'Invalid email.');
 
+  // Validate user level if provided
+  if (level) {
+    const validLevels = ['user', 'manager', 'admin'];
+    if (!validLevels.includes(level)) {
+      errors.level = 'Invalid user role.';
+    }
+
+    // Check permissions based on current user's level
+    const currentUserLevel = req.user.level;
+    
+    if (currentUserLevel === 'root') {
+      // Root users can set any level
+    } else if (currentUserLevel === 'admin') {
+      // Administrators cannot create/edit other administrators
+      if (level === 'admin') {
+        errors.level = 'Administrators cannot edit users to administrator level.';
+      }
+    }
+  }
+
   email = email.toLowerCase();
 
-  // Check for username conflicts within the same company
-  const isUsername = await User.findOne({ username, companyId });
-  if (isUsername && username !== user.username) {
-    errors.username = 'Username taken within your company.';
-  }
-
-  // Check for email conflicts within the same company
-  const isEmail = await User.findOne({ email, companyId });
-  if (isEmail && email !== user.email) {
-    errors.email = 'Email already in use within your company.';
-  }
-
-  if (Object.keys(errors).length > 0) {
-    return res.status(400).json(errors);
-  }
-
-  let query = { 
-    username: xss(username), 
-    email: xss(email), 
-    firstName: xss(firstName), 
-    lastName: xss(lastName) 
-  };
-
   try {
+    // Check for username conflicts within the same company
+    const isUsername = await User.findOne({ username, companyId });
+    if (isUsername && username !== user.username) {
+      errors.username = 'Username taken within your company.';
+    }
+
+    // Check for email conflicts within the same company
+    const isEmail = await User.findOne({ email, companyId });
+    if (isEmail && email !== user.email) {
+      errors.email = 'Email already in use within your company.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return res.status(400).json(errors);
+    }
+
+    let query = { 
+      username: xss(username), 
+      email: xss(email), 
+      firstName: xss(firstName), 
+      lastName: xss(lastName)
+    };
+
+    // Include level in update if provided
+    if (level) {
+      query.level = level;
+    }
+
+    // Hash password if provided
     if (typeof password === 'string' && password.length > 0) {
       const hash = await argon2.hash(password);
-      query = { ...query, password: hash };
+      query.password = hash;
     }
 
     // Update user with companyId check to ensure data isolation
