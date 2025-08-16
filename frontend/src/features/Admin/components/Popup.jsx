@@ -166,16 +166,18 @@ function AddPeers({ onClose, type, user }) {
     });
   };
 
-  const getTitle = () => {
-    switch (type) {
-      case 'create':
-        return 'Create user invitation';
-      case 'edit':
-        return `Edit ${user.username.substr(0, 16)}${user.username.length > 16 ? '...' : ''}`;
-      default:
-        return `Delete ${user.username.substr(0, 16)}${user.username.length > 16 ? '...' : ''}`;
-    }
-  };
+const getTitle = () => {
+  switch (type) {
+    case 'create':
+      return 'Invite New User'; // CHANGED: Was "Create user invitation"
+    case 'edit':
+      return `Edit ${user.username.substr(0, 16)}${user.username.length > 16 ? '...' : ''}`;
+    case 'delete':
+      return `Delete ${user.username.substr(0, 16)}${user.username.length > 16 ? '...' : ''}`;
+    default:
+      return 'User Management';
+  }
+};
 
   const createUser = async (e) => {
     e.preventDefault();
