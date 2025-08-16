@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGlobal } from 'reactn';
 import './Popup.sass';
-import { FiX } from 'react-icons/fi';
+import { FiX, FiCopy, FiCheck } from 'react-icons/fi';
 import { useToasts } from 'react-toast-notifications';
 import { postCreate, postUpdate, postDelete } from '../../../actions/admin';
 
@@ -26,7 +26,6 @@ function Input({
 }
 
 function UserTierSelect({ value, onChange, currentUserLevel }) {
-  // Define available tiers based on current user's level
   const getAvailableTiers = () => {
     const allTiers = [
       { value: 'user', label: 'Standard User', description: 'Can only chat with assigned groups' },
@@ -35,13 +34,10 @@ function UserTierSelect({ value, onChange, currentUserLevel }) {
     ];
 
     if (currentUserLevel === 'root') {
-      // Super Admin can create all user types
       return allTiers;
     } else if (currentUserLevel === 'admin') {
-      // Administrators cannot create other administrators
       return allTiers.slice(0, 2);
     } else {
-      // Other users cannot create users (this shouldn't happen in normal flow)
       return [];
     }
   };
@@ -54,6 +50,7 @@ function UserTierSelect({ value, onChange, currentUserLevel }) {
         <span className="uk-form-icon uk-form-icon-flip" data-uk-icon="icon: users" />
         <select
           className="uk-select uk-margin-remove uk-width-1-1"
+          value={value || ""}
           onChange={onChange}
           required
           style={{ paddingRight: '40px', width: '100%' }}
@@ -71,7 +68,6 @@ function UserTierSelect({ value, onChange, currentUserLevel }) {
           className="uk-text-small uk-margin-small-top uk-flex uk-flex-middle uk-padding-small uk-border-rounded" 
           style={{ 
             color: '#555', 
-            paddingRight: '40px',
             backgroundColor: value === 'user' ? '#f0f9ff' : 
                             value === 'manager' ? '#f8fafc' : 
                             '#fffbeb',
@@ -105,20 +101,55 @@ function UserTierSelect({ value, onChange, currentUserLevel }) {
   );
 }
 
+function ActivationLinkDisplay({ activationLink, userEmail, onClose }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(activationLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="uk-margin-top uk-padding uk-background-muted uk-border-rounded">
+      <h4 className="uk-text-success">✅ User Created Successfully!</h4>
+      <p className="uk-text-small uk-margin-small">
+        The user has been created and an activation link has been generated. 
+        Share this link with <strong>{userEmail || 'the user'}</strong> to complete their registration:
+      </p>
+      <div className="uk-flex uk-flex-middle uk-margin-small">
+        <input 
+          className="uk-input uk-form-small uk-margin-small-right" 
+          value={activationLink} 
+          readOnly 
+          style={{ fontSize: '12px' }}
+        />
+        <button 
+          className="uk-button uk-button-small uk-button-secondary"
+          onClick={copyToClipboard}
+        >
+          {copied ? <FiCheck /> : <FiCopy />}
+        </button>
+      </div>
+      <p className="uk-text-warning uk-text-small">
+        ⚠️ This link expires in 7 days and can only be used once by the specified email address.
+      </p>
+    </div>
+  );
+}
+
 function AddPeers({ onClose, type, user }) {
   const { addToast } = useToasts();
   const [currentUser] = useGlobal('user');
   const currentUserLevel = currentUser?.level || '';
 
-  console.log("Sala USer" , user);
-
   const [firstName, setFirstName] = useState(user ? user.firstName : '');
   const [lastName, setLastName] = useState(user ? user.lastName : '');
   const [email, setEmail] = useState(user ? user.email : '');
   const [username, setUsername] = useState(user ? user.username : '');
-  const [password, setPassword] = useState('');
-  const [repeatPassword, setRepeatPassword] = useState('');
   const [userTier, setUserTier] = useState(user ? user.level : '');
+  const [activationLink, setActivationLink] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const [errors, setErrors] = useState(null);
 
   const okToast = (content) => {
@@ -138,7 +169,7 @@ function AddPeers({ onClose, type, user }) {
   const getTitle = () => {
     switch (type) {
       case 'create':
-        return 'Create user';
+        return 'Create user invitation';
       case 'edit':
         return `Edit ${user.username.substr(0, 16)}${user.username.length > 16 ? '...' : ''}`;
       default:
@@ -149,20 +180,25 @@ function AddPeers({ onClose, type, user }) {
   const createUser = async (e) => {
     e.preventDefault();
     try {
-      await postCreate({
+      const response = await postCreate({
         username,
         email,
-        password,
-        repeatPassword,
         firstName,
         lastName,
-        level: userTier, // Include user tier in creation
+        level: userTier,
       });
-      okToast(`User ${username} has been created`);
-      onClose(true);
+      
+      if (response.data.activationLink) {
+        setActivationLink(response.data.activationLink);
+        setUserEmail(email);
+        okToast(`Invitation created for ${username}`);
+      } else {
+        okToast(`User ${username} has been created`);
+        onClose(true);
+      }
     } catch (e) {
       if (e && e.response) setErrors(e.response.data);
-      errorToast(`Failed to create user ${username}`);
+      errorToast(`Failed to create invitation for ${username}`);
     }
   };
 
@@ -172,18 +208,16 @@ function AddPeers({ onClose, type, user }) {
       await postUpdate({
         username,
         email,
-        password,
-        repeatPassword,
         firstName,
         lastName,
-        level: userTier, // Include user tier in update
+        level: userTier,
         user,
       });
-      okToast(`User ${username} has been edited`);
+      okToast(`User ${username} has been updated`);
       onClose(true);
     } catch (e) {
       if (e && e.response) setErrors(e.response.data);
-      errorToast(`Failed to edit user ${username}`);
+      errorToast(`Failed to update user ${username}`);
     }
   };
 
@@ -197,7 +231,6 @@ function AddPeers({ onClose, type, user }) {
     }
   };
 
-  // Check if current user has permission to manage users
   const canManageUsers = ['root', 'admin'].includes(currentUserLevel);
 
   if (!canManageUsers) {
@@ -226,96 +259,85 @@ function AddPeers({ onClose, type, user }) {
       <div className="box">
         <div className="top-controls">
           <div className="title">{getTitle()}</div>
-          <div className="close" onClick={onClose}>
+          <div className="close" onClick={() => onClose(true)}>
             <FiX />
           </div>
         </div>
 
         <div className="data-editor" hidden={!['create', 'edit'].includes(type)}>
           <div className="uk-flex uk-flex-column uk-flex-center uk-flex-middle admin-delete">
-            <form
-              className="uk-flex uk-flex-column uk-flex-center uk-flex-middle"
-              onSubmit={(e) => (type === 'edit' ? updateUser(e) : createUser(e))}
-            >
-              <Input
-                icon="user"
-                placeholder="Username"
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+            {activationLink ? (
+              <ActivationLinkDisplay 
+                activationLink={activationLink}
+                userEmail={userEmail}
+                onClose={() => onClose(true)} 
               />
-              {errors && errors.username && <div className="admin-form-error">{errors.username}</div>}
-              
-              <Input
-                icon="mail"
-                placeholder="Email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              {errors && errors.email && <div className="admin-form-error">{errors.email}</div>}
-              
-              <Input
-                icon="pencil"
-                placeholder="First Name"
-                type="text"
-                required
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-              />
-              {errors && errors.firstName && <div className="admin-form-error">{errors.firstName}</div>}
-              
-              <Input
-                icon="pencil"
-                placeholder="Last Name"
-                type="text"
-                required
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-              />
-              {errors && errors.lastName && <div className="admin-form-error">{errors.lastName}</div>}
+            ) : (
+              <form
+                className="uk-flex uk-flex-column uk-flex-center uk-flex-middle"
+                onSubmit={(e) => (type === 'edit' ? updateUser(e) : createUser(e))}
+              >
+                <Input
+                  icon="user"
+                  placeholder="Username"
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+                {errors && errors.username && <div className="admin-form-error">{errors.username}</div>}
+                
+                <Input
+                  icon="mail"
+                  placeholder="Email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                {errors && errors.email && <div className="admin-form-error">{errors.email}</div>}
+                
+                <Input
+                  icon="pencil"
+                  placeholder="First Name"
+                  type="text"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+                {errors && errors.firstName && <div className="admin-form-error">{errors.firstName}</div>}
+                
+                <Input
+                  icon="pencil"
+                  placeholder="Last Name"
+                  type="text"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+                {errors && errors.lastName && <div className="admin-form-error">{errors.lastName}</div>}
 
-              <UserTierSelect
-                value={userTier}
-                onChange={(e) => setUserTier(e.target.value)}
-                currentUserLevel={currentUserLevel}
-              />
-              {errors && errors.level && <div className="admin-form-error">{errors.level}</div>}
-              
-              <Input
-                icon="lock"
-                placeholder="Password"
-                type="password"
-                required={type === 'create'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              {errors && errors.password && <div className="admin-form-error">{errors.password}</div>}
-              
-              <Input
-                icon="lock"
-                placeholder="Repeat Password"
-                type="password"
-                required={type === 'create'}
-                value={repeatPassword}
-                onChange={(e) => setRepeatPassword(e.target.value)}
-              />
-              {errors && errors.repeatPassword && <div className="admin-form-error">{errors.repeatPassword}</div>}
-              
-              <button type="submit" style={{ marginBottom: 4 }} className="uk-button uk-button-honey uk-margin-top">
-                {type === 'edit' ? 'Update' : 'Create'}
-                {' '}
-                User
-              </button>
-              <button className="uk-button uk-button-secondary" onClick={onClose}>
-                Cancel
-              </button>
-              {type === 'edit' && (
-                <div className="uk-text-center notice">Leave password blank if you do not want to change it.</div>
-              )}
-            </form>
+                <UserTierSelect
+                  value={userTier}
+                  onChange={(e) => setUserTier(e.target.value)}
+                  currentUserLevel={currentUserLevel}
+                />
+                {errors && errors.level && <div className="admin-form-error">{errors.level}</div>}
+                
+                <button type="submit" style={{ marginBottom: 4 }} className="uk-button uk-button-honey uk-margin-top">
+                  {type === 'edit' ? 'Update User' : 'Create Invitation'}
+                </button>
+                <button className="uk-button uk-button-secondary" onClick={() => onClose(false)}>
+                  Cancel
+                </button>
+                
+                {type === 'create' && (
+                  <div className="uk-text-center notice uk-margin-top">
+                    An activation link will be generated that is bound to the user's email address. Only the specified user can use this link to activate their account.
+                  </div>
+                )}
+              </form>
+            )}
             <div className="padding" />
           </div>
         </div>
