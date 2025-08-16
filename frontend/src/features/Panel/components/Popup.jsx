@@ -7,7 +7,7 @@ import changeUserPassword from '../../../actions/changeUserPassword';
 function Input({
   icon, placeholder, type, onChange, required, value,
 }) {
-  return (
+  return ( 
     <div className="uk-margin-small-top">
       <div className="uk-inline uk-width-1-1">
         <span className="uk-form-icon uk-form-icon-flip" data-uk-icon={`icon: ${icon}`} onChange={onChange} />
