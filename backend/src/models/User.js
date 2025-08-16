@@ -37,4 +37,4 @@ UserSchema.index({ email: 1, companyId: 1 }, { unique: true });
 UserSchema.index({ username: 1, companyId: 1 }, { unique: true });
 UserSchema.index({ activationToken: 1 });
 
-module.exports = mongoose.model("User", UserSchema);
+module.exports = User = mongoose.model("users", UserSchema);
