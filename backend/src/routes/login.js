@@ -1,3 +1,4 @@
+// backend/src/routes/login.js
 const User = require("../models/User");
 const argon2 = require("argon2");
 const store = require("../store");
@@ -65,36 +66,49 @@ module.exports = (req, res, next) => {
     .then((user) => {
       if (!user) return res.status(404).json({ email: "User not found." });
 
-      // Check user status
-      if (user.status !== "active") {
-        const statusMessages = {
-          pending:
-            "Account not activated. Please check your email for the activation link.",
-          expired:
-            "Activation link has expired. Please contact your administrator for a new invitation.",
-          deactivated:
-            "Account has been deactivated. Please contact your administrator.",
-        };
+      // 🔹 NEW: Skip status check for root users
+      if (user.level !== "root") {
+        // Check user status for non-root users
+        if (user.status !== "active") {
+          const statusMessages = {
+            pending:
+              "Account not activated. Please check your email for the activation link.",
+            expired:
+              "Activation link has expired. Please contact your administrator for a new invitation.",
+            deactivated:
+              "Account has been deactivated. Please contact your administrator.",
+          };
 
-        return res.status(403).json({
-          error:
-            statusMessages[user.status] || "Account access is not available.",
-        });
+          return res.status(403).json({
+            error:
+              statusMessages[user.status] || "Account access is not available.",
+          });
+        }
       }
 
       // Check if user has a password (should have one after activation)
+      // Root users might not have a password initially, so we handle this differently
       if (!user.password) {
-        return res.status(403).json({
-          error: "Account setup incomplete. Please contact your administrator.",
-        });
+        if (user.level === "root") {
+          return res.status(403).json({
+            error:
+              "Root account password not set. Please contact system administrator.",
+          });
+        } else {
+          return res.status(403).json({
+            error:
+              "Account setup incomplete. Please contact your administrator.",
+          });
+        }
       }
 
       argon2
         .verify(user.password, password)
-        .then((correct) => (correct ? sendResponse(user) : sendError()));
+        .then((correct) => (correct ? sendResponse(user) : sendError()))
+        .catch(() => sendError());
     })
     .catch((err) => {
-      console.error(err);
-      res.status(500).json({ error: err.message });
+      console.error("Login error:", err);
+      res.status(500).json({ error: "Internal server error during login." });
     });
 };
