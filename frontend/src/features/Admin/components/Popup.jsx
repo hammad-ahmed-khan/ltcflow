@@ -61,7 +61,7 @@ function UserTierSelect({ value, onChange, currentUserLevel }) {
           <option value="">Select User Role</option>
           {availableTiers.map((tier) => (
             <option key={tier.value} value={tier.value} selected={value === tier.value}>
-              {tier.label}
+              {tier.label} - {value}
             </option>
           ))}
         </select>
