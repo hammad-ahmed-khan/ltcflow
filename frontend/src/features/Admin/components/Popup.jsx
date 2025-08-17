@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGlobal } from 'reactn';
 import './Popup.sass';
-import { FiX, FiCopy, FiCheck } from 'react-icons/fi';
+import { FiX, FiCopy, FiCheck, FiMail, FiInfo, FiClock, FiUserCheck, FiRefreshCw } from 'react-icons/fi';
 import { useToasts } from 'react-toast-notifications';
 import { postCreate, postUpdate, postDelete } from '../../../actions/admin';
 
@@ -103,40 +103,97 @@ function UserTierSelect({ value, onChange, currentUserLevel }) {
 
 function ActivationLinkDisplay({ activationLink, userEmail, onClose }) {
   const [copied, setCopied] = useState(false);
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(activationLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(activationLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = activationLink;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (
-    <div className="uk-margin-top uk-padding uk-background-muted uk-border-rounded">
-      <h4 className="uk-text-success">✅ User Created Successfully!</h4>
-      <p className="uk-text-small uk-margin-small">
-        The user has been created and an activation link has been generated. 
-        Share this link with <strong>{userEmail || 'the user'}</strong> to complete their registration:
+    <div className="uk-card uk-card-default uk-card-body uk-border-rounded uk-box-shadow-small ">
+      
+      {/* Header with close button */}
+      <div className="uk-flex uk-flex-between uk-flex-middle">
+        <h4 className="uk-text-success uk-margin-remove">
+          ✅ Invitation Sent Successfully!
+        </h4>
+      </div>
+      
+      <p className="uk-text-small uk-margin-small-top uk-text-muted">
+        An invitation email has been sent to <strong style={{ color: '#1976d2' }}>{userEmail}</strong>
       </p>
-      <div className="uk-flex uk-flex-middle uk-margin-small">
-        <input 
-          className="uk-input uk-form-small uk-margin-small-right" 
-          value={activationLink} 
-          readOnly 
-          style={{ fontSize: '12px' }}
-        />
-        <button 
-          className="uk-button uk-button-small uk-button-secondary"
+      
+      {/* What happens next section */}
+      <div className="uk-margin-medium-top">
+        <h5 className="uk-text-bold uk-margin-small-bottom uk-text-emphasis">What happens next?</h5>
+        <ul className="uk-list uk-list-divider uk-text-small">
+          <li className="uk-flex uk-flex-middle" style={{ padding: '8px 0' }}>
+            <FiMail className="uk-margin-small-right" style={{ color: '#1976d2', minWidth: '16px' }} /> 
+            The user receives an email with activation instructions
+          </li>
+          <li className="uk-flex uk-flex-middle" style={{ padding: '8px 0' }}>
+            <FiClock className="uk-margin-small-right" style={{ color: '#f57c00', minWidth: '16px' }} /> 
+            The activation link expires in 7 days
+          </li>
+          <li className="uk-flex uk-flex-middle" style={{ padding: '8px 0' }}>
+            <FiUserCheck className="uk-margin-small-right" style={{ color: '#2e7d32', minWidth: '16px' }} /> 
+            The user will appear as "Active" after completing activation
+          </li>
+        </ul>
+      </div>
+      
+      {/* Copy link button */}
+      <div className="uk-flex uk-flex-left uk-margin-medium-top">
+        <button
+          className={`uk-button uk-button-small ${copied ? "uk-button-success" : "uk-button-primary"}`}
           onClick={copyToClipboard}
+          style={{ 
+            transition: 'all 0.2s ease',
+            fontWeight: '500'
+          }}
+          onMouseEnter={(e) => {
+            if (!copied) {
+              e.target.style.transform = 'translateY(-1px)';
+              e.target.style.boxShadow = '0 4px 8px rgba(25, 118, 210, 0.3)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!copied) {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = 'none';
+            }
+          }}
         >
-          {copied ? <FiCheck /> : <FiCopy />}
+          {copied ? (
+            <>
+              <FiCheck className="uk-margin-small-right" /> 
+              Link Copied!
+            </>
+          ) : (
+            <>
+              <FiCopy className="uk-margin-small-right" /> 
+              Copy Activation Link
+            </>
+          )}
         </button>
       </div>
-      <p className="uk-text-warning uk-text-small">
-        ⚠️ This link expires in 7 days and can only be used once by the specified email address.
-      </p>
     </div>
   );
 }
+ 
 
 function AddPeers({ onClose, type, user }) {
   const { addToast } = useToasts();

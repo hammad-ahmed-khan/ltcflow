@@ -1,0 +1,49 @@
+// frontend/src/components/ConfirmationDialog/ConfirmationDialog.sass
+
+.confirmation-dialog-overlay
+  position: fixed
+  top: 0
+  left: 0
+  right: 0
+  bottom: 0
+  background-color: rgba(0, 0, 0, 0.6)
+  display: flex
+  align-items: center
+  justify-content: center
+  z-index: 3000
+  backdrop-filter: blur(2px)
+  
+  .confirmation-dialog-content
+    background-color: white
+    border-radius: 12px
+    padding: 24px
+    max-width: 450px
+    width: 90%
+    max-height: 80vh
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3)
+    position: relative
+    
+    // Responsive adjustments
+    @media (max-width: 480px)
+      padding: 20px
+      margin: 16px
+      max-width: calc(100% - 32px)
+      
+    // Focus management
+    &:focus
+      outline: none
+      
+// Animation classes for better control
+.confirmation-dialog-enter
+  opacity: 0
+  
+.confirmation-dialog-enter-active
+  opacity: 1
+  transition: opacity 200ms ease-out
+  
+.confirmation-dialog-exit
+  opacity: 1
+  
+.confirmation-dialog-exit-active
+  opacity: 0
+  transition: opacity 200ms ease-out

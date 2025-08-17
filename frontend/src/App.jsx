@@ -9,6 +9,7 @@ import jwtDecode from 'jwt-decode';
 import { useToasts } from 'react-toast-notifications';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import ActivateAccount from './pages/ActivateAccount';
 import ForgotPassword from './pages/ForgotPassword';
 import NotFound from './pages/NotFound';
 import Loading from './components/Loading';
@@ -141,6 +142,7 @@ function App() {
     <div className={`theme ${Config.theme}`}>
       <Router>
         <Routes>
+          <Route path="/activate/:token" element={<ActivateAccount />}  />
           <Route path="/forgot-password" element={token ? <Navigate to="/" /> : <ForgotPassword />} />
           <Route path="/login" element={token ? <Navigate to="/" /> : <Login />} />
           <Route path="/*" element={!token ? <Navigate to="/login" /> : <Home />} />

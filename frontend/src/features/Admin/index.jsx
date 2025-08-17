@@ -9,6 +9,8 @@ import './Admin.sass';
 import search from '../../actions/search';
 import apiClient from '../../api/apiClient';
 import Popup from './components/Popup';
+import ConfirmationDialog from '../../components/ConfirmationDialog';
+import { postDelete } from '../../actions/admin';
 
 function Admin() {
   const { addToast } = useToasts();
@@ -42,91 +44,6 @@ function Admin() {
     search(searchText || null, 10000).then((res) => {
       setUsers(res.data.users);
     });
-  };
-
-  // Enhanced confirmation dialog component
-  const ConfirmationDialog = ({ isOpen, onClose, onConfirm, title, message, confirmText, confirmStyle, icon }) => {
-    if (!isOpen) return null;
-
-    return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 3000
-      }}>
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          maxWidth: '400px',
-          width: '90%',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            marginBottom: '16px',
-            gap: '12px'
-          }}>
-            {icon && <span style={{ fontSize: '24px' }}>{icon}</span>}
-            <h3 style={{
-              margin: 0,
-              fontSize: '18px',
-              fontWeight: '600',
-              color: '#333'
-            }}>{title}</h3>
-          </div>
-          
-          <p style={{
-            margin: '0 0 20px 0',
-            color: '#666',
-            lineHeight: '1.5'
-          }}>{message}</p>
-          
-          <div style={{
-            display: 'flex',
-            gap: '12px',
-            justifyContent: 'flex-end'
-          }}>
-            <button
-              onClick={onClose}
-              style={{
-                padding: '8px 16px',
-                border: '1px solid #ddd',
-                backgroundColor: 'white',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onConfirm}
-              style={{
-                padding: '8px 16px',
-                border: 'none',
-                backgroundColor: confirmStyle === 'danger' ? '#c62828' : '#f57c00',
-                color: 'white',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500'
-              }}
-            >
-              {confirmText}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   // Helper function to format user role for display with tooltips
@@ -303,6 +220,49 @@ function Admin() {
     onClose: () => setConfirmationDialog(null)
   });
 };
+
+ // Delete user function
+  const deleteUser = async (email, username) => {
+    setLoading(prev => ({...prev, [`delete_${email}`]: true}));
+    try {
+      await postDelete({ email, username });
+      addToast(`User ${username} has been deleted`, {
+        appearance: 'success',
+        autoDismiss: true,
+      });      
+      refreshUserList();
+      setConfirmationDialog(null); // Close dialog on success
+    } catch (e) {
+      addToast(`Failed to delete user ${username}`, {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    } finally {
+      setLoading(prev => ({...prev, [`delete_${email}`]: false}));
+    }
+  };
+
+  // NEW: Handle delete user with confirmation
+  const handleDeleteUser = (userRow) => {
+    setConfirmationDialog({
+      isOpen: true,
+      title: 'Delete User',
+      message: (
+        <div>
+          <p>Are you sure you want to permanently delete <strong>{userRow.username}</strong>?</p>
+        </div>
+      ),
+      confirmText: 'Delete User',
+      cancelText: 'Keep User',
+      type: 'danger',
+      icon: '🗑️',
+      loading: loading[`delete_${userRow.email}`],
+      onConfirm: () => {
+        deleteUser(userRow.email, userRow.username);
+      },
+      onClose: () => setConfirmationDialog(null)
+    });
+  };
 
   // Enhanced status badge for invitation status
   const getDetailedStatusBadge = (user) => {
@@ -594,10 +554,7 @@ function Admin() {
           </a>
           <a
             className="uk-link-text uk-text-small uk-text-danger"
-            onClick={() => {
-              setUser(row);
-              setPopup('delete');
-            }}
+            onClick={() => handleDeleteUser(row)} // UPDATED: Use confirmation handler
             style={{ 
               fontSize: '11px', 
               cursor: 'pointer',
@@ -968,8 +925,10 @@ function Admin() {
           title={confirmationDialog.title}
           message={confirmationDialog.message}
           confirmText={confirmationDialog.confirmText}
-          confirmStyle={confirmationDialog.confirmStyle}
+          cancelText={confirmationDialog.cancelText}
+          type={confirmationDialog.type}
           icon={confirmationDialog.icon}
+          loading={confirmationDialog.loading}
         />
       )}
     </div>
