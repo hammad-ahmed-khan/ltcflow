@@ -159,6 +159,21 @@ router.post(
 
 router.post("/company/create", require("./create-company"));
 
+// User activation routes
+router.get("/activate/:token", require("./activate-user"));
+router.post("/complete-activation", require("./complete-activation"));
+router.post("/regenerate-activation", require("./regenerate-activation"));
+router.post("/cancel-activation", require("./cancel-activation"));
+
+// User status management
+router.post(
+  "/toggle-user-status",
+  passport.authenticate("jwt", { session: false }, null),
+  require("./toggle-user-status")
+);
+
+// Test email route (for development)
+router.post("/test-email", require("./test-email"));
 router.use("/info", require("./info"));
 
 module.exports = router;

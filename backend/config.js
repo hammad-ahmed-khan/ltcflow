@@ -6,6 +6,7 @@ module.exports = {
   appBuild: info.build,
   port: process.env.PORT || 4000,
   secret: process.env.AUTH_SECRET || "jwt-default-secret",
+  domain: process.env.DOMAIN,
   mongo: {
     uri: process.env.MONGO_URI,
     srv: (process.env.MONGO_SRV || "").toString() === "true",
