@@ -12,6 +12,13 @@ module.exports = async (req, res) => {
         .json({ status: 400, error: "COMPANY_ID_REQUIRED" });
     }
 
+    if (!["manager", "admin", "root"].includes(req.user.level)) {
+      return res.status(403).json({
+        error: "INSUFFICIENT_PERMISSIONS",
+        message: "Only managers and administrators can create groups",
+      });
+    }
+
     // Create new room with companyId
     const room = await new Room({
       people,
