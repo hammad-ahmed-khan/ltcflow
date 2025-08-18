@@ -93,12 +93,14 @@ const remove = async () => {
       <button className="uk-margin-small-top uk-button uk-button-secondary" onClick={logout}>
         Logout
       </button>
-      <button
-        className="uk-margin-small uk-button uk-button-honey uk-button-large"
-        onClick={() => setPanel('createGroup')}
-      >
-        Create Group
-      </button>
+      {user.level && ['manager', 'admin', 'root'].includes(user.level) && (
+        <button
+          className="uk-margin-small uk-button uk-button-honey uk-button-large"
+          onClick={() => setPanel('createGroup')}
+        >
+          Create Group
+        </button>
+      )}
       {popup && (
         <Popup
           onClose={() => {

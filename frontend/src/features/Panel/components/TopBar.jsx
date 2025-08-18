@@ -65,9 +65,9 @@ function TopBar() {
   };
 
   // Role-based permission checks
-  const canAccessAdmin = ['root', 'administrator'].includes(user.level);
-  const canCreateGroups = ['root', 'administrator', 'group_manager'].includes(user.level);
-  const canCreateMeetings = ['root', 'administrator', 'group_manager'].includes(user.level);
+  const canAccessAdmin = ['root', 'admin'].includes(user.level);
+  const canCreateGroups = ['root', 'admin', 'manager'].includes(user.level);
+  const canCreateMeetings = ['root', 'admin', 'manager'].includes(user.level);
 
   return (
     <div className="top-bar uk-flex uk-flex-between uk-flex-middle">

@@ -1,195 +1,140 @@
 // frontend/src/pages/ActivateAccount/ActivateAccount.sass
 
-.activate-account
-  min-height: 100vh
-  display: flex
-  align-items: center
-  justify-content: center
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)
-  padding: 20px
+// Import the same base styles as Login page
+.login
+  width: 100vw
+  background-position: center center
+  background-repeat: no-repeat
+  background-size: cover
+  height: 100%
 
-.activation-container
+.login-scrollable
+  overflow-y: auto
+  height: 100%
   width: 100%
-  max-width: 450px
 
-.activation-card
-  background: white
-  border-radius: 16px
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1)
-  overflow: hidden
+.login-inner
+  min-height: 420px
+  display: flex
+  flex-direction: column
+  justify-content: center
+  align-items: center
 
+.toggle-credits
+  width: 100%
+
+@media screen and (max-height: 600px)
+  .login-scrollable
+    align-items: flex-start
+
+@media screen and (max-height: 620px)
+  #copyright
+    display: none
+
+.logo
+  padding: 0 95px 10px 95px
+
+// Activation-specific styles
 .activation-step
-  padding: 40px 32px
   text-align: center
+  width: 100%
 
 .activation-icon
-  width: 80px
-  height: 80px
-  margin: 0 auto 24px
-  display: flex
-  align-items: center
-  justify-content: center
-  border-radius: 50%
-  background: #f8f9fa
-  color: #6c757d
+  margin-bottom: 20px
   
   &.success
-    background: #d4edda
-    color: #155724
+    color: #32d296
     
   &.error
-    background: #f8d7da
-    color: #721c24
-    font-size: 32px
-
-.spinner
-  width: 32px
-  height: 32px
-  border: 3px solid #f3f3f3
-  border-top: 3px solid #667eea
-  border-radius: 50%
-  animation: spin 1s linear infinite
-
-@keyframes spin
-  0%
-    transform: rotate(0deg)
-  100%
-    transform: rotate(360deg)
-
-h2
-  margin: 0 0 12px 0
-  font-size: 24px
-  font-weight: 600
-  color: #2d3748
-
-p
-  margin: 0 0 24px 0
-  color: #4a5568
-  line-height: 1.5
-
-.user-info
-  background: #f8f9fa
-  border-radius: 8px
-  padding: 16px
-  margin: 24px 0
-  
-  .info-item
-    display: flex
-    align-items: center
-    gap: 8px
-    color: #4a5568
-    font-size: 14px
-    
-    &:not(:last-child)
-      margin-bottom: 8px
-
-.activation-form
-  text-align: left
-  margin-top: 32px
-
-.form-group
-  margin-bottom: 20px
-
-label
-  display: block
-  margin-bottom: 6px
-  font-weight: 500
-  color: #2d3748
-  font-size: 14px
-
-.password-input
-  position: relative
-  display: flex
-  align-items: center
-
-.input-icon
-  position: absolute
-  left: 12px
-  color: #a0aec0
-  z-index: 2
-
-input
-  width: 100%
-  padding: 12px 16px 12px 40px
-  border: 1px solid #e2e8f0
-  border-radius: 8px
-  font-size: 16px
-  transition: all 0.2s ease
-  
-  &:focus
-    outline: none
-    border-color: #667eea
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1)
-    
-  &.error
-    border-color: #e53e3e
-    box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1)
-
-.password-toggle
-  position: absolute
-  right: 12px
-  background: none
-  border: none
-  color: #a0aec0
-  cursor: pointer
-  padding: 4px
-  z-index: 2
-  
-  &:hover
-    color: #4a5568
-
-.error-text
-  display: block
-  color: #e53e3e
-  font-size: 12px
-  margin-top: 4px
+    color: #f0506e
 
 .activation-button
   width: 100%
-  padding: 14px 24px
-  background: linear-gradient(135deg, #667eea, #764ba2)
-  color: white
+  padding: 12px 24px
   border: none
-  border-radius: 8px
-  font-size: 16px
+  border-radius: 25px
   font-weight: 600
   cursor: pointer
-  transition: all 0.2s ease
-  display: flex
-  align-items: center
-  justify-content: center
-  gap: 8px
+  transition: all 0.3s ease
   
-  &:hover:not(:disabled)
-    transform: translateY(-1px)
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3)
+  &:not(.secondary)
+    background: #007bff
+    color: white
     
-  &:disabled
-    opacity: 0.7
-    cursor: not-allowed
-    transform: none
-    
+    &:hover
+      background: #0056b3
+      
+    &:disabled
+      background: #ccc
+      cursor: not-allowed
+      
   &.secondary
-    background: #6c757d
+    background: transparent
+    color: #666
+    border: 1px solid #ddd
     
-    &:hover:not(:disabled)
-      box-shadow: 0 8px 25px rgba(108, 117, 125, 0.3)
-
+    &:hover
+      background: #f8f9fa
+      
 .button-spinner
+  display: inline-block
   width: 16px
   height: 16px
-  border: 2px solid rgba(255, 255, 255, 0.3)
-  border-top: 2px solid white
+  border: 2px solid #ffffff
   border-radius: 50%
-  animation: spin 1s linear infinite
+  border-top-color: transparent
+  animation: spin 1s ease-in-out infinite
+  margin-right: 8px
 
-// Responsive design
-@media (max-width: 480px)
-  .activate-account
-    padding: 16px
+@keyframes spin
+  to
+    transform: rotate(360deg)
+
+.activation-container
+  width: 100%
+  max-width: 400px
+  margin: 0 auto
+
+.activation-card
+  background: rgba(255, 255, 255, 0.95)
+  border-radius: 8px
+  padding: 40px
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1)
+
+// Password input with toggle
+.uk-inline
+  position: relative
+  
+  .uk-form-icon-flip
+    position: absolute
+    right: 12px
+    top: 50%
+    transform: translateY(-50%)
+    color: #666
     
-  .activation-step
-    padding: 32px 24px
+    &:hover
+      color: #333
+
+// Error styling
+.uk-text-danger
+  color: #f0506e !important
+
+.uk-text-success
+  color: #32d296 !important
+
+// Form input styling to match Login page
+.uk-input
+  border: 1px solid #e5e5e5
+  border-radius: 25px
+  padding: 12px 50px 12px 50px
+  font-size: 14px
+  
+  &:focus
+    border-color: #007bff
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1)
     
-  .activation-card
-    border-radius: 12px
+  &.error
+    border-color: #f0506e
+    
+    &:focus
+      box-shadow: 0 0 0 3px rgba(240, 80, 110, 0.1)
