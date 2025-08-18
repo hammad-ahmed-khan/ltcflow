@@ -1,12 +1,47 @@
-const Meeting = require('../../models/Meeting');
-const Room = require('../../models/Room');
-const xss = require('xss');
-const store = require('../../store');
+const Meeting = require("../../models/Meeting");
+const Room = require("../../models/Room");
+const xss = require("xss");
+const store = require("../../store");
 
-module.exports = (req, res, next) => {
+module.exports = async (req, res, next) => {
   let { userID, meetingID } = req.fields;
 
-  store.io.to(userID).emit('close', { status: 200, meetingID, counterpart: req.user.id });
+  // Extract companyId from header
+  const companyId = req.headers["x-company-id"];
 
-  res.status(200).json({ ok: true });
+  if (!companyId) {
+    return res.status(400).json({
+      error: true,
+      message: "Company ID is required",
+    });
+  }
+
+  try {
+    // Verify meeting belongs to company
+    const meeting = await Meeting.findOne({
+      _id: meetingID,
+      companyId,
+    });
+
+    if (!meeting) {
+      return res.status(404).json({
+        error: true,
+        message: "Meeting not found in company",
+      });
+    }
+
+    store.io.to(userID).emit("close", {
+      status: 200,
+      meetingID,
+      counterpart: req.user.id,
+    });
+
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("Error closing meeting:", err);
+    res.status(500).json({
+      error: true,
+      message: "Error closing meeting",
+    });
+  }
 };

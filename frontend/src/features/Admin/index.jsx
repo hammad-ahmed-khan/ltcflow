@@ -37,7 +37,7 @@ function Admin() {
       setUsers(res.data.users);
     });
   }, [searchText]);
-
+ 
   const back = () => setOver(false);
 
   const refreshUserList = () => {
@@ -579,34 +579,66 @@ function Admin() {
     },
   ];
 
+  const [currentUser] = useGlobal('user');
+
+const applyPrivilegeFilter = (users) => {
+  if (currentUser.level === 'root') {
+    return users; // Root sees everyone
+  } else if (currentUser.level === 'admin') {
+    return users.filter(user => user.level !== 'root'); // Admins don't see root
+  } else if (currentUser.level === 'manager') {
+    return users.filter(user => user.level === 'user'); // Managers only see users
+  } else {
+    return users.filter(user => user.level === 'user'); // Users only see users
+  }
+};
+
   // Filter users based on status
   const getFilteredUsers = () => {
-    const allUsers = users.map(user => ({
-      id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      username: user.username,
-      level: user.level,
-      status: user.status,
-      tokenExpiry: user.tokenExpiry,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-    }));
+  // ✅ Apply privilege filtering first
+  const privilegeFilteredUsers = applyPrivilegeFilter(users);
+  
+  const allUsers = privilegeFilteredUsers.map(user => ({
+    id: user._id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    username: user.username,
+    level: user.level,
+    status: user.status || 'active',
+    tokenExpiry: user.tokenExpiry,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  }));
 
-    switch (statusFilter) {
-      case 'active':
-        return allUsers.filter(user => user.status === 'active');
-      case 'pending':
-        return allUsers.filter(user => user.status === 'pending');
-      case 'expired':
-        return allUsers.filter(user => user.status === 'expired');
-      case 'deactivated':
-        return allUsers.filter(user => user.status === 'deactivated');
-      default:
-        return allUsers;
-    }
-  };
+
+  console.log('=== FILTER DEBUG ===');
+  console.log('All users before filtering:', allUsers.length);
+  console.log('Status filter:', statusFilter);
+  
+  let filtered;
+  switch (statusFilter) {
+    case 'active':
+      filtered = allUsers.filter(user => user.status === 'active');
+      break;
+    case 'pending':
+      filtered = allUsers.filter(user => user.status === 'pending');
+      break;
+    case 'expired':
+      filtered = allUsers.filter(user => user.status === 'expired');
+      break;
+    case 'deactivated':
+      filtered = allUsers.filter(user => user.status === 'deactivated');
+      break;
+    default:
+      filtered = allUsers;
+  }
+  
+  console.log('Filtered users:', filtered.length);
+  console.log('=== END FILTER DEBUG ===');
+  
+  return filtered;
+};
 
   const data = getFilteredUsers();
 
