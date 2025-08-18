@@ -1,7 +1,7 @@
-const User = require('../models/User');
-const argon2 = require('argon2');
-const validator = require('validator');
-const xss = require('xss');
+const User = require("../models/User");
+const argon2 = require("argon2");
+const validator = require("validator");
+const xss = require("xss");
 
 module.exports = async (req, res, next) => {
   let username = xss(req.fields.username);
@@ -12,40 +12,62 @@ module.exports = async (req, res, next) => {
   const companyId = req.headers["x-company-id"]; // Read from header
 
   // Check if user has permission to edit users
-  if (!['root', 'admin'].includes(req.user.level)) {
-    return res.status(401).json({ error: 'Unauthorized User' });
+  if (!["root", "admin"].includes(req.user.level)) {
+    return res.status(401).json({ error: "Unauthorized User" });
   }
 
   // Validate companyId
   if (!companyId) {
-    return res.status(400).json({ error: 'Company ID required.' });
+    return res.status(400).json({ error: "Company ID required." });
   }
 
+  // Add this before any user modification logic:
+  const targetUser = await User.findOne({
+    _id: req.fields.user.id,
+    companyId,
+  });
+  if (!targetUser) {
+    return res.status(404).json({ error: "User not found." });
+  }
+
+  // ✅ PRIVILEGE VALIDATION
+  const privilegeLevels = { user: 1, manager: 2, admin: 3, root: 4 };
+  const currentUserLevel = privilegeLevels[req.user.level];
+  const targetUserLevel = privilegeLevels[targetUser.level];
+
+  // Prevent editing users with higher or equal privileges (except root can edit anyone)
+  if (currentUserLevel <= targetUserLevel && req.user.level !== "root") {
+    return res.status(403).json({
+      error: "INSUFFICIENT_PRIVILEGES",
+      message: "Cannot edit users with higher or equal privileges",
+    });
+  }
   let errors = {};
 
   if (password !== repeatPassword) {
-    errors.password = 'Passwords not matching';
-    errors.repeatPassword = 'Passwords not matching';
+    errors.password = "Passwords not matching";
+    errors.repeatPassword = "Passwords not matching";
   }
 
-  !validator.isEmail(email) && (errors.email = 'Invalid email.');
+  !validator.isEmail(email) && (errors.email = "Invalid email.");
 
   // Validate user level if provided
-  if (level !== undefined && level !== null && level !== '') {
-    const validLevels = ['user', 'manager', 'admin'];
+  if (level !== undefined && level !== null && level !== "") {
+    const validLevels = ["user", "manager", "admin"];
     if (!validLevels.includes(level)) {
-      errors.level = 'Invalid user role.';
+      errors.level = "Invalid user role.";
     }
 
     // Check permissions based on current user's level
     const currentUserLevel = req.user.level;
-    
-    if (currentUserLevel === 'root') {
+
+    if (currentUserLevel === "root") {
       // Root users can set any level
-    } else if (currentUserLevel === 'admin') {
+    } else if (currentUserLevel === "admin") {
       // Administrators cannot edit other administrators
-      if (level === 'admin') {
-        errors.level = 'Administrators cannot edit users to administrator level.';
+      if (level === "admin") {
+        errors.level =
+          "Administrators cannot edit users to administrator level.";
       }
     }
   }
@@ -56,33 +78,33 @@ module.exports = async (req, res, next) => {
     // Check for username conflicts within the same company
     const isUsername = await User.findOne({ username, companyId });
     if (isUsername && username !== user.username) {
-      errors.username = 'Username taken within your company.';
+      errors.username = "Username taken within your company.";
     }
 
     // Check for email conflicts within the same company
     const isEmail = await User.findOne({ email, companyId });
     if (isEmail && email !== user.email) {
-      errors.email = 'Email already in use within your company.';
+      errors.email = "Email already in use within your company.";
     }
 
     if (Object.keys(errors).length > 0) {
       return res.status(400).json(errors);
     }
 
-    let query = { 
-      username: xss(username), 
-      email: xss(email), 
-      firstName: xss(firstName), 
-      lastName: xss(lastName)
+    let query = {
+      username: xss(username),
+      email: xss(email),
+      firstName: xss(firstName),
+      lastName: xss(lastName),
     };
 
     // Include level in update if provided and valid
-    if (level !== undefined && level !== null && level !== '') {
+    if (level !== undefined && level !== null && level !== "") {
       query.level = level;
     }
 
     // Handle password update
-    if (typeof password === 'string' && password.length > 0) {
+    if (typeof password === "string" && password.length > 0) {
       const hash = await argon2.hash(password);
       query.password = hash;
     }
@@ -90,22 +112,21 @@ module.exports = async (req, res, next) => {
     // Update user with companyId check to ensure data isolation
     const updatedUser = await User.findOneAndUpdate(
       { email: user.email, companyId }, // Find by original email and companyId
-      { $set: query }, 
+      { $set: query },
       { new: true }
-    ).select('-password'); // Don't return password in response
+    ).select("-password"); // Don't return password in response
 
     if (!updatedUser) {
-      return res.status(404).json({ error: 'User not found in your company.' });
+      return res.status(404).json({ error: "User not found in your company." });
     }
 
     res.status(200).json({
-      status: 'success',
-      message: 'User updated successfully.',
-      user: updatedUser
+      status: "success",
+      message: "User updated successfully.",
+      user: updatedUser,
     });
-
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Server error updating user.' });
+    res.status(500).json({ error: "Server error updating user." });
   }
 };
