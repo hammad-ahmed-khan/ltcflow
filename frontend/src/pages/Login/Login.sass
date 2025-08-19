@@ -1,5 +1,7 @@
+// Updated Login Page - Light Theme with Green Primary Color (#557D53)
 .login
   width: 100vw
+  background: #F2F2F2 !important // Override any background image/color
   background-position: center center
   background-repeat: no-repeat
   background-size: cover
@@ -29,4 +31,159 @@
     display: none
 
 .logo
-  padding: 0 95px 10px 95px
+  padding: 0 45px 10px 25px
+
+// Light theme input styling with green primary
+.uk-input
+  background: #ffffff
+  border: 2px solid #e0e0e0
+  border-radius: 25px
+  padding: 12px 50px 12px 50px
+  font-size: 14px
+  color: #333333
+  
+  &::placeholder
+    color: #888888
+  
+  &:focus
+    border-color: #557D53 !important
+    box-shadow: 0 0 0 3px rgba(85, 125, 83, 0.1) !important
+    background: #ffffff
+    color: #333333
+    outline: none
+    
+  &.error
+    border-color: #f0506e
+    
+    &:focus
+      box-shadow: 0 0 0 3px rgba(240, 80, 110, 0.1)
+
+// Form icon styling for light theme
+.uk-form-icon
+  color: #666666 !important
+  
+  &:hover
+    color: #333333 !important
+
+.uk-form-icon-flip
+  color: #666666 !important
+  
+  &:hover
+    color: #333333 !important
+
+// Button styling with green primary
+.uk-button-primary
+  background: #557D53 !important
+  color: #ffffff !important
+  border: none
+  
+  &:hover
+    background: #4a6e48 !important
+    color: #ffffff !important
+    
+  &:focus
+    background: #557D53 !important
+    color: #ffffff !important
+    box-shadow: 0 0 0 3px rgba(85, 125, 83, 0.3) !important
+
+// Checkbox styling with green primary
+.uk-checkbox
+  background: #ffffff
+  border: 2px solid #e0e0e0
+  
+  &:checked
+    background: #557D53 !important
+    border-color: #557D53 !important
+
+// Text styling for light theme
+.login-inner
+  color: #333333
+  
+  label
+    color: #333333
+    
+  h3
+    color: #333333
+    
+  p
+    color: #666666
+    
+  .uk-text-small
+    color: #666666
+    
+  .uk-text-muted
+    color: #888888
+
+// Link styling with green primary
+.uk-link-reset
+  color: #557D53 !important
+  
+  &:hover
+    color: #4a6e48 !important
+    text-decoration: underline
+
+a
+  color: #557D53 !important
+  
+  &:hover
+    color: #4a6e48 !important
+    text-decoration: underline
+
+// Error text styling
+.uk-text-danger
+  color: #dc3545 !important
+
+.uk-text-success
+  color: #28a745 !important
+
+.uk-text-warning
+  color: #ffc107 !important
+
+// Credits styling for light theme
+.toggle-credits
+  background: rgba(255, 255, 255, 0.95)
+  border-radius: 8px
+  padding: 20px
+  margin-top: 20px
+  color: #333333
+  
+  span
+    color: #333333
+    
+  a
+    color: #557D53 !important
+    
+    &:hover
+      color: #4a6e48 !important
+
+// Copyright styling for light theme
+#copyright
+  .uk-text-muted
+    color: #666666 !important
+    
+  a
+    color: #557D53 !important
+    
+    &:hover
+      color: #4a6e48 !important
+
+// Fieldset styling
+.uk-fieldset
+  border: none
+  margin: 0
+  padding: 0
+
+// Button spinner animation with green color
+.button-spinner
+  display: inline-block
+  width: 16px
+  height: 16px
+  border: 2px solid #ffffff
+  border-radius: 50%
+  border-top-color: transparent
+  animation: spin 1s ease-in-out infinite
+  margin-right: 8px
+
+@keyframes spin
+  to
+    transform: rotate(360deg)

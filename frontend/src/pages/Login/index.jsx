@@ -196,8 +196,8 @@ function Login() {
 
   return (
     <Div100vh>
-      <div className="login uk-cover-container uk-background-secondary uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-light" style={loginStyle}>
-        <div className="uk-position-cover uk-overlay-primary" />
+      <div className="login uk-cover-container uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-dark">
+        <div className="uk-position-cover" />
         <div className="login-scrollable uk-flex uk-flex-center uk-flex-middle uk-position-z-index">
           <Credits />
 
@@ -223,18 +223,7 @@ function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
-                  <div className="uk-margin-small">
-                    <label>
-                      <input
-                        className="uk-checkbox"
-                        type="checkbox"
-                        onChange={(e) => setKeep(e.target.checked)}
-                        checked={keep}
-                      />
-                      {' '}
-                      Keep me logged in
-                    </label>
-                  </div>
+                 
                   <div className="uk-margin-bottom">
                     <button type="submit" className="uk-button uk-button-primary uk-border-pill uk-width-1-1">
                       LOG IN

@@ -4,7 +4,7 @@ import {
   FiVideo, FiMic, FiVideoOff, FiMicOff,
 } from 'react-icons/fi';
 import { useGlobal } from 'reactn';
-import logo from '../../../assets/flowico.svg';
+import logo from '../../../assets/flowlogo login300px.webp';
 
 function Join({ onJoin }) {
   const [isAudio, setAudio] = useGlobal('audio');
