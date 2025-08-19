@@ -36,16 +36,17 @@ module.exports = {
 
   nodemailerEnabled: false,
   nodemailer: {
-    from: "admin@example.com", // example: address@outlook.com (required)
+    from: "noreply@system.ltcflow.com", // example: address@outlook.com (required)
   },
+
   nodemailerTransport: {
-    service: undefined, // example: hotmail (leave blank if using own smtp below)
-    host: "smtp.yourdomain.tld", // example: smtp.yourdomain.tld (leave blank if using service above)
-    port: 587, // example: 587 (leave blank if using service above)
-    secure: false, // require STARTTLS, can be true or false (leave blank if using service above)
+    service: process.env.MAIL_SERVICE || "",
+    host: process.env.MAIL_HOST || "",
+    port: parseInt(process.env.MAIL_PORT) || 587,
+    secure: process.env.MAIL_SECURE === "true",
     auth: {
-      user: "your_smtp_user",
-      pass: "your_smtp_password",
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASS,
     },
   },
 
@@ -69,4 +70,25 @@ module.exports = {
   rtcMinPort: 10000,
   rtcMaxPort: 12000,
   mediasoupLogLevel: "warn",
+
+  // SMS configuration
+  smsEnabled: (process.env.SMS_ENABLED || "false").toString() === "true",
+  sms: {
+    provider: process.env.SMS_PROVIDER || "twilio", // "twilio", "aws-sns"
+    defaultFrom: process.env.SMS_DEFAULT_FROM || "LTC Flow",
+  },
+
+  // Twilio configuration
+  twilio: {
+    accountSid: process.env.TWILIO_ACCOUNT_SID,
+    authToken: process.env.TWILIO_AUTH_TOKEN,
+    fromNumber: process.env.TWILIO_FROM_NUMBER, // e.g., "+1234567890"
+  },
+
+  // AWS SNS configuration (if using AWS for SMS)
+  aws: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    region: process.env.AWS_REGION || "us-east-1",
+  },
 };

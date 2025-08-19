@@ -6,12 +6,19 @@ const isEmpty = require("../utils/isEmpty");
 const xss = require("xss");
 const crypto = require("crypto");
 const Config = require("../../config");
+const bcrypt = require("bcryptjs");
+
+let twilioClient = null;
+if (Config.smsEnabled && Config.sms.provider === "twilio") {
+  const twilio = require("twilio");
+  twilioClient = twilio(Config.twilio.accountSid, Config.twilio.authToken);
+}
 
 module.exports = async (req, res, next) => {
   let { username, email, firstName, lastName, phone, level } = req.fields;
   const companyId = req.headers["x-company-id"];
 
-  // Validate required fields
+  // Validation
   let errors = {};
   isEmpty(username) && (errors.username = "Username required.");
   isEmpty(email) && (errors.email = "Email required.");
@@ -21,101 +28,107 @@ module.exports = async (req, res, next) => {
   isEmpty(companyId) && (errors.companyId = "Company ID required.");
 
   if (Object.keys(errors).length > 0) {
-    return res.status(400).json(errors);
+    return res.status(400).json({ status: "error", errors });
   }
 
-  // Validate email format
+  // Normalize
+  email = email.toLowerCase().trim();
+  username = username.trim();
+
+  // Email format
   if (!validator.isEmail(email)) {
-    errors.email = "Invalid email.";
+    errors.email = "Invalid email address.";
   }
 
-  // Validate user level
+  // Valid roles
   const validLevels = ["user", "manager", "admin"];
   if (!validLevels.includes(level)) {
     errors.level = "Invalid user role.";
   }
 
-  // Check permissions based on current user's level
+  // Permission check
   if (req.user) {
     const currentUserLevel = req.user.level;
 
-    // Validate user belongs to the same company
+    // Ensure same company
     if (req.user.companyId.toString() !== companyId) {
       return res.status(403).json({
+        status: "error",
         error: "INVALID_COMPANY_ACCESS",
         message: "You can only create users within your own company",
       });
     }
 
     if (currentUserLevel === "root") {
-      // Root can create all levels
+      // Root can create all
     } else if (currentUserLevel === "admin") {
-      // Administrators cannot create other administrators
       if (level === "admin") {
         errors.level = "Administrators cannot create other administrators.";
       }
     } else {
-      // Other users cannot create users
       errors.permission = "You do not have permission to create users.";
     }
   }
 
   if (Object.keys(errors).length > 0) {
-    return res.status(400).json(errors);
+    return res.status(403).json({ status: "error", errors });
   }
 
-  email = email.toLowerCase();
-
   try {
-    // Get company information for subdomain
+    // Company check
     const company = await Company.findById(companyId);
     if (!company) {
       return res.status(404).json({
+        status: "error",
         error: "COMPANY_NOT_FOUND",
         message: "Company not found",
       });
     }
 
-    // Check for username conflicts within the same company
-    const isUsername = await User.findOne({ username, companyId });
-    if (isUsername) {
-      errors.username = "Username taken within your company.";
+    // Conflict checks
+    const usernameExists = await User.findOne({
+      username: new RegExp(`^${username}$`, "i"),
+      companyId,
+    });
+    if (usernameExists) {
+      errors.username = "Username already taken.";
     }
 
-    // Check for email conflicts within the same company
-    const isEmail = await User.findOne({ email, companyId });
-    if (isEmail) {
-      errors.email = "Email already in use within your company.";
+    const emailExists = await User.findOne({ email, companyId });
+    if (emailExists) {
+      errors.email = "Email already in use.";
     }
 
     if (Object.keys(errors).length > 0) {
-      return res.status(400).json(errors);
+      return res.status(400).json({ status: "error", errors });
     }
 
-    // Generate activation token and expiry
-    const activationToken = crypto.randomBytes(32).toString("hex");
-    const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    // Activation token (store hashed in DB)
+    const activationTokenRaw = crypto.randomBytes(32).toString("hex");
+    const activationTokenHashed = await bcrypt.hash(activationTokenRaw, 10);
+    const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    // Create user WITHOUT password (they'll set it during activation)
+    // Create user
     const newUser = new User({
       username: xss(username),
       email: xss(email),
       firstName: xss(firstName),
       lastName: xss(lastName),
       phone: xss(phone || ""),
-      level: level,
-      companyId: companyId,
+      level,
+      companyId,
       status: "pending",
-      activationToken: activationToken,
-      tokenExpiry: tokenExpiry,
+      activationToken: activationTokenHashed,
+      tokenExpiry,
       lastOnline: Date.now(),
     });
 
     const savedUser = await newUser.save();
 
-    // Generate multi-tenant activation link
-    const activationLink = `https://${company.subdomain}.${Config.domain}/activate/${activationToken}`;
+    // Activation link
+    const activationLink = `https://${company.subdomain}.${Config.domain}/activate/${activationTokenRaw}`;
 
+    // Email invitation
     // Create email entry with company context
     const emailEntry = new Email({
       companyId: companyId,
@@ -195,24 +208,37 @@ module.exports = async (req, res, next) => {
 
     await emailEntry.save();
 
-    // Remove sensitive data from response
+    // SMS invitation (optional)
+    if (Config.smsEnabled && twilioClient && phone) {
+      try {
+        await twilioClient.messages.create({
+          from: Config.twilio.fromNumber,
+          to: phone,
+          body: `Hello ${firstName}, you’ve been invited to join ${company.name} on ${appName}. Activate your account here: ${activationLink}`,
+        });
+      } catch (smsErr) {
+        console.error("SMS send failed:", smsErr.message);
+      }
+    }
+
+    // Clean response
     const userResponse = savedUser.toObject();
     delete userResponse.activationToken;
     delete userResponse.tokenExpiry;
 
     res.status(200).json({
       status: "success",
-      message: `User ${username} created successfully. Activation email sent.`,
+      message: `User ${username} created successfully. Invitation sent.`,
       user: userResponse,
-      activationLink: activationLink, // For admin to copy if needed
       companyUrl: `https://${company.subdomain}.${Config.domain}`,
       expiresIn: "7 days",
     });
   } catch (err) {
     console.error("Error creating user:", err);
     res.status(500).json({
-      error: "Server error creating user.",
-      message: "An error occurred while creating the user account.",
+      status: "error",
+      error: "SERVER_ERROR",
+      message: "An error occurred while creating the user.",
     });
   }
 };
