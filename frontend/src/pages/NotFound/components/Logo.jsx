@@ -1,4 +1,5 @@
-import logo from '../../../assets/logo.png';
+// frontend/src/pages/NotFound/components/Logo.jsx
+import logo from '../../../assets/flowico.svg';
 
 function Logo() {
   return (
