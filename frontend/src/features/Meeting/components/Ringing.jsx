@@ -5,7 +5,7 @@ import { useGlobal } from 'reactn';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useToasts } from 'react-toast-notifications';
-import logo from '../../../assets/logo.png';
+import logo from '../../../assets/flowico.svg';
 import postClose from '../../../actions/postClose';
 import postAnswer from '../../../actions/postAnswer';
 import Config from '../../../config';
