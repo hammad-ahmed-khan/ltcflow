@@ -1,5 +1,5 @@
 // frontend/src/pages/NotFound/components/Logo.jsx
-import logo from '../../../assets/flowico.svg';
+import logo from '../../../assets/flowlogo login300px.webp';
 
 function Logo() {
   return (
