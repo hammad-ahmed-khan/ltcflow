@@ -1,0 +1,46 @@
+{
+  "short_name": "LTC Flow",
+  "name": "LTC Flow",
+  "icons": [
+    {
+      "src": "flowicon 32.webp",
+      "type": "image/webp",
+      "sizes": "32x32",
+      "purpose": "any"
+    },
+    {
+      "src": "flowicon 144.webp",
+      "type": "image/webp",
+      "sizes": "144x144",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "flowicon 180.webp",
+      "type": "image/webp",
+      "sizes": "180x180",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "flowicon 192.webp",
+      "type": "image/webp",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "flowicon 512.webp",
+      "type": "image/webp",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "flowico.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#1e2e3b",
+  "background_color": "#f2f2f2"
+}
