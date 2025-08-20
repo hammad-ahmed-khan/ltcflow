@@ -2,6 +2,7 @@
 const User = require("../models/User");
 const Email = require("../models/Email");
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
 const Config = require("../../config");
 
 module.exports = async (req, res, next) => {
@@ -46,22 +47,26 @@ module.exports = async (req, res, next) => {
       });
     }
 
-    // Generate new activation token and expiry
-    const newActivationToken = crypto.randomBytes(32).toString("hex");
+    // Generate new activation token (raw for URL, hashed for DB)
+    const newActivationTokenRaw = crypto.randomBytes(32).toString("hex");
+    const newActivationTokenHashed = await bcrypt.hash(
+      newActivationTokenRaw,
+      10
+    );
     const newTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
 
-    // Update user with new token info
+    // Update user with new hashed token info
     await User.findByIdAndUpdate(userId, {
-      activationToken: newActivationToken,
+      activationToken: newActivationTokenHashed, // Store hashed token
       tokenExpiry: newTokenExpiry,
       status: "pending", // Reset to pending if it was expired
       updatedAt: new Date(), // Track when invitation was resent
     });
 
-    // Generate new activation link
+    // Generate new activation link using raw token
     const activationLink = `${
       Config.frontendUrl || "http://localhost:3000"
-    }/activate/${newActivationToken}`;
+    }/activate/${newActivationTokenRaw}`;
 
     // Create email entry
     const emailEntry = new Email({

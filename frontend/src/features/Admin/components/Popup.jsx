@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useGlobal } from 'reactn';
 import './Popup.sass';
 import { FiX, FiCopy, FiCheck, FiMail, FiInfo, FiClock, FiUserCheck, FiRefreshCw } from 'react-icons/fi';
@@ -84,17 +84,10 @@ function UserTierSelect({ value, onChange, currentUserLevel }) {
             data-uk-icon={`icon: ${
               value === 'user' ? 'user' : 
               value === 'manager' ? 'users' : 
-              'star'
-            }; ratio: 0.9`}
-            style={{ 
-              color: value === 'user' ? '#3b82f6' : 
-                     value === 'manager' ? '#6366f1' : 
-                     '#f59e0b'
-            }}
+              'cog'
+            }`}
           />
-          <span style={{ fontWeight: '500' }}>
-            {availableTiers.find(tier => tier.value === value)?.description}
-          </span>
+          {availableTiers.find(tier => tier.value === value)?.description}
         </div>
       )}
     </div>
@@ -103,32 +96,32 @@ function UserTierSelect({ value, onChange, currentUserLevel }) {
 
 function ActivationLinkDisplay({ activationLink, userEmail, onClose }) {
   const [copied, setCopied] = useState(false);
-  
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(activationLink);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(activationLink).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = activationLink;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+    });
   };
 
   return (
-    <div className="uk-card uk-card-default uk-card-body uk-border-rounded uk-box-shadow-small ">
-      
-      {/* Header with close button */}
-      <div className="uk-flex uk-flex-between uk-flex-middle">
-        <h4 className="uk-text-success uk-margin-remove">
-          ✅ Invitation Sent Successfully!
+    <div className="uk-flex uk-flex-column uk-flex-center uk-text-center" style={{ padding: '20px' }}>
+      <div style={{ marginBottom: '30px' }}>
+        <div 
+          className="uk-flex uk-flex-center uk-flex-middle uk-margin-bottom" 
+          style={{
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            backgroundColor: '#e8f5e8',
+            margin: '0 auto 20px auto'
+          }}
+        >
+          <FiCheck size={28} style={{ color: '#2e7d32' }} />
+        </div>
+        
+        <h4 className="uk-text-bold uk-margin-remove" style={{ color: '#2e7d32', fontSize: '18px' }}>
+          🎉 Invitation Sent Successfully!
         </h4>
       </div>
       
@@ -200,14 +193,39 @@ function AddPeers({ onClose, type, user }) {
   const [currentUser] = useGlobal('user');
   const currentUserLevel = currentUser?.level || '';
 
-  const [firstName, setFirstName] = useState(user ? user.firstName : '');
-  const [lastName, setLastName] = useState(user ? user.lastName : '');
-  const [email, setEmail] = useState(user ? user.email : '');
-  const [username, setUsername] = useState(user ? user.username : '');
-  const [userTier, setUserTier] = useState(user ? user.level : '');
+  // Initialize state with empty values
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
+  const [userTier, setUserTier] = useState('');
   const [activationLink, setActivationLink] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [errors, setErrors] = useState(null);
+
+  // Reset form fields when user prop or type changes
+  useEffect(() => {
+    if (type === 'edit' && user) {
+      // Populate fields for editing
+      setFirstName(user.firstName || '');
+      setLastName(user.lastName || '');
+      setEmail(user.email || '');
+      setUsername(user.username || '');
+      setUserTier(user.level || '');
+    } else if (type === 'create') {
+      // Clear fields for creating new user
+      setFirstName('');
+      setLastName('');
+      setEmail('');
+      setUsername('');
+      setUserTier('');
+    }
+    
+    // Always reset these when popup opens/changes
+    setActivationLink('');
+    setUserEmail('');
+    setErrors(null);
+  }, [type, user]);
 
   const okToast = (content) => {
     addToast(content, {
@@ -223,18 +241,18 @@ function AddPeers({ onClose, type, user }) {
     });
   };
 
-const getTitle = () => {
-  switch (type) {
-    case 'create':
-      return 'Invite New User'; // CHANGED: Was "Create user invitation"
-    case 'edit':
-      return `Edit ${user.username.substr(0, 16)}${user.username.length > 16 ? '...' : ''}`;
-    case 'delete':
-      return `Delete ${user.username.substr(0, 16)}${user.username.length > 16 ? '...' : ''}`;
-    default:
-      return 'User Management';
-  }
-};
+  const getTitle = () => {
+    switch (type) {
+      case 'create':
+        return 'Invite New User';
+      case 'edit':
+        return `Edit ${user?.username?.substr(0, 16)}${user?.username?.length > 16 ? '...' : ''}`;
+      case 'delete':
+        return `Delete ${user?.username?.substr(0, 16)}${user?.username?.length > 16 ? '...' : ''}`;
+      default:
+        return 'User Management';
+    }
+  };
 
   const createUser = async (e) => {
     e.preventDefault();

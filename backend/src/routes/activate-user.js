@@ -1,5 +1,6 @@
 ﻿// backend/src/routes/activate-user.js (GET route for token validation)
 const User = require("../models/User");
+const bcrypt = require("bcryptjs");
 const isEmpty = require("../utils/isEmpty");
 
 module.exports = async (req, res) => {
@@ -16,12 +17,34 @@ module.exports = async (req, res) => {
       return res.status(400).json(errors);
     }
 
-    // Find user by token and company
-    const user = await User.findOne({
-      activationToken: token,
+    // Find all pending users in the company
+    const pendingUsers = await User.find({
       companyId: companyId,
       status: "pending",
-    }).select("-password -activationToken");
+      activationToken: { $ne: null },
+    }).select("-password");
+
+    // Find the user by comparing the raw token with the hashed tokens
+    let user = null;
+    for (const pendingUser of pendingUsers) {
+      try {
+        // Compare raw token with hashed token in database
+        const isValidToken = await bcrypt.compare(
+          token,
+          pendingUser.activationToken
+        );
+        if (isValidToken) {
+          user = pendingUser;
+          break;
+        }
+      } catch (compareError) {
+        // If bcrypt.compare fails, try direct comparison (for tokens stored as raw)
+        if (token === pendingUser.activationToken) {
+          user = pendingUser;
+          break;
+        }
+      }
+    }
 
     if (!user) {
       return res.status(400).json({

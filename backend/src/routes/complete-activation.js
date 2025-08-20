@@ -1,6 +1,7 @@
 // backend/src/routes/complete-activation.js
 const User = require("../models/User");
 const argon2 = require("argon2");
+const bcrypt = require("bcryptjs");
 const isEmpty = require("../utils/isEmpty");
 
 module.exports = async (req, res) => {
@@ -33,12 +34,34 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Find user by token and company
-    const user = await User.findOne({
-      activationToken: token,
+    // Find all pending users in the company
+    const pendingUsers = await User.find({
       companyId: companyId,
       status: "pending",
+      activationToken: { $ne: null },
     });
+
+    // Find the user by comparing the raw token with the hashed tokens
+    let user = null;
+    for (const pendingUser of pendingUsers) {
+      try {
+        // Compare raw token with hashed token in database
+        const isValidToken = await bcrypt.compare(
+          token,
+          pendingUser.activationToken
+        );
+        if (isValidToken) {
+          user = pendingUser;
+          break;
+        }
+      } catch (compareError) {
+        // If bcrypt.compare fails, try direct comparison (for tokens stored as raw)
+        if (token === pendingUser.activationToken) {
+          user = pendingUser;
+          break;
+        }
+      }
+    }
 
     if (!user) {
       return res.status(400).json({
