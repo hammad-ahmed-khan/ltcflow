@@ -8,7 +8,7 @@ import apiClient from '../../api/apiClient';
 import Credits from '../Login/components/Credits';
 import Logo from '../Login/components/Logo';
 import Input from '../Login/components/Input';
-import './ActivateAccount.sass';
+import '../Login/Login.sass';
 import backgroundImage from '../../assets/background.jpg';
 
 function ActivateAccount() {

@@ -232,6 +232,7 @@ module.exports = async (req, res, next) => {
       user: userResponse,
       companyUrl: `https://${company.subdomain}.${Config.domain}`,
       expiresIn: "7 days",
+      activationLink: activationLink,
     });
   } catch (err) {
     console.error("Error creating user:", err);
