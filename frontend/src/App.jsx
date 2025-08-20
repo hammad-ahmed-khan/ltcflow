@@ -28,7 +28,7 @@ function App() {
   const token = useGlobal('token')[0];
   const setStartingPoint = useGlobal('entryPath')[1];
 
-  if (!['dark', 'light'].includes(Config.theme)) Config.theme = 'dark';
+  if (!['dark', 'light'].includes(Config.theme)) Config.theme = 'light';
  
   useEffect(() => {
     const subdomain = getSubdomain();

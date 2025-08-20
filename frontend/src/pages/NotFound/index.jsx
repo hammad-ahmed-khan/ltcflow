@@ -1,7 +1,7 @@
  import Div100vh from 'react-div-100vh';
-import Credits from './components/Credits';
-import Logo from './components/Logo';
-import './Login.sass';
+import Credits from '../Login/components/Credits';
+import Logo from '../Login/components/Logo';
+import '../Login/Login.sass';
 import backgroundImage from '../../assets/background.jpg';
 
 function NotFound() {
