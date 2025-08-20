@@ -69,12 +69,14 @@ function Login() {
     if (tokenFromUrl) {
       setActivationToken(tokenFromUrl);
       setIsActivationMode(true);
+      // Clear entryPath when coming from activation link to prevent redirect back to activation
+      setEntryPath(null);
     }
 
     getInfo().then((res) => {
       setInfo(res.data);
     });
-  }, [location]);
+  }, [location, setEntryPath]);
 
   const onLogin = async (e) => {
     e.preventDefault();
@@ -87,7 +89,11 @@ function Login() {
       setUser(jwtDecode(res.data.token));
       setToken(res.data.token);
       dispatch(initIO(res.data.token));
-      navigate(['/login', '/'].includes(entryPath) ? '/' : entryPath, { replace: true });
+      
+      // For users coming from activation, always go to home page
+      // For normal login, use entryPath if it exists, otherwise go to home
+      const redirectPath = isActivationMode || ['/login', '/'].includes(entryPath) ? '/' : entryPath;
+      navigate(redirectPath, { replace: true });
       await setEntryPath(null);
     } catch (e) {
       let errors = {};
@@ -126,7 +132,7 @@ function Login() {
     }
 
     try {
-      const response = await apiClient.post('/api/activate-user', {
+      const response = await apiClient.post('/api/complete-activation', {
         token: activationToken,
         email: activationEmail,
         password: activationPassword,
@@ -139,72 +145,67 @@ function Login() {
           autoDismiss: true,
         });
         
-        // Switch back to login form
+        // Clear activation form and switch to login mode
         setIsActivationMode(false);
         setActivationToken('');
         setActivationEmail('');
         setActivationPassword('');
         setActivationRepeatPassword('');
+        setActivationErrors({});
+        setActivationLoading(false);
         
-        // Pre-fill email for login
-        if (response.data.user && response.data.user.email) {
-          setEmail(response.data.user.email);
-        }
+        // Pre-fill login email with the activation email
+        setEmail(activationEmail);
+        
+        // Clear any stored entryPath to ensure we go to home after login
+        await setEntryPath(null);
       }
-    } catch (error) {
-      let errors = {};
-      if (!error.response || typeof error.response.data !== 'object') {
-        errors.generic = 'Could not connect to server.';
-      } else if (error.response.data.error) {
-        errors.generic = error.response.data.error;
-      } else {
-        errors = error.response.data;
-      }
-      setActivationErrors(errors);
-    } finally {
+    } catch (e) {
       setActivationLoading(false);
+      if (e && e.response) {
+        setActivationErrors(e.response.data);
+      } else {
+        setActivationErrors({ generic: 'Activation failed. Please try again.' });
+      }
+      addToast('Activation failed. Please check your details and try again.', {
+        appearance: 'error',
+        autoDismiss: true,
+      });
     }
   };
 
-  const toggleToActivation = () => {
-    setIsActivationMode(true);
-    setLoginErrors({});
-    setActivationErrors({});
-  };
-
-  const toggleToLogin = () => {
-    setIsActivationMode(false);
-    setLoginErrors({});
-    setActivationErrors({});
-  };
-
-  const loginInfo = Object.keys(loginErrors).map((key) => (
-    <div className="uk-text-center" key={key}>
-      <span className="uk-text-danger">{loginErrors[key]}</span>
-    </div>
-  ));
-
-  const activationInfo = Object.keys(activationErrors).map((key) => (
-    <div className="uk-text-center" key={key}>
-      <span className="uk-text-danger">{activationErrors[key]}</span>
-    </div>
-  ));
-
-  const loginStyle = {
+  const pageStyle = {
     backgroundImage: `url('${backgroundImage}')`,
   };
 
+  const loginInfo = loginErrors.generic ? (
+    <div className="uk-alert-danger" data-uk-alert>
+      <p>{loginErrors.generic}</p>
+    </div>
+  ) : null;
+
+  const activationInfo = activationErrors.generic ? (
+    <div className="uk-alert-danger" data-uk-alert>
+      <p>{activationErrors.generic}</p>
+    </div>
+  ) : null;
+
   return (
     <Div100vh>
-      <div className="login uk-cover-container uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-dark">
-        <div className="uk-position-cover" />
+      <div className="login uk-cover-container uk-background-secondary uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-light" style={pageStyle}>
+        <div className="uk-position-cover uk-overlay-primary" />
         <div className="login-scrollable uk-flex uk-flex-center uk-flex-middle uk-position-z-index">
           <Credits />
-
           <div className="login-inner uk-width-medium uk-padding-small" data-uk-scrollspy="cls: uk-animation-fade">
             <Logo />
+            <div className="uk-text-center">
+              <div className="uk-margin-bottom">
+                <h2 className="uk-text-bold uk-margin-remove-bottom">{info.appTitle || Config.appTitle || Config.appName || 'Clover'}</h2>
+                <span className="uk-text-small uk-text-muted">v{info.version}</span>
+              </div>
+            </div>
 
-            <div className="toggle-credits">
+            <div>
               {/* Login Form */}
               <form className="toggle-class" onSubmit={onLogin} hidden={isActivationMode}>
                 <fieldset className="uk-fieldset">
@@ -216,6 +217,8 @@ function Login() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
+                  {loginErrors.email && <div className="uk-text-danger uk-text-small">{loginErrors.email}</div>}
+                  
                   <Input
                     icon="lock"
                     placeholder="Password"
@@ -223,6 +226,7 @@ function Login() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
+                  {loginErrors.password && <div className="uk-text-danger uk-text-small">{loginErrors.password}</div>}
                  
                   <div className="uk-margin-bottom">
                     <button type="submit" className="uk-button uk-button-primary uk-border-pill uk-width-1-1">
@@ -252,6 +256,8 @@ function Login() {
                     onChange={(e) => setActivationToken(e.target.value)}
                     required
                   />
+                  {activationErrors.token && <div className="uk-text-danger uk-text-small">{activationErrors.token}</div>}
+                  
                   <Input
                     icon="mail"
                     placeholder="Your Email Address"
@@ -260,6 +266,8 @@ function Login() {
                     onChange={(e) => setActivationEmail(e.target.value)}
                     required
                   />
+                  {activationErrors.email && <div className="uk-text-danger uk-text-small">{activationErrors.email}</div>}
+                  
                   <Input
                     icon="lock"
                     placeholder="Password"
@@ -268,6 +276,8 @@ function Login() {
                     onChange={(e) => setActivationPassword(e.target.value)}
                     required
                   />
+                  {activationErrors.password && <div className="uk-text-danger uk-text-small">{activationErrors.password}</div>}
+                  
                   <Input
                     icon="lock"
                     placeholder="Confirm Password"
@@ -276,6 +286,7 @@ function Login() {
                     onChange={(e) => setActivationRepeatPassword(e.target.value)}
                     required
                   />
+                  {activationErrors.repeatPassword && <div className="uk-text-danger uk-text-small">{activationErrors.repeatPassword}</div>}
                   
                   <div className="uk-margin-bottom">
                     <button 
@@ -314,83 +325,19 @@ function Login() {
               <div>
                 <div className="uk-text-center">
                   {!isActivationMode ? (
-                    <a
-                      className="uk-link-reset uk-text-small"
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleToActivation();
-                      }}
-                    >
-                      Have an activation token? Activate account!
-                    </a>
+                    <>
+                      <a className="uk-button uk-button-text uk-text-small" href="#" onClick={(e) => { e.preventDefault(); setIsActivationMode(true); }}>
+                        Have an activation token? Click here
+                      </a>
+                    </>
                   ) : (
-                    <a
-                      className="uk-link-reset uk-text-small"
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleToLogin();
-                      }}
-                    >
-                      <span data-uk-icon="arrow-left" />
-                      {' '}
-                      Back to Login
-                    </a>
+                    <>
+                      <a className="uk-button uk-button-text uk-text-small" href="#" onClick={(e) => { e.preventDefault(); setIsActivationMode(false); }}>
+                        Already have an account? Login here
+                      </a>
+                    </>
                   )}
                 </div>
-
-                {info.nodemailerEnabled && !isActivationMode && (
-                  <div className="uk-text-center" style={{ marginTop: 12 }}>
-                    <a className="uk-link-reset uk-text-small" href="#">
-                      <Link to="/forgot-password">Forgot your password?</Link>
-                    </a>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <form className="toggle-credits uk-text-center" hidden>
-              <span>
-                Everyone has a sweet side
-                <br />
-                Everything can taste like honey
-                <br />
-              </span>
-              <br />
-              Special thanks to all of the people who believed that Clover was possible and who made it possible.
-              <br />
-              <br />
-              This Login / Register page uses
-              {' '}
-              <a href="https://github.com/zzseba78/Kick-Off" target="_blank" rel="noopener noreferrer">
-                Kick-Off
-              </a>
-              {' '}
-              by zzseba78
-              <br />
-              <br />
-              The default background image is from
-              {' '}
-              <a href="https://picsum.photos/" target="_blank" rel="noopener noreferrer">
-                Picsum Photos
-              </a>
-              <br />
-              <br />
-              A big thank you to all contributors to React, Redux, Socket.IO, Emoji Mart, Axios, SASS and Moment
-            </form>
-
-            <div>
-              <div className="uk-margin-top uk-text-center">
-                <a
-                  className="uk-link-reset uk-text-small toggle-credits"
-                  data-uk-toggle="target: .toggle-credits ;animation: uk-animation-fade"
-                  hidden
-                >
-                  <span data-uk-icon="arrow-left" />
-                  {' '}
-                  Close Credits
-                </a>
               </div>
             </div>
           </div>

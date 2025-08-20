@@ -12,8 +12,8 @@ function NotFound() {
 
    return (
     <Div100vh>
-      <div className="login uk-cover-container uk-background-secondary uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-light" style={pageStyle}>
-        <div className="uk-position-cover uk-overlay-primary" />
+      <div className="login uk-cover-container uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-light" style={pageStyle}>
+        <div className="uk-position-cover" />
         <div className="login-scrollable uk-flex uk-flex-center uk-flex-middle uk-position-z-index">
           <Credits />
           <div className="login-inner uk-width-medium uk-padding-small" data-uk-scrollspy="cls: uk-animation-fade">

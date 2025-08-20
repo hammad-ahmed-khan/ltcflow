@@ -1,6 +1,7 @@
 ﻿// frontend/src/pages/ActivateAccount/index.jsx
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useGlobal } from 'reactn';
 import { useToasts } from 'react-toast-notifications';
 import { FiLock, FiEye, FiEyeOff, FiCheck, FiAlertCircle } from 'react-icons/fi';
 import Div100vh from 'react-div-100vh';
@@ -15,6 +16,7 @@ function ActivateAccount() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToasts();
+  const setEntryPath = useGlobal('entryPath')[1];
   
   const [step, setStep] = useState('validating'); // 'validating', 'setPassword', 'success', 'error'
   const [user, setUser] = useState(null);
@@ -30,12 +32,15 @@ function ActivateAccount() {
   };
 
   useEffect(() => {
+    // Clear entryPath when entering activation page to prevent redirect loops
+    setEntryPath(null);
+    
     if (token) {
       validateActivationToken();
     } else {
       setStep('error');
     }
-  }, [token]);
+  }, [token, setEntryPath]);
 
   const validateActivationToken = async () => {
     try {
@@ -89,9 +94,12 @@ function ActivateAccount() {
           autoDismiss: true,
         });
         
+        // Clear entryPath before redirecting to login
+        await setEntryPath(null);
+        
         // Redirect to login after 3 seconds
         setTimeout(() => {
-          navigate('/login');
+          navigate('/login', { replace: true });
         }, 3000);
       }
     } catch (error) {
@@ -110,6 +118,12 @@ function ActivateAccount() {
         });
       }
     }
+  };
+
+  const handleNavigateToLogin = async () => {
+    // Clear entryPath before navigating to login
+    await setEntryPath(null);
+    navigate('/login', { replace: true });
   };
 
   const renderValidatingStep = () => (
@@ -142,7 +156,6 @@ function ActivateAccount() {
 
       <form onSubmit={handlePasswordSubmit}>
         <fieldset className="uk-fieldset">
-          <div className="uk-margin-bottom">
             <div className="uk-inline uk-width-1-1">
               <Input
                 icon="lock"
@@ -166,9 +179,7 @@ function ActivateAccount() {
                 {errors.password}
               </div>
             )}
-          </div>
 
-          <div className="uk-margin-bottom">
             <div className="uk-inline uk-width-1-1">
               <Input
                 icon="lock"
@@ -186,7 +197,7 @@ function ActivateAccount() {
               >
                 {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
               </button>
-            </div>
+
             {errors.confirmPassword && (
               <div className="uk-text-danger uk-text-small uk-margin-small-top">
                 {errors.confirmPassword}
@@ -195,8 +206,8 @@ function ActivateAccount() {
           </div>
 
           <div className="uk-margin-bottom">
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
               disabled={loading}
             >
@@ -238,7 +249,7 @@ function ActivateAccount() {
       
       <div className="uk-margin-top">
         <button
-          onClick={() => navigate('/login')}
+          onClick={handleNavigateToLogin}
           className="uk-button uk-button-primary uk-border-pill"
         >
           Go to Login Now
@@ -264,7 +275,7 @@ function ActivateAccount() {
       
       <div className="uk-margin-top">
         <button
-          onClick={() => navigate('/login')}
+          onClick={handleNavigateToLogin}
           className="uk-button uk-button-default uk-border-pill"
         >
           Back to Login
@@ -275,8 +286,8 @@ function ActivateAccount() {
 
   return (
     <Div100vh>
-      <div className="login uk-cover-container uk-background-secondary uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-light" style={pageStyle}>
-        <div className="uk-position-cover uk-overlay-primary" />
+      <div className="login uk-cover-container uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-light" style={pageStyle}>
+        <div className="uk-position-cover" />
         <div className="login-scrollable uk-flex uk-flex-center uk-flex-middle uk-position-z-index">
           <Credits />
           <div className="login-inner uk-width-medium uk-padding-small" data-uk-scrollspy="cls: uk-animation-fade">

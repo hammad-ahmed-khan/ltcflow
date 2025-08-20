@@ -34,9 +34,9 @@ module.exports = {
       process.env.MAPPED_IP === "true" ? process.env.PUBLIC_IP_ADDRESS : null,
   },
 
-  nodemailerEnabled: false,
+  nodemailerEnabled: true,
   nodemailer: {
-    from: "noreply@system.ltcflow.com", // example: address@outlook.com (required)
+    from: process.env.MAILER_FROM, // example: address@outlook.com (required)
   },
 
   nodemailerTransport: {
