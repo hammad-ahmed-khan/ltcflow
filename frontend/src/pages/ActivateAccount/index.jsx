@@ -127,11 +127,11 @@ function ActivateAccount() {
   };
 
   const renderValidatingStep = () => (
-    <div className="uk-text-center uk-margin-large-top">
+    <div className="uk-text-center uk-margin-top">
       <div className="uk-margin-bottom">
         <div data-uk-spinner="ratio: 2" className="uk-text-primary"></div>
       </div>
-      <h1 className="uk-heading-small uk-margin-remove-bottom">
+      <h1 className="uk-heading uk-margin-remove-bottom">
         Validating Token
       </h1>
       <p className="uk-text-lead uk-margin-small-top uk-text-muted">
@@ -142,11 +142,11 @@ function ActivateAccount() {
 
   const renderPasswordStep = () => (
     <div>
-      <div className="uk-text-center uk-margin-large-top">
+      <div className="uk-text-center uk-margin-top">
         <div className="uk-margin-bottom">
           <span data-uk-icon="icon: user; ratio: 3" className="uk-text-primary"></span>
         </div>
-        <h1 className="uk-heading-small uk-margin-remove-bottom">
+        <h1 className="uk-heading uk-margin-remove-bottom">
           Activate Your Account
         </h1>
         <p className="uk-text-lead uk-margin-small-top uk-text-muted">
@@ -233,11 +233,11 @@ function ActivateAccount() {
   );
 
   const renderSuccessStep = () => (
-    <div className="uk-text-center uk-margin-large-top">
+    <div className="uk-text-center uk-margin-top">
       <div className="uk-margin-bottom">
         <span data-uk-icon="icon: check; ratio: 3" className="uk-text-success"></span>
       </div>
-      <h1 className="uk-heading-small uk-margin-remove-bottom uk-text-success">
+      <h1 className="uk-heading uk-margin-remove-bottom uk-text-success">
         Account Activated!
       </h1>
       <p className="uk-text-lead uk-margin-small-top uk-text-muted">
@@ -259,11 +259,11 @@ function ActivateAccount() {
   );
 
   const renderErrorStep = () => (
-    <div className="uk-text-center uk-margin-large-top">
+    <div className="uk-text-center uk-margin-top">
       <div className="uk-margin-bottom">
         <span data-uk-icon="icon: warning; ratio: 3" className="uk-text-danger"></span>
       </div>
-      <h1 className="uk-heading-small uk-margin-remove-bottom uk-text-danger">
+      <h1 className="uk-heading uk-margin-remove-bottom uk-text-danger">
         Activation Failed
       </h1>
       <p className="uk-text-lead uk-margin-small-top uk-text-muted">
@@ -286,7 +286,7 @@ function ActivateAccount() {
 
   return (
     <Div100vh>
-      <div className="login uk-cover-container uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-light" style={pageStyle}>
+      <div className="login uk-cover-container uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-dark" style={pageStyle}>
         <div className="uk-position-cover" />
         <div className="login-scrollable uk-flex uk-flex-center uk-flex-middle uk-position-z-index">
           <Credits />
