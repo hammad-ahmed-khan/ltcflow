@@ -317,19 +317,9 @@ function Login() {
               {
               <div>
                 <div className="uk-text-center">
-                  {!isActivationMode ? (
-                    <>
-                      <div className="uk-button uk-button-text uk-text-small">
+                      <div className="uk-text-small">
                             New users can join only via invitation.
                       </div>
-                    </>
-                  ) : (
-                    <>
-                      <a className="uk-button uk-button-text uk-text-small" href="#" onClick={(e) => { e.preventDefault(); setIsActivationMode(false); }}>
-                        Already have an account? Login here
-                      </a>
-                    </>
-                  )}
                 </div>
               </div>
               }
