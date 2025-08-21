@@ -192,19 +192,12 @@ function Login() {
 
   return (
     <Div100vh>
-      <div className="login uk-cover-container uk-background-secondary uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-light" style={pageStyle}>
-        <div className="uk-position-cover uk-overlay-primary" />
+      <div className="login uk-cover-container uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-dark">
+        <div className="uk-position-cover" />
         <div className="login-scrollable uk-flex uk-flex-center uk-flex-middle uk-position-z-index">
           <Credits />
           <div className="login-inner uk-width-medium uk-padding-small" data-uk-scrollspy="cls: uk-animation-fade">
             <Logo />
-            <div className="uk-text-center">
-              <div className="uk-margin-bottom">
-                <h2 className="uk-text-bold uk-margin-remove-bottom">{info.appTitle || Config.appTitle || Config.appName || 'Clover'}</h2>
-                <span className="uk-text-small uk-text-muted">v{info.version}</span>
-              </div>
-            </div>
-
             <div>
               {/* Login Form */}
               <form className="toggle-class" onSubmit={onLogin} hidden={isActivationMode}>
@@ -321,14 +314,14 @@ function Login() {
                   </button>
                 </div>
               </form>
-
+              {
               <div>
                 <div className="uk-text-center">
                   {!isActivationMode ? (
                     <>
-                      <a className="uk-button uk-button-text uk-text-small" href="#" onClick={(e) => { e.preventDefault(); setIsActivationMode(true); }}>
-                        Have an activation token? Click here
-                      </a>
+                      <div className="uk-button uk-button-text uk-text-small">
+                            New users can join only via invitation.
+                      </div>
                     </>
                   ) : (
                     <>
@@ -339,6 +332,7 @@ function Login() {
                   )}
                 </div>
               </div>
+              }
             </div>
           </div>
         </div>
