@@ -138,19 +138,29 @@ function App() {
     );
   }
 
-  return (
-    <div className={`theme ${Config.theme}`}>
-      <Router>
-        <Routes>
-          <Route path="/activate/:token" element={<ActivateAccount />}  />
-          <Route path="/forgot-password" element={token ? <Navigate to="/" /> : <ForgotPassword />} />
-          <Route path="/login" element={token ? <Navigate to="/" /> : <Login />} />
-          <Route path="/*" element={!token ? <Navigate to="/login" /> : <Home />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Router>
-    </div>
-  );
+return (
+  <div className={`theme ${Config.theme}`}>
+    <Router>
+      <Routes>
+        <Route path="/activate/:token" element={<ActivateAccount />} />
+        {/* 🔹 NEW: Add forgot password route */}
+        <Route 
+          path="/forgot-password" 
+          element={token ? <Navigate to="/" /> : <ForgotPassword />} 
+        />
+        <Route 
+          path="/login" 
+          element={token ? <Navigate to="/" /> : <Login />} 
+        />
+        <Route 
+          path="/*" 
+          element={!token ? <Navigate to="/login" /> : <Home />} 
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Router>
+  </div>
+);
 }
 
 export default App;

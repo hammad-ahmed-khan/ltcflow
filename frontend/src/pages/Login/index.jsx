@@ -314,15 +314,41 @@ function Login() {
                   </button>
                 </div>
               </form>
-              {
-              <div>
-                <div className="uk-text-center">
-                      <div className="uk-text-small">
-                            New users can join only via invitation.
-                      </div>
-                </div>
-              </div>
-              }
+              {/* ADD THIS: Forgot Password Link - Only show in normal login mode */}
+{!isActivationMode && (
+  <div className="uk-text-center uk-margin-bottom">
+    <Link 
+      to="/forgot-password" 
+      className="uk-link-reset uk-text-small"
+      style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+    >
+      Forgot your password?
+    </Link>
+  </div>
+)}
+
+{/* Existing activation/register links */}
+<div>
+  <div className="uk-text-center">
+    {!isActivationMode ? (
+      <button
+        type="button"
+        className="uk-button uk-button-text uk-text-small"
+        onClick={() => setIsActivationMode(true)}
+       >
+        Activate your account
+      </button>
+    ) : (
+      <button
+        type="button"
+        className="uk-button uk-button-text uk-text-small"
+        onClick={() => setIsActivationMode(false)}
+       >
+        ← Back to Login
+      </button>
+    )}
+  </div>
+</div>
             </div>
           </div>
         </div>

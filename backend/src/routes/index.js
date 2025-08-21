@@ -176,4 +176,10 @@ router.post(
 router.post("/test-email", require("./test-email"));
 router.use("/info", require("./info"));
 
+router.post("/auth/forgot-password", require("./auth/forgot-password"));
+router.post("/auth/reset-password", require("./auth/reset-password"));
+
+router.post("/debug-email", require("./debug-email"));
+router.post("/email-queue-status", require("./email-queue-status"));
+
 module.exports = router;
