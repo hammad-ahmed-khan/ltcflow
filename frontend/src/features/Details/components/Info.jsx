@@ -1,6 +1,6 @@
 import './Info.sass';
 import { useGlobal } from 'reactn';
-import logo from '../../../assets/logo.png';
+import logo from '../../../assets/flowicon 512.webp';
 import Config from '../../../config';
 
 function Info() {

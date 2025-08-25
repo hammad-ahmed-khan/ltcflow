@@ -2,6 +2,7 @@ require("dotenv").config();
 const info = require("./version.json");
 
 module.exports = {
+  appTitle: "LTC Flow",
   appVersion: info.version,
   appBuild: info.build,
   port: process.env.PORT || 4000,
