@@ -1,7 +1,8 @@
 {
-  "name": "clover",
-  "author": "Honeyside",
+  "name": "ltc-flow",
+  "author": "LTC Flow",
   "version": "2.9.3",
+  "description": "Real-Time Messaging and Audio/Video Conferencing Platform",
   "private": true,
   "type": "module",
   "scripts": {

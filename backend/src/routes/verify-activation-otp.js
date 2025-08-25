@@ -1,37 +1,31 @@
-// backend/src/routes/complete-activation.js (Updated to require OTP verification)
+﻿// backend/src/routes/verify-activation-otp.js (New route)
 const User = require("../models/User");
 const AuthCode = require("../models/AuthCode");
-const argon2 = require("argon2");
 const bcrypt = require("bcryptjs");
+const moment = require("moment");
 const isEmpty = require("../utils/isEmpty");
 
 module.exports = async (req, res) => {
   try {
-    const { token, password, confirmPassword } = req.fields;
+    const { token, otp } = req.fields;
     const companyId = req.headers["x-company-id"];
 
     // Validate required fields
     let errors = {};
     isEmpty(token) && (errors.token = "Activation token required.");
-    isEmpty(password) && (errors.password = "Password required.");
-    isEmpty(confirmPassword) &&
-      (errors.confirmPassword = "Confirm password required.");
+    isEmpty(otp) && (errors.otp = "Verification code required.");
     isEmpty(companyId) && (errors.companyId = "Company ID required.");
 
+    // Validate OTP format
+    if (otp && !/^\d{6}$/.test(otp.trim())) {
+      errors.otp = "Verification code must be 6 digits.";
+    }
+
     if (Object.keys(errors).length > 0) {
-      return res.status(400).json(errors);
-    }
-
-    // Validate password
-    if (password.length < 6) {
       return res.status(400).json({
-        password: "Password must be at least 6 characters long.",
-      });
-    }
-
-    if (password !== confirmPassword) {
-      return res.status(400).json({
-        confirmPassword: "Passwords do not match.",
+        status: "error",
+        errors,
+        message: "Please correct the errors and try again.",
       });
     }
 
@@ -40,7 +34,7 @@ module.exports = async (req, res) => {
       companyId: companyId,
       status: "pending",
       activationToken: { $ne: null },
-    });
+    }).select("-password");
 
     // Find the user by comparing the raw token with the hashed tokens
     let user = null;
@@ -66,60 +60,72 @@ module.exports = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({
+        status: "error",
         error: "INVALID_TOKEN",
         message: "Invalid activation token or user not found.",
       });
     }
 
-    // Check if token has expired
+    // Check if activation token has expired
     if (user.tokenExpiry && new Date() > user.tokenExpiry) {
       return res.status(400).json({
+        status: "error",
         error: "TOKEN_EXPIRED",
         message:
           "Activation token has expired. Please request a new invitation.",
       });
     }
 
-    // ⚠️ IMPORTANT: Check if user has verified OTP
-    // Look for any recent valid (used) auth codes for this user
-    // Since OTP gets invalidated after successful verification, we look for recently used ones
-    const recentlyUsedOTP = await AuthCode.findOne({
+    // Find valid OTP auth code for this user
+    const authCode = await AuthCode.findOne({
+      code: otp.trim(),
       user: user._id,
       email: user.email,
-      valid: false, // Should be false after successful verification
+      valid: true,
       companyId: companyId,
-      updatedAt: { $gt: new Date(Date.now() - 30 * 60 * 1000) }, // Within last 30 minutes
-    }).sort({ updatedAt: -1 }); // Get the most recent one
+    });
 
-    if (!recentlyUsedOTP) {
+    if (!authCode) {
       return res.status(400).json({
-        error: "OTP_VERIFICATION_REQUIRED",
+        status: "error",
+        error: "INVALID_OTP",
         message:
-          "OTP verification is required before setting password. Please verify your email code first.",
+          "Invalid verification code. Please check your code and try again.",
       });
     }
 
-    // Hash password and activate account
-    const hashedPassword = await argon2.hash(password);
+    // Check if OTP has expired
+    if (moment(authCode.expires).isBefore(moment())) {
+      // Invalidate expired code
+      authCode.valid = false;
+      await authCode.save();
 
-    user.password = hashedPassword;
-    user.status = "active";
-    user.activationToken = null;
-    user.tokenExpiry = null;
-    user.updatedAt = new Date();
+      return res.status(400).json({
+        status: "error",
+        error: "OTP_EXPIRED",
+        message:
+          "Verification code has expired. Please request a new activation link.",
+      });
+    }
 
-    await user.save();
+    // Mark OTP as used (invalidate it)
+    authCode.valid = false;
+    await authCode.save();
 
-    // Clean up any remaining auth codes for this user
-    await AuthCode.updateMany({ user: user._id }, { $set: { valid: false } });
-
-    console.log(
-      `✅ Account activated successfully for user: ${user.email} (Company: ${companyId})`
+    // Invalidate any other auth codes for this user
+    await AuthCode.updateMany(
+      { user: user._id, valid: true },
+      { $set: { valid: false } }
     );
 
+    console.log(
+      `✅ OTP verified successfully for user: ${user.email} (Company: ${companyId})`
+    );
+
+    // Return success - user can now proceed to set password
     res.status(200).json({
       status: "success",
-      message: "Account activated successfully! You can now log in.",
+      message: "Verification code confirmed. You can now set your password.",
       user: {
         id: user._id,
         email: user.email,
@@ -128,12 +134,14 @@ module.exports = async (req, res) => {
         username: user.username,
         level: user.level,
       },
+      nextStep: "set_password", // Indicate that password setting is next
     });
   } catch (error) {
-    console.error("Complete activation error:", error);
+    console.error("OTP verification error:", error);
     res.status(500).json({
+      status: "error",
       error: "INTERNAL_SERVER_ERROR",
-      message: "Server error during account activation.",
+      message: "Server error during OTP verification.",
     });
   }
 };

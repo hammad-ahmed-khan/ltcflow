@@ -1,56 +1,78 @@
-﻿// frontend/src/pages/ActivateAccount/index.jsx
-import { useState, useEffect } from 'react';
+﻿// frontend/src/pages/ActivateAccount/index.jsx (Updated with OTP verification)
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGlobal } from 'reactn';
 import { useToasts } from 'react-toast-notifications';
-import { FiLock, FiEye, FiEyeOff, FiCheck, FiAlertCircle } from 'react-icons/fi';
 import Div100vh from 'react-div-100vh';
 import apiClient from '../../api/apiClient';
+import getInfo from '../../actions/getInfo';
 import Credits from '../Login/components/Credits';
 import Logo from '../Login/components/Logo';
-import Input from '../Login/components/Input';
 import '../Login/Login.sass';
-import backgroundImage from '../../assets/background.jpg';
 
 function ActivateAccount() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToasts();
-  const setEntryPath = useGlobal('entryPath')[1];
-  
-  const [step, setStep] = useState('validating'); // 'validating', 'setPassword', 'success', 'error'
+  const setEntryPath = useGlobal('entryPath')[1]; // Use ReactN global state
+
+  // States for different steps
+  const [step, setStep] = useState('validating'); // 'validating', 'otp', 'password', 'success'
   const [user, setUser] = useState(null);
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [info, setInfo] = useState({});
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const pageStyle = {
-    backgroundImage: `url('${backgroundImage}')`,
-  };
+  // OTP states
+  const [otp, setOtp] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
+
+  // Password states
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
-    // Clear entryPath when entering activation page to prevent redirect loops
-    setEntryPath(null);
-    
-    if (token) {
-      validateActivationToken();
-    } else {
-      setStep('error');
-    }
-  }, [token, setEntryPath]);
+    getInfo().then((res) => {
+      setInfo(res.data);
+    });
+  }, []);
 
-  const validateActivationToken = async () => {
+  // Countdown timer for resend button
+  useEffect(() => {
+    let timer;
+    if (resendCountdown > 0) {
+      timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCountdown]);
+
+  // Validate token and send OTP on component mount
+  useEffect(() => {
+    if (token) {
+      validateTokenAndSendOTP();
+    }
+  }, [token]);
+
+  const validateTokenAndSendOTP = async () => {
     try {
+      setStep('validating');
       const response = await apiClient.get(`/api/activate/${token}`);
-      
+
       if (response.data.status === 'success') {
         setUser(response.data.user);
-        setStep('setPassword');
-      } else {
-        setStep('error');
+        if (response.data.nextStep === 'verify_otp') {
+          setStep('otp');
+          setResendCountdown(60); // 60 second countdown
+          addToast('Verification code sent to your email!', {
+            appearance: 'success',
+            autoDismiss: true,
+          });
+        } else {
+          // Fallback to password step if OTP not required
+          setStep('password');
+        }
       }
     } catch (error) {
       console.error('Token validation error:', error);
@@ -61,7 +83,75 @@ function ActivateAccount() {
           appearance: 'error',
           autoDismiss: true,
         });
+      } else {
+        addToast('Invalid or expired activation link.', {
+          appearance: 'error',
+          autoDismiss: true,
+        });
       }
+    }
+  };
+
+  const handleOtpSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validation
+    const newErrors = {};
+    if (!otp.trim()) newErrors.otp = 'Verification code is required';
+    if (!/^\d{6}$/.test(otp.trim())) newErrors.otp = 'Code must be 6 digits';
+    
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
+
+    setOtpLoading(true);
+    
+    try {
+      const response = await apiClient.post('/api/verify-activation-otp', {
+        token,
+        otp: otp.trim()
+      });
+
+      if (response.data.status === 'success') {
+        setStep('password');
+        addToast('Code verified! Now set your password.', {
+          appearance: 'success',
+          autoDismiss: true,
+        });
+      }
+    } catch (error) {
+      console.error('OTP verification error:', error);
+      
+      if (error.response?.data?.errors) {
+        setErrors(error.response.data.errors);
+      } else if (error.response?.data?.message) {
+        setErrors({ otp: error.response.data.message });
+      } else {
+        setErrors({ otp: 'Failed to verify code. Please try again.' });
+      }
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCountdown > 0) return;
+    
+    setResendLoading(true);
+    try {
+      await apiClient.post('/api/resend-activation-otp', { token });
+      
+      setResendCountdown(60);
+      addToast('New verification code sent!', {
+        appearance: 'success',
+        autoDismiss: true,
+      });
+    } catch (error) {
+      addToast('Failed to resend code. Please try again.', {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -95,7 +185,7 @@ function ActivateAccount() {
         });
         
         // Clear entryPath before redirecting to login
-        await setEntryPath(null);
+        setEntryPath(null);
         
         // Redirect to login after 3 seconds
         setTimeout(() => {
@@ -120,9 +210,9 @@ function ActivateAccount() {
     }
   };
 
-  const handleNavigateToLogin = async () => {
+  const handleNavigateToLogin = () => {
     // Clear entryPath before navigating to login
-    await setEntryPath(null);
+    setEntryPath(null);
     navigate('/login', { replace: true });
   };
 
@@ -140,6 +230,94 @@ function ActivateAccount() {
     </div>
   );
 
+  const renderOtpStep = () => (
+    <div>
+      <div className="uk-text-center uk-margin-top">
+        <div className="uk-margin-bottom">
+          <span data-uk-icon="icon: mail; ratio: 3" className="uk-text-primary"></span>
+        </div>
+        <h1 className="uk-heading uk-margin-remove-bottom">
+          Verify Your Email
+        </h1>
+        <p className="uk-text-lead uk-margin-small-top uk-text-muted">
+          We've sent a verification code to {user?.email}
+        </p>
+      </div>
+
+      <form onSubmit={handleOtpSubmit}>
+        {errors.general && (
+          <div className="uk-alert-danger uk-margin-bottom" uk-alert="true">
+            <p className="uk-margin-remove">{errors.general}</p>
+          </div>
+        )}
+
+        <div className="uk-margin-bottom">
+          <input
+            className={`uk-input uk-border-pill uk-text-center ${
+              errors.otp ? 'uk-form-danger' : ''
+            }`}
+            type="text"
+            placeholder="Enter 6-digit code"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            maxLength={6}
+            style={{ 
+              fontSize: '24px', 
+              letterSpacing: '8px',
+              fontWeight: 'bold'
+            }}
+            autoComplete="one-time-code"
+            inputMode="numeric"
+            pattern="[0-9]*"
+          />
+          {errors.otp && (
+            <div className="uk-text-danger uk-text-small uk-margin-small-top uk-text-center">
+              {errors.otp}
+            </div>
+          )}
+        </div>
+
+        <div className="uk-margin-bottom">
+          <button
+            type="submit"
+            className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
+            disabled={otpLoading || otp.length !== 6}
+          >
+            {otpLoading ? (
+              <>
+                <div data-uk-spinner="ratio: 0.8" className="uk-margin-small-right" />
+                VERIFYING...
+              </>
+            ) : (
+              'VERIFY CODE'
+            )}
+          </button>
+        </div>
+
+        <div className="uk-text-center uk-margin-bottom">
+          <p className="uk-text-small uk-text-muted uk-margin-small-bottom">
+            Didn't receive the code?
+          </p>
+          <button
+            type="button"
+            onClick={handleResendOtp}
+            disabled={resendCountdown > 0 || resendLoading}
+            className="uk-button uk-button-link uk-text-small"
+            style={{ padding: '0', minHeight: 'auto' }}
+          >
+            {resendLoading ? (
+              'Sending...'
+            ) : resendCountdown > 0 ? (
+              `Resend in ${resendCountdown}s`
+            ) : (
+              'Resend Code'
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+
   const renderPasswordStep = () => (
     <div>
       <div className="uk-text-center uk-margin-top">
@@ -147,87 +325,72 @@ function ActivateAccount() {
           <span data-uk-icon="icon: user; ratio: 3" className="uk-text-primary"></span>
         </div>
         <h1 className="uk-heading uk-margin-remove-bottom">
-          Activate Your Account
+          Set Your Password
         </h1>
         <p className="uk-text-lead uk-margin-small-top uk-text-muted">
-          Welcome, {user?.firstName}! Set your password to complete activation.
+          Welcome, {user?.firstName}! Create a password to complete activation.
         </p>
       </div>
 
       <form onSubmit={handlePasswordSubmit}>
-        <fieldset className="uk-fieldset">
-            <div className="uk-inline uk-width-1-1">
-              <Input
-                icon="lock"
-                placeholder="Password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="uk-form-icon uk-form-icon-flip"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                {showPassword ? <FiEyeOff /> : <FiEye />}
-              </button>
+        {errors.general && (
+          <div className="uk-alert-danger uk-margin-bottom" uk-alert="true">
+            <p className="uk-margin-remove">{errors.general}</p>
+          </div>
+        )}
+
+        <div className="uk-margin-bottom">
+          <input
+            className={`uk-input uk-border-pill ${
+              errors.password ? 'uk-form-danger' : ''
+            }`}
+            type="password"
+            placeholder="Password (min. 6 characters)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+          {errors.password && (
+            <div className="uk-text-danger uk-text-small uk-margin-small-top">
+              {errors.password}
             </div>
-            {errors.password && (
-              <div className="uk-text-danger uk-text-small uk-margin-small-top">
-                {errors.password}
-              </div>
+          )}
+        </div>
+
+        <div className="uk-margin-bottom">
+          <input
+            className={`uk-input uk-border-pill ${
+              errors.confirmPassword ? 'uk-form-danger' : ''
+            }`}
+            type="password"
+            placeholder="Confirm Password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+          {errors.confirmPassword && (
+            <div className="uk-text-danger uk-text-small uk-margin-small-top">
+              {errors.confirmPassword}
+            </div>
+          )}
+        </div>
+
+        <div className="uk-margin-bottom">
+          <button
+            type="submit"
+            className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <div data-uk-spinner="ratio: 0.8" className="uk-margin-small-right" />
+                ACTIVATING...
+              </>
+            ) : (
+              'ACTIVATE ACCOUNT'
             )}
-
-            <div className="uk-inline uk-width-1-1">
-              <Input
-                icon="lock"
-                placeholder="Confirm Password"
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="uk-form-icon uk-form-icon-flip"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
-              </button>
-
-            {errors.confirmPassword && (
-              <div className="uk-text-danger uk-text-small uk-margin-small-top">
-                {errors.confirmPassword}
-              </div>
-            )}
-          </div>
-
-          <div className="uk-margin-bottom">
-            <button
-              type="submit"
-              className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <div data-uk-spinner="ratio: 0.8" className="uk-margin-small-right" />
-                  ACTIVATING...
-                </>
-              ) : (
-                'ACTIVATE ACCOUNT'
-              )}
-            </button>
-          </div>
-
-          <div className="uk-text-center">
-            <p className="uk-text-small uk-text-muted">
-              By activating your account, you agree to our terms of service.
-            </p>
-          </div>
-        </fieldset>
+          </button>
+        </div>
       </form>
     </div>
   );
@@ -235,58 +398,49 @@ function ActivateAccount() {
   const renderSuccessStep = () => (
     <div className="uk-text-center uk-margin-top">
       <div className="uk-margin-bottom">
-        <span data-uk-icon="icon: check; ratio: 3" className="uk-text-success"></span>
+        <span data-uk-icon="icon: check; ratio: 4" className="uk-text-success"></span>
       </div>
-      <h1 className="uk-heading uk-margin-remove-bottom uk-text-success">
+      <h1 className="uk-heading uk-margin-remove-bottom">
         Account Activated!
       </h1>
       <p className="uk-text-lead uk-margin-small-top uk-text-muted">
         Your account has been successfully activated.
       </p>
-      <p className="uk-text-muted">
-        You will be redirected to the login page in a few seconds...
+      <p className="uk-text-small uk-text-muted uk-margin-medium-top">
+        Redirecting to login page in a few seconds...
       </p>
-      
-      <div className="uk-margin-top">
-        <button
-          onClick={handleNavigateToLogin}
-          className="uk-button uk-button-primary uk-border-pill"
-        >
-          Go to Login Now
-        </button>
-      </div>
+      <button
+        onClick={handleNavigateToLogin}
+        className="uk-button uk-button-primary uk-border-pill uk-margin-top"
+      >
+        Go to Login
+      </button>
     </div>
   );
 
   const renderErrorStep = () => (
     <div className="uk-text-center uk-margin-top">
       <div className="uk-margin-bottom">
-        <span data-uk-icon="icon: warning; ratio: 3" className="uk-text-danger"></span>
+        <span data-uk-icon="icon: close; ratio: 4" className="uk-text-danger"></span>
       </div>
-      <h1 className="uk-heading uk-margin-remove-bottom uk-text-danger">
+      <h1 className="uk-heading uk-margin-remove-bottom">
         Activation Failed
       </h1>
       <p className="uk-text-lead uk-margin-small-top uk-text-muted">
-        This activation link is invalid or has expired.
+        The activation link is invalid or has expired.
       </p>
-      <p className="uk-text-muted">
-        Please contact your administrator for a new invitation.
-      </p>
-      
-      <div className="uk-margin-top">
-        <button
-          onClick={handleNavigateToLogin}
-          className="uk-button uk-button-default uk-border-pill"
-        >
-          Back to Login
-        </button>
-      </div>
+      <button
+        onClick={handleNavigateToLogin}
+        className="uk-button uk-button-primary uk-border-pill uk-margin-top"
+      >
+        Back to Login
+      </button>
     </div>
   );
 
   return (
     <Div100vh>
-      <div className="login uk-cover-container uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-dark" style={pageStyle}>
+      <div className="login uk-cover-container uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-dark">
         <div className="uk-position-cover" />
         <div className="login-scrollable uk-flex uk-flex-center uk-flex-middle uk-position-z-index">
           <Credits />
@@ -294,7 +448,8 @@ function ActivateAccount() {
             <Logo />
             
             {step === 'validating' && renderValidatingStep()}
-            {step === 'setPassword' && renderPasswordStep()}
+            {step === 'otp' && renderOtpStep()}
+            {step === 'password' && renderPasswordStep()}
             {step === 'success' && renderSuccessStep()}
             {step === 'error' && renderErrorStep()}
           </div>

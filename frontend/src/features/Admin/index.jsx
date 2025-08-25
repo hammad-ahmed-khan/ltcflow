@@ -46,6 +46,29 @@ function Admin() {
     });
   };
 
+const customStyles = {
+  rows: {
+    style: {
+      backgroundColor: "#f2f2f2", // row background
+    },
+  },
+  headCells: {
+    style: {
+      backgroundColor: "#333", // header background
+      color: "#fff",           // header text color
+    },
+  },
+  cells: {
+    style: {
+      backgroundColor: "#f2f2f2", // cell background
+    },
+  },
+ pagination: {
+    style: {
+      backgroundColor: "#f2f2f2",
+    },
+  },  
+};
   // Helper function to format user role for display with tooltips
   const formatUserRole = (level) => {
     const roleMap = {
@@ -924,15 +947,16 @@ const applyPrivilegeFilter = (users) => {
             </div>
           </div>
           <DataTable
-            columns={columns}
-            data={data}
-            defaultSortField="firstName"
-            pagination
-            paginationPerPage={20}
-            dense
-            striped
-            responsive
-          />
+  columns={columns}
+  data={data}
+  defaultSortField="firstName"
+  pagination
+  paginationPerPage={20}
+  dense
+  striped
+  responsive
+  customStyles={customStyles}
+/>
         </div>
       </div>
       <BottomBar />

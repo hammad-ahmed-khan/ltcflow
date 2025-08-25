@@ -159,12 +159,6 @@ router.post(
 
 router.post("/company/create", require("./create-company"));
 
-// User activation routes
-router.get("/activate/:token", require("./activate-user"));
-router.post("/complete-activation", require("./complete-activation"));
-router.post("/regenerate-activation", require("./regenerate-activation"));
-router.post("/cancel-activation", require("./cancel-activation"));
-
 // User status management
 router.post(
   "/toggle-user-status",
@@ -181,5 +175,13 @@ router.post("/auth/reset-password", require("./auth/reset-password"));
 
 router.post("/debug-email", require("./debug-email"));
 router.post("/email-queue-status", require("./email-queue-status"));
+
+// User activation routes
+router.get("/activate/:token", require("./activate-user"));
+router.post("/verify-activation-otp", require("./verify-activation-otp")); // NEW
+router.post("/resend-activation-otp", require("./resend-activation-otp")); // NEW
+router.post("/complete-activation", require("./complete-activation"));
+router.post("/regenerate-activation", require("./regenerate-activation"));
+router.post("/cancel-activation", require("./cancel-activation"));
 
 module.exports = router;

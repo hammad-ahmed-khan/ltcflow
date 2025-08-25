@@ -134,76 +134,85 @@ module.exports = async (req, res, next) => {
       companyId: companyId,
       from: Config.nodemailer.from,
       to: email,
-      subject: `${
-        Config.appTitle || Config.appName || "Clover"
-      } - Account Activation`,
+      subject: `${company.name}: Activate Your ${
+        Config.appTitle || Config.appName
+      } Account`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1976d2; margin: 0;">${
-              Config.appTitle || Config.appName || "Clover"
-            }</h1>
-          </div>
-          
-          <h2 style="color: #333; margin-bottom: 20px;">Welcome to ${
-            company.name || Config.appTitle
-          }!</h2>
-          
-          <p style="font-size: 16px; line-height: 1.5; color: #333;">Hello ${firstName},</p>
-          
-          <p style="font-size: 16px; line-height: 1.5; color: #333;">
-            You've been invited to join <strong>${company.name}</strong> on ${
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <!-- Preview text for inbox snippet -->
+      <span style="display:none; font-size:1px; color:#fff; max-height:0; max-width:0; opacity:0; overflow:hidden;">
+        Activate your ${company.name} account on ${
+        Config.appTitle || Config.appName
+      }. This link expires in 7 days.
+      </span>
+
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #1976d2; margin: 0;">${company.name}</h1>
+        <p style="color: #666; margin: 5px 0 0 0; font-size: 14px;">Powered by ${
+          Config.appTitle || Config.appName
+        }</p>
+      </div>
+      
+      <h2 style="color: #333; margin-bottom: 20px;">Welcome to ${
+        company.name
+      }!</h2>
+      
+      <p style="font-size: 16px; line-height: 1.5; color: #333;">Hello ${firstName},</p>
+      
+      <p style="font-size: 16px; line-height: 1.5; color: #333;">
+        You've been invited to join <strong>${company.name}</strong> on ${
         Config.appTitle || Config.appName
       }.
-          </p>
-          
-          <p style="font-size: 16px; line-height: 1.5; color: #333;">
-            Click the button below to activate your account and set your password:
-          </p>
-          
-          <div style="text-align: center; margin: 40px 0;">
-            <a href="${activationLink}" 
-               style="background-color: #1976d2; color: white; padding: 16px 32px; 
-                      text-decoration: none; border-radius: 8px; display: inline-block;
-                      font-weight: bold; font-size: 16px; border: none; cursor: pointer;">
-              Activate Your Account
-            </a>
-          </div>
-          
-          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px 0;">
-            <h3 style="color: #333; margin-top: 0;">Important Information:</h3>
-            <ul style="color: #666; line-height: 1.6; margin: 0; padding-left: 20px;">
-              <li>This activation link will expire in <strong>7 days</strong></li>
-              <li>You can only use this link <strong>once</strong></li>
-              <li>After activation, access your account at: 
-                <a href="https://${company.subdomain}.${
+      </p>
+      
+      <p style="font-size: 16px; line-height: 1.5; color: #333;">
+        Click the button below to activate your account and set your password:
+      </p>
+      
+      <div style="text-align: center; margin: 40px 0;">
+        <a href="${activationLink}" 
+           aria-label="Activate your ${company.name} account"
+           style="background-color: #1976d2; color: white; padding: 16px 32px; 
+                  text-decoration: none; border-radius: 8px; display: inline-block;
+                  font-weight: bold; font-size: 16px; border: none; cursor: pointer;">
+          Activate Your Account
+        </a>
+      </div>
+      
+      <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 30px 0;">
+        <h3 style="color: #333; margin-top: 0;">Important Information:</h3>
+        <ul style="color: #666; line-height: 1.6; margin: 0; padding-left: 20px;">
+          <li>This activation link will expire in <strong>7 days</strong></li>
+          <li>You can only use this link <strong>once</strong></li>
+          <li>After activation, access your account at: 
+            <a href="https://${company.subdomain}.${
         Config.domain
       }" style="color: #1976d2;">
-                  https://${company.subdomain}.${Config.domain}
-                </a>
-              </li>
-            </ul>
-          </div>
-          
-          <div style="margin: 30px 0; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px;">
-            <p style="margin: 0; color: #856404; font-size: 14px;">
-              <strong>Can't click the button?</strong> Copy and paste this link into your browser:
-            </p>
-            <p style="word-break: break-all; color: #856404; font-size: 13px; margin: 5px 0 0 0; font-family: monospace;">
-              ${activationLink}
-            </p>
-          </div>
-          
-          <hr style="margin: 40px 0; border: none; border-top: 1px solid #eee;">
-          
-          <p style="color: #999; font-size: 12px; text-align: center;">
-            If you didn't expect this invitation, you can safely ignore this email.<br>
-            This email was sent by ${company.name} via ${
-        Config.appTitle || Config.appName
-      }.
-          </p>
-        </div>
-      `,
+              https://${company.subdomain}.${Config.domain}
+            </a>
+          </li>
+        </ul>
+      </div>
+      
+      <div style="margin: 30px 0; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px;">
+        <p style="margin: 0; color: #856404; font-size: 14px;">
+          <strong>Can't click the button?</strong> Copy and paste this link into your browser:
+        </p>
+        <p style="word-break: break-all; color: #856404; font-size: 13px; margin: 5px 0 0 0; font-family: monospace;">
+          ${activationLink}
+        </p>
+      </div>
+      
+      <hr style="margin: 40px 0; border: none; border-top: 1px solid #eee;">
+      
+      <p style="color: #999; font-size: 12px; text-align: center;">
+        If you didn't expect this invitation, you can safely ignore this email.<br>
+        This email was sent by ${company.name} via <a href="https://${
+        Config.domain
+      }" style="color:#1976d2;">${Config.appTitle || Config.appName}</a>.
+      </p>
+    </div>
+  `,
     });
 
     await emailEntry.save();

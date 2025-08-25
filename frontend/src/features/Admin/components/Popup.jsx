@@ -402,7 +402,7 @@ function AddPeers({ onClose, type, user }) {
                 {errors && errors.level && <div className="admin-form-error">{errors.level}</div>}
                 
                 <button type="submit" style={{ marginBottom: 4 }} className="uk-button uk-button-honey uk-margin-top">
-                  {type === 'edit' ? 'Update User' : 'Create Invitation'}
+                  {type === 'edit' ? 'Update User' : 'Send Invitation'}
                 </button>
                 <button className="uk-button uk-button-secondary" onClick={() => onClose(false)}>
                   Cancel
