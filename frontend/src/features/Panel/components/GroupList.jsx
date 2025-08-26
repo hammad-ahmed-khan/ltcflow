@@ -1,10 +1,9 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { useGlobal } from 'reactn';
-import { FiUsers, FiSettings } from 'react-icons/fi';
+import { FiUsers, FiMessageCircle, FiSettings } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import Picture from '../../../components/Picture';
-import moment from 'moment';
 import './GroupList.sass';
 
 function GroupList() {
@@ -48,54 +47,43 @@ function GroupList() {
   }
 
   return (
-    <div className="groups-list">
+    <>
       {userGroups.map(group => (
         <div 
           key={group._id} 
-          className="group-item uk-flex uk-flex-between uk-flex-middle"
+          className="room uk-flex"
           onClick={() => handleGroupClick(group._id)}
-          style={{ 
-            padding: '12px', 
-            cursor: 'pointer',
-            borderBottom: '1px solid #eee',
-            transition: 'background-color 0.2s'
-          }}
-          onMouseEnter={(e) => e.target.style.backgroundColor = '#f8f9fa'}
-          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
         >
-          <div className="uk-flex uk-flex-middle" style={{ gap: '12px' }}>
+          <div className="profile">
             <Picture 
               group={true} 
               picture={group.picture} 
               title={group.title}
             />
-            <div>
-              <div style={{ fontWeight: '500', fontSize: '14px' }}>
-                {group.title}
-              </div>
-              <div style={{ fontSize: '12px', color: '#666' }}>
-                {group.people ? group.people.length : 0} members
-              </div>
-              {group.lastMessage && (
-                <div style={{ fontSize: '11px', color: '#999' }}>
-                  Last message: {moment(group.lastMessage.date).fromNow()}
-                </div>
-              )}
+          </div>
+          <div className="text">
+            <div className="title">
+              {group.title}
             </div>
           </div>
-          <div className="uk-flex" style={{ gap: '8px' }}>
-            <button
-              className="uk-button uk-button-small uk-button-default"
+          <div className="controls">
+            <div className="date">
+              {group.people ? `${group.people.length} member${group.people.length !== 1 ? 's' : ''}` : '0 members'}
+            </div>
+          </div>        
+          <div className="controls">
+            <div 
+              className="button"
               onClick={(e) => handleGroupSettings(e, group._id)}
-              style={{ padding: '4px 8px' }}
-              title="Manage group members"
+              style={{ marginLeft: '4px' }}
+              title="Manage group"
             >
-              <FiSettings size={12} />
-            </button>
+              <FiSettings />
+            </div>
           </div>
         </div>
       ))}
-    </div>
+    </>
   );
 }
 

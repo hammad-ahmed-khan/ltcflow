@@ -1,10 +1,39 @@
-// File 2: frontend/src/features/Group/Manage/GroupManage.sass
 .group-manage
   height: 100%
   background: #fff
 
 .group-manage-header
   box-shadow: 0 1px 3px rgba(0,0,0,0.1)
+
+// Group picture styling
+.group-picture-container
+  position: relative
+  
+  .group-picture
+    cursor: pointer
+    transition: all 0.2s ease
+    
+    &:hover
+      transform: scale(1.02)
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15)
+    
+    .picture, .img
+      display: flex
+      width: 40px
+      height: 40px
+      border-radius: 20px
+      justify-content: center
+      align-items: center
+      background: #666
+      color: #f7f7f8
+      font-size: 18px
+      
+    .picture-overlay
+      pointer-events: none
+
+// File input styling
+input[type="file"]
+  display: none
 
 .add-members-section
   .uk-flex:hover
@@ -13,3 +42,200 @@
 .members-list
   .member-item:hover
     background: #f8f9fa
+
+// Picture component styling fixes
+.picture, .img
+   
+  // For search results (smaller)
+  .add-members-section &
+    width: 32px !important
+    height: 32px !important
+    border-radius: 16px !important
+    font-size: 14px !important
+
+// Search bar styling following existing patterns
+.search-bar
+  .icon
+    font-size: 16px
+    color: #666
+    cursor: pointer
+    
+    &:hover
+      color: #333
+
+  .uk-input
+    font-size: 14px
+    
+    &::placeholder
+      color: #999
+
+// Mobile responsive fixes
+@media screen and (max-width: 699px)
+  .group-manage
+    .group-manage-header
+      padding: 12px
+      
+      .group-picture-container
+        .group-picture
+          width: 60px !important
+          height: 60px !important
+          border-radius: 30px !important
+          
+          .picture, .img
+            width: 56px !important
+            height: 56px !important
+            border-radius: 28px !important
+            font-size: 20px !important
+            transform: scale(1.4) !important
+      
+      .uk-flex
+        gap: 8px !important
+        
+      .uk-button
+        padding: 6px 8px !important
+        font-size: 12px
+        
+        span
+          display: none // Hide text on mobile, keep icons only
+  
+  .add-members-section
+    padding: 12px
+    
+    .search-bar
+      height: 36px
+      
+    .uk-flex
+      padding: 10px 12px !important
+      
+      .uk-button
+        padding: 4px 8px !important
+        margin-left: 4px !important
+  
+  .members-list
+    .member-item
+      padding: 12px !important
+      
+      .uk-button
+        padding: 4px 6px !important
+        margin-left: 4px !important
+        min-width: auto
+
+// Theme support
+.theme.light .group-manage
+  background: #fff
+  
+  .group-manage-header
+    background: #fff
+    
+  .add-members-section
+    background: #f8f9fa
+
+.theme.dark .group-manage
+  background: #303841
+  color: #fff
+  
+  .group-manage-header
+    background: #303841
+    border-color: #444
+    
+  .add-members-section
+    background: #2a2f36
+    
+  .search-bar
+    background: #3a3f46 !important
+    border-color: #555 !important
+    
+  .uk-input
+    background: transparent !important
+    color: #fff !important
+    
+    &::placeholder
+      color: #aaa !important
+
+// Button positioning fixes to prevent overlap
+.uk-flex-between
+  .uk-button
+    flex-shrink: 0
+    margin-left: 8px
+    
+    @media screen and (max-width: 699px)
+      margin-left: 4px
+
+// Text truncation for long names/usernames
+.member-item, .add-members-section .uk-flex
+  .uk-flex-middle
+    min-width: 0
+    
+    > div:last-child
+      min-width: 0
+      flex: 1
+      
+      div
+        white-space: nowrap
+        overflow: hidden
+        text-overflow: ellipsis
+
+// Loading state styling
+.uk-button[disabled]
+  opacity: 0.6
+  cursor: not-allowed
+
+// Sticky header improvements
+.members-list
+  position: relative
+  
+  > div:first-child
+    position: sticky
+    top: 0
+    z-index: 10
+    background: #fff
+    
+    .theme.dark &
+      background: #303841
+
+// Search results scroll styling
+.add-members-section
+  .search-results-container
+    scrollbar-width: thin
+    scrollbar-color: #ccc transparent
+    
+    &::-webkit-scrollbar
+      width: 6px
+      
+    &::-webkit-scrollbar-track
+      background: transparent
+      
+    &::-webkit-scrollbar-thumb
+      background: #ccc
+      border-radius: 3px
+      
+      &:hover
+        background: #999
+
+// Animation for smooth interactions
+.member-item, .add-members-section .uk-flex
+  transition: background-color 0.2s ease
+
+.uk-button
+  transition: all 0.2s ease
+
+// Error and success states
+.uk-text-danger
+  color: #f0506e !important
+
+.uk-text-success
+  color: #28a745 !important
+
+// Focus states for accessibility
+.uk-input:focus, .uk-button:focus
+  outline: 2px solid #557d53
+  outline-offset: 2px
+
+// Hover states
+.member-item:hover .uk-button-danger
+  background: #dc3545
+  border-color: #dc3545
+  
+.add-members-section .uk-flex:hover .uk-button-primary
+  background: #4a6e48
+  border-color: #4a6e48
