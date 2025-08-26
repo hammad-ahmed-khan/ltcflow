@@ -41,6 +41,13 @@ router.post(
   passport.authenticate("jwt", { session: false }, null),
   require("./user-list")
 );
+
+router.post(
+  "/edit-profile",
+  passport.authenticate("jwt", { session: false }, null),
+  require("./edit-profile")
+);
+
 router.post(
   "/picture/change",
   passport.authenticate("jwt", { session: false }, null),
