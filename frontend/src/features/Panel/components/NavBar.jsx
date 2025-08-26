@@ -13,7 +13,7 @@ function NavBar() {
         <div className="icon">
           <FiMessageCircle />
         </div>
-        <div className="text">Rooms</div>
+        <div className="text">Chat</div>
       </div>
       <div className={`item${nav === 'search' ? ' active' : ''}`} onClick={() => setNav('search')}>
         <div className="icon">
@@ -27,16 +27,17 @@ function NavBar() {
         </div>
         <div className="text">Favorites</div>
       </div>
+      {/* UPDATED: Changed from 'meetings' to 'groups' */}
       <div
-        className={`item${nav === 'meetings' ? ' active' : ''}`}
+        className={`item${nav === 'groups' ? ' active' : ''}`}
         onClick={() => {
-          setNav('meetings');
+          setNav('groups');
         }}
       >
         <div className="icon">
           <FiUsers />
         </div>
-        <div className="text">Meetings</div>
+        <div className="text">Groups</div>
       </div>
     </div>
   );

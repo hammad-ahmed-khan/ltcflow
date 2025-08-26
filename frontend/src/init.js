@@ -1,6 +1,5 @@
 import { setGlobal } from "reactn";
 import jwtDecode from "jwt-decode";
-import apiClient from "./api/apiClient";
 import setAuthToken from "./actions/setAuthToken";
 import initIO from "./actions/initIO";
 import store from "./store";
@@ -15,53 +14,28 @@ const init = async () => {
     localStorage.setItem("app", "Clover 2.x.x");
   }
 
-  // 🔹 RESTORED: Token validation logic with stored companyId available
-  let token = localStorage.getItem("token");
-  let userString = localStorage.getItem("user");
-  let user = userString ? JSON.parse(userString) : null;
+  // Get token and user from localStorage
+  const token = localStorage.getItem("token");
+  const userString = localStorage.getItem("user");
+  const user = userString ? JSON.parse(userString) : null;
 
+  console.log("🔍 init.js - Found in localStorage:", {
+    hasToken: !!token,
+    hasUser: !!user,
+  });
+
+  // 🔹 FIX: If token exists, set it up immediately (no validation)
   if (token) {
-    const decoded = jwtDecode(token, { complete: true });
-    const dateNow = new Date();
-    const isExpired = decoded.exp * 1000 < dateNow.getTime();
-
-    let result;
-
-    if (!isExpired) {
-      try {
-        // 🔹 NEW: Wait a moment to ensure Redux store has companyId
-        // The companyId should now be available from localStorage immediately
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        const res = await apiClient.post("/api/check-user", {
-          id: decoded.payload.id,
-        });
-        result = res.data;
-      } catch (e) {
-        console.error("Error checking user:", e);
-        result = null;
-      }
-    }
-
-    if (!result || result.error) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      token = localStorage.getItem("token");
-      userString = localStorage.getItem("user");
-      user = userString ? JSON.parse(userString) : null;
-    }
-  }
-
-  if (token) {
-    setAuthToken(token);
-    store.dispatch(initIO(token));
+    setAuthToken(token); // This sets the Authorization header in axios
+    store.dispatch(initIO(token)); // This initializes socket.io
+    console.log("✅ Token and socket initialized");
   }
 
   const state = {
     version: "2.9.2",
     entryPath: window.location.pathname,
-    token,
-    user: user || (token ? jwtDecode(token) : {}),
+    token: token, // Keep token for immediate availability
+    user: user || (token ? jwtDecode(token) : {}), // Keep user for immediate availability
     rooms: [],
     searchResults: [],
     favorites: [],
@@ -88,7 +62,9 @@ const init = async () => {
   };
 
   setGlobal(state).then(() =>
-    console.log("Global state init complete!", state)
+    console.log("✅ init.js complete - token preserved:", {
+      hasToken: !!state.token,
+    })
   );
 };
 

@@ -18,6 +18,7 @@ import setAuthToken from './actions/setAuthToken';
 import initIO from './actions/initIO';
 import { setCompanyId, setCompanyError } from './actions/companyActions';
 import { getSubdomain, verifySubdomain } from './utils/domainUtils';
+import apiClient from './api/apiClient';
 
 function App() {
   const dispatch = useDispatch();
@@ -41,7 +42,7 @@ function App() {
         return;
       }
 
-      // 🔹 NEW: Only verify subdomain if it changed or no stored companyId
+      // Only verify subdomain if it changed or no stored companyId
       if (storedCompanyId && storedSubdomain === subdomain) {
         // Use stored companyId if subdomain hasn't changed
         console.log('✅ Using stored companyId:', storedCompanyId);
@@ -49,7 +50,7 @@ function App() {
         return;
       }
 
-      // 🔹 NEW: Verify subdomain and store results
+      // Verify subdomain and store results
       console.log('🔍 Verifying subdomain:', subdomain);
       try {
         const data = await verifySubdomain(subdomain);
@@ -76,6 +77,71 @@ function App() {
 
     initializeCompanyId();
   }, [dispatch]);
+
+  // Validate token after companyId is ready
+  useEffect(() => {
+    const validateExistingToken = async () => {
+      if (!companyId) return; // Wait for companyId to be available
+
+      const token = localStorage.getItem('token');
+      const userString = localStorage.getItem('user');
+      const user = userString ? JSON.parse(userString) : null;
+
+      console.log('🔍 Token validation starting...', { companyId, hasToken: !!token, hasUser: !!user });
+
+      if (token) {
+        try {
+          const decoded = jwtDecode(token, { complete: true });
+          //console.log("TTOKKENN:", decoded);
+          const dateNow = new Date();
+          const isExpired = decoded.exp * 1000 < dateNow.getTime();
+
+          console.log('🔍 Token details:', { 
+            isExpired, 
+            userId: decoded.id,
+            exp: decoded.exp,
+            now: Math.floor(dateNow.getTime() / 1000)
+          });
+
+          if (!isExpired) {
+            // Use static import since apiClient is imported everywhere
+            const res = await apiClient.post('/api/check-user', { 
+              id: decoded.id 
+            });
+            
+            console.log('🔍 Check user response:', res.data);
+            
+            if (res.data && !res.data.error) {
+              // Token is valid, set up authentication
+              setAuthToken(token);
+              await setGlobal({
+                token,
+                user: user || jwtDecode(token),
+              });
+              dispatch(initIO(token));
+              console.log('✅ Token validation successful');
+              return;
+            }
+          } else {
+            console.log('❌ Token expired');
+          }
+        } catch (e) {
+          console.error('❌ Token validation failed:', e);
+        }
+
+        // If we get here, token validation failed - clear everything
+        console.log('🧹 Clearing invalid token');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        await setGlobal({
+          token: null,
+          user: {},
+        });
+      }
+    };
+
+    validateExistingToken();
+  }, [companyId, dispatch]);
 
   useEffect(() => {
     if (!io || !getGlobal().user || !token) return;
@@ -148,7 +214,7 @@ function App() {
     return <NotFound />;
   }
 
-  // 🔹 UPDATED: Only wait for companyId (no more authInitialized)
+  // Only wait for companyId
   if (!companyId) {
     return (
       <div className="login uk-cover-container uk-background-secondary uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-light">
