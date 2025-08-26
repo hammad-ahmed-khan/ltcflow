@@ -38,9 +38,15 @@ function Settings() {
     await setUser(newUser);
   };
 
-  const logout = async () => {
+const logout = async () => {
     const { username } = user;
+    
+    // 🔹 NEW: Clear all authentication-related data including companyId
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('companyId');
+    localStorage.removeItem('subdomain');
+    
     await setToken(null);
     await setUser({});
     addToast(`User ${username} logged out!`, {

@@ -105,7 +105,7 @@ function Login() {
       setLoginErrors(errors);
     }
   };
-
+  
   const onActivation = async (e) => {
     e.preventDefault();
     setActivationLoading(true);

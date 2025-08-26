@@ -6,7 +6,12 @@ import Config from "../config";
 // Add companyId automatically
 axios.interceptors.request.use((config) => {
   const state = store.getState();
-  const companyId = state.company?.companyId;
+  let companyId = state.company?.companyId;
+
+  // 🔹 NEW: Fallback to localStorage if Redux store doesn't have companyId yet
+  if (!companyId) {
+    companyId = localStorage.getItem("companyId");
+  }
 
   if (companyId && !config.headers?.["X-Company-Id"]) {
     config.headers = {

@@ -25,10 +25,16 @@ function TopBar() {
   const location = useLocation();
   const { addToast } = useToasts();
 
-  const logout = async () => {
+const logout = async () => {
     io.disconnect();
     const { username } = user;
+    
+    // 🔹 NEW: Clear all authentication-related data including companyId
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('companyId');
+    localStorage.removeItem('subdomain');
+    
     await setToken(null);
     await setUser({});
     addToast(`User ${username} logged out!`, {
