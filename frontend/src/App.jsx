@@ -24,31 +24,57 @@ function App() {
   const { addToast } = useToasts();
   const io = useSelector((state) => state.io.io);
 
-  const { companyId, error } = useSelector((state) => state.company); // ⬅ Here
+  const { companyId, error } = useSelector((state) => state.company);
   const token = useGlobal('token')[0];
   const setStartingPoint = useGlobal('entryPath')[1];
 
   if (!['dark', 'light'].includes(Config.theme)) Config.theme = 'light';
  
   useEffect(() => {
-    const subdomain = getSubdomain();
+    const initializeCompanyId = async () => {
+      const subdomain = getSubdomain();
+      const storedCompanyId = localStorage.getItem('companyId');
+      const storedSubdomain = localStorage.getItem('subdomain');
 
-    if (!subdomain) {
-      dispatch(setCompanyError('No subdomain detected'));
-      return;
-    }
+      if (!subdomain) {
+        dispatch(setCompanyError('No subdomain detected'));
+        return;
+      }
 
-    verifySubdomain(subdomain)
-      .then(data => {
+      // 🔹 NEW: Only verify subdomain if it changed or no stored companyId
+      if (storedCompanyId && storedSubdomain === subdomain) {
+        // Use stored companyId if subdomain hasn't changed
+        console.log('✅ Using stored companyId:', storedCompanyId);
+        dispatch(setCompanyId(storedCompanyId));
+        return;
+      }
+
+      // 🔹 NEW: Verify subdomain and store results
+      console.log('🔍 Verifying subdomain:', subdomain);
+      try {
+        const data = await verifySubdomain(subdomain);
         if (data.valid) {
+          // Store both companyId and subdomain in localStorage
+          localStorage.setItem('companyId', data.companyId);
+          localStorage.setItem('subdomain', subdomain);
           dispatch(setCompanyId(data.companyId));
+          console.log('✅ CompanyId verified and stored:', data.companyId);
         } else {
+          // Clear stored data if subdomain is invalid
+          localStorage.removeItem('companyId');
+          localStorage.removeItem('subdomain');
           dispatch(setCompanyError('Subdomain not valid'));
         }
-      })
-      .catch(err => {
+      } catch (err) {
+        console.error('❌ Subdomain verification error:', err);
+        // Clear stored data on error
+        localStorage.removeItem('companyId');
+        localStorage.removeItem('subdomain');
         dispatch(setCompanyError(`Error verifying subdomain: ${err.message}`));
-      });
+      }
+    };
+
+    initializeCompanyId();
   }, [dispatch]);
 
   useEffect(() => {
@@ -87,24 +113,25 @@ function App() {
     };
   }, []);
 
+  // Handle URL token parsing (keep existing logic)
   if (!window.loaded) {
     setStartingPoint(window.location.pathname);
     const splitPath = window.location.pathname.split('/');
     const route = splitPath[1];
-    const token = splitPath[2];
-    if (route === 'login' && token && token.length > 20) {
+    const urlToken = splitPath[2];
+    if (route === 'login' && urlToken && urlToken.length > 20) {
       let decoded;
       try {
-        decoded = jwtDecode(token);
+        decoded = jwtDecode(urlToken);
         if (typeof decoded !== 'object' || typeof decoded.id !== 'string') return;
-        setAuthToken(token);
-        localStorage.setItem('token', token);
+        setAuthToken(urlToken);
+        localStorage.setItem('token', urlToken);
         localStorage.setItem('user', JSON.stringify(decoded));
         setGlobal({
           user: decoded,
-          token,
+          token: urlToken,
         }).then(() => {
-          dispatch(initIO(token));
+          dispatch(initIO(urlToken));
         });
       } catch (e) {
         addToast('Invalid token provided in URL. You can still login manually.', {
@@ -116,11 +143,12 @@ function App() {
     window.loaded = true;
   }
 
-  // 🛑 Show early return before app loads
+  // Show error page if subdomain validation failed
   if (error) {
     return <NotFound />;
   }
 
+  // 🔹 UPDATED: Only wait for companyId (no more authInitialized)
   if (!companyId) {
     return (
       <div className="login uk-cover-container uk-background-secondary uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-light">
@@ -138,29 +166,28 @@ function App() {
     );
   }
 
-return (
-  <div className={`theme ${Config.theme}`}>
-    <Router>
-      <Routes>
-        <Route path="/activate/:token" element={<ActivateAccount />} />
-        {/* 🔹 NEW: Add forgot password route */}
-        <Route 
-          path="/forgot-password" 
-          element={token ? <Navigate to="/" /> : <ForgotPassword />} 
-        />
-        <Route 
-          path="/login" 
-          element={token ? <Navigate to="/" /> : <Login />} 
-        />
-        <Route 
-          path="/*" 
-          element={!token ? <Navigate to="/login" /> : <Home />} 
-        />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Router>
-  </div>
-);
+  return (
+    <div className={`theme ${Config.theme}`}>
+      <Router>
+        <Routes>
+          <Route path="/activate/:token" element={<ActivateAccount />} />
+          <Route 
+            path="/forgot-password" 
+            element={token ? <Navigate to="/" /> : <ForgotPassword />} 
+          />
+          <Route 
+            path="/login" 
+            element={token ? <Navigate to="/" /> : <Login />} 
+          />
+          <Route 
+            path="/*" 
+            element={!token ? <Navigate to="/login" /> : <Home />} 
+          />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Router>
+    </div>
+  );
 }
 
 export default App;
