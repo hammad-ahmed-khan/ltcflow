@@ -15,6 +15,7 @@ import Meeting from '../../features/Meeting';
 import Welcome from '../../features/Welcome';
 import NotFound from '../../features/NotFound';
 import Admin from '../../features/Admin';
+import GroupManage from '../../features/Group/Manage';
 
 function Home() {
   const location = useLocation();
@@ -67,6 +68,7 @@ function Home() {
             <Route path="/meeting/:id" element={<Meeting />} />
             <Route path="/room/:id" element={<Conversation />} />
             <Route path="/room/:id/info" element={<Details />} />
+            <Route path="/room/:id/manage" element={<GroupManage />} />
             <Route path="/*" element={<NotFound />} />
             {' '}
             {/* Comment this line when Electron build */}

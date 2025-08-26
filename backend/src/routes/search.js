@@ -21,34 +21,15 @@ module.exports = (req, res, next) => {
     return res.status(400).json({ status: 400, error: "INVALID_COMPANY_ID" });
   }
 
-  // ✅ ADD PRIVILEGE-BASED FILTERING
-  const buildPrivilegeMatchStage = (userLevel) => {
-    const baseMatch = { companyId: companyObjectId };
-
-    if (userLevel === "root") {
-      // Root can see all users
-      return baseMatch;
-    } else if (userLevel === "admin") {
-      // Admins cannot see root users
-      return { ...baseMatch, level: { $ne: "root" } };
-    } else if (userLevel === "manager") {
-      // Managers can only see standard users
-      return { ...baseMatch, level: "user" };
-    } else {
-      // Standard users can only see other standard users
-      return { ...baseMatch, level: "user" };
-    }
-  };
-
-  const privilegeMatch = buildPrivilegeMatchStage(req.user.level);
+  // ✅ REMOVED: No privilege-based filtering - all users visible in chat/groups/meetings
+  const baseMatch = { companyId: companyObjectId };
 
   console.log(
-    `User ${req.user.username} (${req.user.level}) searching with filter:`,
-    privilegeMatch
+    `User ${req.user.username} (${req.user.level}) searching all users in company - no privilege filtering applied`
   );
 
   User.aggregate()
-    .match(privilegeMatch) // ✅ Apply privilege filtering here
+    .match(baseMatch) // ✅ Only company isolation, no privilege filtering
     .project({
       fullName: { $concat: ["$firstName", " ", "$lastName"] },
       firstName: 1,
@@ -106,7 +87,7 @@ module.exports = (req, res, next) => {
         }));
 
         console.log(
-          `Search results: User ${req.user.username} (${req.user.level}) found ${users.length} users`
+          `Search results: User ${req.user.username} (${req.user.level}) found ${users.length} users (all levels shown)`
         );
 
         res.status(200).json({
@@ -118,6 +99,7 @@ module.exports = (req, res, next) => {
             searchTerm: search,
             companyId: companyId,
             requestingUserLevel: req.user.level,
+            filteringApplied: "none",
             timestamp: new Date().toISOString(),
           },
         });

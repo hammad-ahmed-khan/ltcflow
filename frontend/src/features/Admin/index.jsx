@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGlobal } from 'reactn';
 import DataTable from 'react-data-table-component';
-import { FiSearch, FiMail, FiRefreshCw, FiToggleLeft, FiToggleRight, FiClock, FiUserPlus, FiUserCheck, FiUserX, FiX } from 'react-icons/fi';
+import { FiSearch, FiMail, FiRefreshCw, FiToggleLeft, FiToggleRight, FiClock, FiUserPlus, FiUserCheck, FiUserX, FiX, FiLock } from 'react-icons/fi';
 import { useToasts } from 'react-toast-notifications';
 import TopBar from './components/TopBar';
 import BottomBar from './components/BottomBar';
@@ -604,74 +604,74 @@ const customStyles = {
 
   const [currentUser] = useGlobal('user');
 
-const applyPrivilegeFilter = (users) => {
-  if (currentUser.level === 'root') {
-    return users; // Root sees everyone
-  } else if (currentUser.level === 'admin') {
-    return users.filter(user => user.level !== 'root'); // Admins don't see root
-  } else if (currentUser.level === 'manager') {
-    return users.filter(user => user.level === 'user'); // Managers only see users
-  } else {
-    return users.filter(user => user.level === 'user'); // Users only see users
-  }
-};
+  // ✅ UPDATED: Admin-specific privilege filtering
+  const applyAdminPrivilegeFilter = (users) => {
+    if (currentUser.level === 'root') {
+      return users; // Root sees everyone
+    } else if (currentUser.level === 'admin') {
+      return users.filter(user => user.level !== 'root'); // Admins don't see root users
+    }
+    // This should never happen due to access control check above, but adding for safety
+    return [];
+  };
 
-  // Filter users based on status
-  const getFilteredUsers = () => {
-  // ✅ Apply privilege filtering first
-  const privilegeFilteredUsers = applyPrivilegeFilter(users);
-  
-  const allUsers = privilegeFilteredUsers.map(user => ({
-    id: user._id,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    username: user.username,
-    level: user.level,
-    status: user.status || 'active',
-    tokenExpiry: user.tokenExpiry,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
-  }));
+   const getFilteredUsers = () => {
+    // ✅ Apply admin privilege filtering first
+    const privilegeFilteredUsers = applyAdminPrivilegeFilter(users);
+    
+    const allUsers = privilegeFilteredUsers.map(user => ({
+      id: user._id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      username: user.username,
+      level: user.level,
+      status: user.status || 'active',
+      tokenExpiry: user.tokenExpiry,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }));
 
+    console.log('=== ADMIN FILTER DEBUG ===');
+    console.log('Current user level:', currentUser.level);
+    console.log('All users before filtering:', users.length);
+    console.log('After privilege filtering:', privilegeFilteredUsers.length);
+    console.log('Status filter:', statusFilter);
+    
+    let filtered;
+    switch (statusFilter) {
+      case 'active':
+        filtered = allUsers.filter(user => user.status === 'active');
+        break;
+      case 'pending':
+        filtered = allUsers.filter(user => user.status === 'pending');
+        break;
+      case 'expired':
+        filtered = allUsers.filter(user => user.status === 'expired');
+        break;
+      case 'deactivated':
+        filtered = allUsers.filter(user => user.status === 'deactivated');
+        break;
+      default:
+        filtered = allUsers;
+    }
+    
+    console.log('Final filtered users:', filtered.length);
+    console.log('=== END ADMIN FILTER DEBUG ===');
+    
+    return filtered;
+  };
 
-  console.log('=== FILTER DEBUG ===');
-  console.log('All users before filtering:', allUsers.length);
-  console.log('Status filter:', statusFilter);
-  
-  let filtered;
-  switch (statusFilter) {
-    case 'active':
-      filtered = allUsers.filter(user => user.status === 'active');
-      break;
-    case 'pending':
-      filtered = allUsers.filter(user => user.status === 'pending');
-      break;
-    case 'expired':
-      filtered = allUsers.filter(user => user.status === 'expired');
-      break;
-    case 'deactivated':
-      filtered = allUsers.filter(user => user.status === 'deactivated');
-      break;
-    default:
-      filtered = allUsers;
-  }
-  
-  console.log('Filtered users:', filtered.length);
-  console.log('=== END FILTER DEBUG ===');
-  
-  return filtered;
-};
+  const data = getFilteredUsers(); 
 
-  const data = getFilteredUsers();
-
-  // FIXED: Calculate user statistics for analytics
+  // Calculate user statistics for analytics
   const getUserStatistics = () => {
-    const totalUsers = users.length;
-    const activeUsers = users.filter(u => u.status === 'active').length;
-    const pendingUsers = users.filter(u => u.status === 'pending').length;
-    const expiredUsers = users.filter(u => u.status === 'expired').length;
-    const deactivatedUsers = users.filter(u => u.status === 'deactivated').length;
+    const privilegeFilteredUsers = applyAdminPrivilegeFilter(users);
+    const totalUsers = privilegeFilteredUsers.length;
+    const activeUsers = privilegeFilteredUsers.filter(u => u.status === 'active').length;
+    const pendingUsers = privilegeFilteredUsers.filter(u => u.status === 'pending').length;
+    const expiredUsers = privilegeFilteredUsers.filter(u => u.status === 'expired').length;
+    const deactivatedUsers = privilegeFilteredUsers.filter(u => u.status === 'deactivated').length;
     
     return { totalUsers, activeUsers, pendingUsers, expiredUsers, deactivatedUsers };
   };
