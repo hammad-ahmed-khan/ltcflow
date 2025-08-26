@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import upload from '../../../actions/uploadImage';
 import Config from '../../../config';
 import changePicture from '../../../actions/changePicture';
-import Popup from './Popup';
+import EditProfilePopup from './EditProfilePopup'; // Import the new component
 
 function Settings() {
   const { addToast } = useToasts();
@@ -16,7 +16,7 @@ function Settings() {
   const [user, setUser] = useGlobal('user');
   const setToken = useGlobal('token')[1];
   const setPanel = useGlobal('panel')[1];
-  const [popup, showPopup] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
 
   const fileInput = useRef(null);
 
@@ -28,15 +28,15 @@ function Settings() {
     await setUser(newUser);
   };
 
-const remove = async () => {
-  const confirmed = window.confirm("Are you sure you want to remove your picture?");
-  if (!confirmed) return; // stop if user cancels
+  const remove = async () => {
+    const confirmed = window.confirm("Are you sure you want to remove your picture?");
+    if (!confirmed) return; // stop if user cancels
 
-  await changePicture();
-  const newUser = { ...user, picture: undefined };
-  localStorage.setItem('user', JSON.stringify(newUser));
-  await setUser(newUser);
-};
+    await changePicture();
+    const newUser = { ...user, picture: undefined };
+    localStorage.setItem('user', JSON.stringify(newUser));
+    await setUser(newUser);
+  };
 
   const logout = async () => {
     const { username } = user;
@@ -84,9 +84,15 @@ const remove = async () => {
           </div>
         </div>
       </div>
-      <button className="uk-margin-small-top uk-button uk-button-secondary" onClick={() => showPopup(true)}>
-        Change Password
+      
+      {/* Updated: Replace Change Password with Edit Profile */}
+      <button 
+        className="uk-margin-small-top uk-button uk-button-secondary" 
+        onClick={() => setShowEditProfile(true)}
+      >
+        Edit Profile
       </button>
+      
       <button className="uk-margin-small-top uk-button uk-button-secondary" onClick={remove}>
         Remove Picture
       </button>
@@ -101,10 +107,12 @@ const remove = async () => {
           Create Group
         </button>
       )}
-      {popup && (
-        <Popup
+      
+      {/* Updated: Replace old Popup with EditProfilePopup */}
+      {showEditProfile && (
+        <EditProfilePopup
           onClose={() => {
-            showPopup(false);
+            setShowEditProfile(false);
           }}
         />
       )}

@@ -143,8 +143,9 @@ function Ringing({ incoming, meetingID }) {
     <div className="join uk-flex uk-flex-middle uk-flex-center uk-flex-column">
       <img className="logo-little" src={logo} alt="Logo" />
       <p className="title">{getTitle()}</p>
-      <p className="name">Delta Honey</p>
-      <div className="picture uk-margin-small">
+<p className="name">
+  {counterpart.firstName || 'Unknown'} {counterpart.lastName || 'User'}
+</p>      <div className="picture uk-margin-small">
         <Picture />
       </div>
       <div className="uk-flex" hidden={!incoming}>
