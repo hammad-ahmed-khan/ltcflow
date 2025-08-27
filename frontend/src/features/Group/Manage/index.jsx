@@ -80,9 +80,20 @@ function GroupManage() {
     }
   };
 
-  const isGroupMember = group?.people?.some(member => member._id === user.id);
-  const isAdmin = ['admin', 'root'].includes(user.level);
-  const canManageMembers = isGroupMember || isAdmin;
+ 
+
+  // frontend/src/features/Group/Manage/index.jsx
+// Replace the existing permission logic (around line 45-50) with this:
+
+// Updated permission logic - only managers, admins, and root can manage members
+const isGroupMember = group?.people?.some(member => member._id === user.id);
+const isManagerOrAbove = ['manager', 'admin', 'root'].includes(user.level);
+
+// Root can manage globally, managers/admins need to be group members  
+const canManageMembers = user.level === 'root' || (isManagerOrAbove && isGroupMember);
+
+// Note: Users can still leave groups (self-removal) regardless of their level
+// This is handled separately in the UI and backend
 
   const showToast = (message, type = 'success') => {
     addToast(message, {
@@ -219,29 +230,45 @@ function GroupManage() {
     }
   };
 
-  if (!group || !canManageMembers) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '100%',
-        flexDirection: 'column',
-        gap: '16px'
-      }}>
-        <div style={{ fontSize: '16px', color: '#666' }}>
-          {!group ? 'Group not found' : 'Access denied'}
-        </div>
-        <button 
-          className="uk-button uk-button-primary"
-          onClick={() => navigate('/')}
-        >
-          <FiArrowLeft style={{ marginRight: '8px' }} />
-          Go Back
-        </button>
+// Replace the access denied section in GroupManage.jsx with this more descriptive message:
+
+if (!group || !canManageMembers) {
+  const accessDeniedMessage = !group ? 
+    'Group not found' : 
+    user.level === 'user' ? 
+      'Access denied: Only managers and administrators can manage group members' :
+      'Access denied: You must be a member of this group to manage it';
+
+  return (
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      height: '100%',
+      flexDirection: 'column',
+      gap: '16px',
+      padding: '20px',
+      textAlign: 'center'
+    }}>
+      <div style={{ fontSize: '16px', color: '#666' }}>
+        {accessDeniedMessage}
       </div>
-    );
-  }
+      {user.level === 'user' && group && (
+        <div style={{ fontSize: '14px', color: '#999', maxWidth: '400px' }}>
+          Standard users can participate in groups but cannot add or remove members. 
+          Contact a manager or administrator if you need to modify group membership.
+        </div>
+      )}
+      <button 
+        className="uk-button uk-button-primary"
+        onClick={() => navigate('/')}
+      >
+        <FiArrowLeft style={{ marginRight: '8px' }} />
+        Go Back
+      </button>
+    </div>
+  );
+}
 
   return (
     <div className="group-manage uk-flex uk-flex-column" style={{ height: '100%' }}>

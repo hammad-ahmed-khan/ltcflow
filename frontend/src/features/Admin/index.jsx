@@ -11,6 +11,7 @@ import apiClient from '../../api/apiClient';
 import Popup from './components/Popup';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import { postDelete } from '../../actions/admin';
+import BillingDashboard from './components/BillingDashboard';
 
 function Admin() {
   const { addToast } = useToasts();

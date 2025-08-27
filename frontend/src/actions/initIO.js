@@ -127,17 +127,30 @@ const initIO = (token) => (dispatch) => {
     });
   });
 
-  io.on("user-deleted", async () => {
-    // 🔹 NEW: Clear all authentication data including companyId
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("companyId");
-    localStorage.removeItem("subdomain");
+  // Fix in frontend/src/actions/initIO.js
+  // Replace the existing user-deleted handler with this:
 
-    await setGlobal({
-      token: null,
-      user: {},
-    });
+  io.on("user-deleted", async (data) => {
+    // Only log out the user if THEY were the one deleted
+    const currentUser = store.getState().user || getGlobal().user;
+
+    if (data && data.id && currentUser && currentUser.id === data.id) {
+      // This user was deleted - log them out
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("companyId");
+      localStorage.removeItem("subdomain");
+
+      await setGlobal({
+        token: null,
+        user: {},
+      });
+
+      // Optionally show a message to the deleted user
+      // (though they might not see it if they're redirected immediately)
+      console.log("Your account has been deleted by an administrator");
+    }
+    // If it's not this user who was deleted, do nothing - stay logged in
   });
 
   io.on("typing", (data) => {
