@@ -1,3 +1,4 @@
+// frontend/src/features/Panel/components/GroupList.jsx
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { useGlobal } from 'reactn';
@@ -15,6 +16,9 @@ function GroupList() {
   const userGroups = rooms.filter(room => 
     room.isGroup && room.people && room.people.some(person => person._id === user.id)
   );
+
+  // Check if user can create groups
+  const canCreateGroups = ['manager', 'admin', 'root'].includes(user.level);
 
   const handleGroupClick = (groupId) => {
     navigate(`/room/${groupId}`);
@@ -34,14 +38,23 @@ function GroupList() {
       }}>
         <FiUsers size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
         <h3 style={{ marginBottom: '8px' }}>No Groups Yet</h3>
-        <p style={{ marginBottom: '20px' }}>You're not a member of any groups yet.</p>
-        <button
-          className="uk-button uk-button-primary"
-          onClick={() => navigate('/create-group')}
-          style={{ marginTop: '12px' }}
-        >
-          Create Your First Group
-        </button>
+        
+        {canCreateGroups ? (
+          <>
+            <p style={{ marginBottom: '20px' }}>You're not a member of any groups yet.</p>
+            <button
+              className="uk-button uk-button-primary"
+              onClick={() => navigate('/create-group')}
+              style={{ marginTop: '12px' }}
+            >
+              Create Your First Group
+            </button>
+          </>
+        ) : (
+          <p style={{ marginBottom: '20px' }}>
+            You're not a member of any groups yet. Ask a manager or administrator to add you to a group.
+          </p>
+        )}
       </div>
     );
   }

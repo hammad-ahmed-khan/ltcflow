@@ -191,4 +191,22 @@ router.post("/complete-activation", require("./complete-activation"));
 router.post("/regenerate-activation", require("./regenerate-activation"));
 router.post("/cancel-activation", require("./cancel-activation"));
 
+router.post(
+  "/group/add-member",
+  passport.authenticate("jwt", { session: false }, null),
+  require("./group-add-member")
+);
+
+router.post(
+  "/group/remove-member",
+  passport.authenticate("jwt", { session: false }, null),
+  require("./group-remove-member")
+);
+
+router.post(
+  "/group/update-info",
+  passport.authenticate("jwt", { session: false }, null),
+  require("./group-update-info")
+);
+
 module.exports = router;

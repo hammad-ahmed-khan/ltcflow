@@ -129,11 +129,6 @@ const logout = async () => {
             <FiMoreHorizontal />
           </div>
           <div data-uk-dropdown="mode: click; offset: 5; boundary: .top-bar">
-            {canCreateMeetings && (
-              <div className="link" onClick={() => newMeeting()}>
-                New Meeting
-              </div>
-            )}
             {canCreateGroups && (
               <div className="link" onClick={() => setPanel('createGroup')}>
                 New Group
