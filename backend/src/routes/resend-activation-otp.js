@@ -8,6 +8,7 @@ const randomstring = require("randomstring");
 const moment = require("moment");
 const isEmpty = require("../utils/isEmpty");
 const Config = require("../../config");
+const Twilio = require("twilio");
 
 module.exports = async (req, res) => {
   try {
@@ -63,19 +64,8 @@ module.exports = async (req, res) => {
         message: "Invalid activation token or user not found.",
       });
     }
-    // Convert companyId to ObjectId
-    let companyObjectId;
-    try {
-      companyObjectId = new mongoose.Types.ObjectId(companyId);
-    } catch (err) {
-      return res.status(400).json({
-        status: "error",
-        error: "INVALID_COMPANY_ID",
-        message: "Invalid company ID format",
-      });
-    }
 
-    const company = await Company.findById(companyObjectId);
+    const company = await Company.findById(companyId);
     if (!company) {
       return res.status(404).json({
         status: "error",
@@ -104,6 +94,7 @@ module.exports = async (req, res) => {
     }
 
     // Check for rate limiting - prevent too frequent OTP requests
+    /*
     const recentOTP = await AuthCode.findOne({
       user: user._id,
       email: user.email,
@@ -119,6 +110,7 @@ module.exports = async (req, res) => {
           "Please wait at least 1 minute before requesting another code.",
       });
     }
+      */
 
     // Invalidate any existing auth codes for this user
     await AuthCode.updateMany(
@@ -155,7 +147,7 @@ module.exports = async (req, res) => {
     // Send SMS
     await twilioClient.messages.create({
       body: message,
-      from: Config.twilio.fromPhone, // Twilio phone number
+      from: Config.twilio.fromNumber, // Twilio phone number
       to: user.phone, // User's phone number (ensure this field exists)
     });
 
@@ -244,7 +236,7 @@ module.exports = async (req, res) => {
     res.status(500).json({
       status: "error",
       error: "INTERNAL_SERVER_ERROR",
-      message: "Failed to resend verification code. Please try again.",
+      message: error.message,
     });
   }
 };
