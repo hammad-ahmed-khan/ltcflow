@@ -1,6 +1,7 @@
 ﻿// backend/src/routes/resend-activation-otp.js (New route)
 const User = require("../models/User");
 const AuthCode = require("../models/AuthCode");
+const Company = require("../models/Company");
 const Email = require("../models/Email");
 const bcrypt = require("bcryptjs");
 const randomstring = require("randomstring");
@@ -62,6 +63,35 @@ module.exports = async (req, res) => {
         message: "Invalid activation token or user not found.",
       });
     }
+    // Convert companyId to ObjectId
+    let companyObjectId;
+    try {
+      companyObjectId = new mongoose.Types.ObjectId(companyId);
+    } catch (err) {
+      return res.status(400).json({
+        status: "error",
+        error: "INVALID_COMPANY_ID",
+        message: "Invalid company ID format",
+      });
+    }
+
+    const company = await Company.findById(companyObjectId);
+    if (!company) {
+      return res.status(404).json({
+        status: "error",
+        error: "COMPANY_NOT_FOUND",
+        message: "Company not found",
+      });
+    }
+    // Check if user has phone number
+    if (!user.phone) {
+      return res.status(400).json({
+        status: "error",
+        error: "NO_PHONE_NUMBER",
+        message:
+          "Your account doesn't have a phone number. Please contact your administrator to add a phone number before activating your account.",
+      });
+    }
 
     // Check if activation token has expired
     if (user.tokenExpiry && new Date() > user.tokenExpiry) {
@@ -114,7 +144,27 @@ module.exports = async (req, res) => {
 
     await authCode.save();
 
+    // Initialize Twilio client
+    const twilioClient = Twilio(
+      Config.twilio.accountSid,
+      Config.twilio.authToken
+    );
+
+    const message = `Hello ${user.firstName}! Your ${company.name} account activation code is: ${activationOTP}. This code expires in 15 minutes. Do not share this code with anyone.`;
+
+    // Send SMS
+    await twilioClient.messages.create({
+      body: message,
+      from: Config.twilio.fromPhone, // Twilio phone number
+      to: user.phone, // User's phone number (ensure this field exists)
+    });
+
+    console.log(
+      `🔄 New activation OTP sent via SMS to user: ${user.phone} (Company: ${companyId})`
+    );
+
     // Send OTP email
+    /*
     const otpEmail = new Email({
       companyId,
       from: Config.nodemailer.from,
@@ -178,6 +228,7 @@ module.exports = async (req, res) => {
     console.log(
       `🔄 New activation OTP sent to user: ${user.email} (Company: ${companyId})`
     );
+    */
 
     res.status(200).json({
       status: "success",
