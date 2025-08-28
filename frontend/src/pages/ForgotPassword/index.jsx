@@ -1,4 +1,4 @@
-// frontend/src/pages/ForgotPassword/index.jsx
+// frontend/src/pages/ForgotPassword/index.jsx (Updated for SMS messaging)
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useToasts } from 'react-toast-notifications';
@@ -52,7 +52,7 @@ function ForgotPassword() {
       if (response.data.status === 'success') {
         setStep(2);
         setResendCountdown(60); // 60 second countdown
-        addToast('Password reset code sent! Please check your email.', {
+        addToast('Password reset code sent! Please check your phone.', {
           appearance: 'success',
           autoDismiss: true,
         });
@@ -86,7 +86,7 @@ function ForgotPassword() {
       });
       
       setResendCountdown(60);
-      addToast('Reset code sent again! Please check your email.', {
+      addToast('Reset code sent again! Please check your phone.', {
         appearance: 'success',
         autoDismiss: true,
       });
@@ -242,10 +242,10 @@ function ForgotPassword() {
 
                 <div className="uk-alert-primary uk-margin-bottom">
                   <p className="uk-margin-remove-bottom uk-text-small">
-                    We've sent a 6-digit code to <strong>{email}</strong>
+                    We've sent a 6-digit code to your phone number
                   </p>
                   <p className="uk-margin-remove-top uk-text-small">
-                    Check your inbox and spam folder.
+                    Please check your phone for the SMS code.
                   </p>
                 </div>
 
@@ -323,7 +323,7 @@ function ForgotPassword() {
                     type="button"
                     className="uk-button uk-button-text uk-text-small"
                     onClick={handleResendCode}
-                    disabled={resendLoading || resendCountdown > 0}
+                    disabled={resendLoading || resendCountdown > 0 || loading}
                   >
                     {resendLoading ? (
                       <>
@@ -359,12 +359,12 @@ function ForgotPassword() {
               </Link>
             </div>
 
-            {/* Credits Footer (Hidden by default) */}
+            {/* Credits Footer (Updated for SMS) */}
             <form className="toggle-credits uk-text-center uk-margin-top">
               <p className="uk-text-small uk-text-muted">
                 Reset codes expire after 15 minutes for security.
                 <br />
-                If you don't receive an email, check your spam folder.
+                If you don't receive an SMS, please try again or contact support.
               </p>
             </form>
 

@@ -1,4 +1,4 @@
-﻿// frontend/src/pages/ActivateAccount/index.jsx (Updated with OTP verification)
+﻿// frontend/src/pages/ActivateAccount/index.jsx (Updated for SMS messaging)
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGlobal } from 'reactn';
@@ -65,7 +65,7 @@ function ActivateAccount() {
         if (response.data.nextStep === 'verify_otp') {
           setStep('otp');
           setResendCountdown(60); // 60 second countdown
-          addToast('Verification code sent to your email!', {
+          addToast('Verification code sent to your phone!', {
             appearance: 'success',
             autoDismiss: true,
           });
@@ -234,13 +234,13 @@ function ActivateAccount() {
     <div>
       <div className="uk-text-center uk-margin-top">
         <div className="uk-margin-bottom">
-          <span data-uk-icon="icon: mail; ratio: 3" className="uk-text-primary"></span>
+          <span data-uk-icon="icon: receiver; ratio: 3" className="uk-text-primary"></span>
         </div>
         <h1 className="uk-heading uk-margin-remove-bottom">
-          Verify Your Email
+          Verify Your Phone
         </h1>
         <p className="uk-text-lead uk-margin-small-top uk-text-muted">
-          We've sent a verification code to {user?.email}
+          We've sent a verification code to your phone number
         </p>
       </div>
 
@@ -285,32 +285,31 @@ function ActivateAccount() {
           >
             {otpLoading ? (
               <>
-                <div data-uk-spinner="ratio: 0.8" className="uk-margin-small-right" />
-                VERIFYING...
+                <span uk-spinner="ratio: 0.8" className="uk-margin-small-right"></span>
+                Verifying...
               </>
             ) : (
-              'VERIFY CODE'
+              'Verify Code'
             )}
           </button>
         </div>
 
-        <div className="uk-text-center uk-margin-bottom">
-          <p className="uk-text-small uk-text-muted uk-margin-small-bottom">
-            Didn't receive the code?
-          </p>
+        <div className="uk-text-center">
           <button
             type="button"
+            className="uk-button uk-button-text uk-text-small"
             onClick={handleResendOtp}
-            disabled={resendCountdown > 0 || resendLoading}
-            className="uk-button uk-button-link uk-text-small"
-            style={{ padding: '0', minHeight: 'auto' }}
+            disabled={resendLoading || resendCountdown > 0}
           >
             {resendLoading ? (
-              'Sending...'
+              <>
+                <span uk-spinner="ratio: 0.6" className="uk-margin-small-right"></span>
+                Sending...
+              </>
             ) : resendCountdown > 0 ? (
-              `Resend in ${resendCountdown}s`
+              `Resend code in ${resendCountdown}s`
             ) : (
-              'Resend Code'
+              'Resend code'
             )}
           </button>
         </div>
@@ -322,13 +321,13 @@ function ActivateAccount() {
     <div>
       <div className="uk-text-center uk-margin-top">
         <div className="uk-margin-bottom">
-          <span data-uk-icon="icon: user; ratio: 3" className="uk-text-primary"></span>
+          <span data-uk-icon="icon: lock; ratio: 3" className="uk-text-primary"></span>
         </div>
         <h1 className="uk-heading uk-margin-remove-bottom">
           Set Your Password
         </h1>
         <p className="uk-text-lead uk-margin-small-top uk-text-muted">
-          Welcome, {user?.firstName}! Create a password to complete activation.
+          Choose a secure password for your account
         </p>
       </div>
 
@@ -341,14 +340,13 @@ function ActivateAccount() {
 
         <div className="uk-margin-bottom">
           <input
-            className={`uk-input uk-border-pill ${
-              errors.password ? 'uk-form-danger' : ''
-            }`}
+            className={`uk-input uk-border-pill ${errors.password ? 'uk-form-danger' : ''}`}
             type="password"
-            placeholder="Password (min. 6 characters)"
+            placeholder="New Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
+            disabled={loading}
+            autoFocus
           />
           {errors.password && (
             <div className="uk-text-danger uk-text-small uk-margin-small-top">
@@ -359,14 +357,12 @@ function ActivateAccount() {
 
         <div className="uk-margin-bottom">
           <input
-            className={`uk-input uk-border-pill ${
-              errors.confirmPassword ? 'uk-form-danger' : ''
-            }`}
+            className={`uk-input uk-border-pill ${errors.confirmPassword ? 'uk-form-danger' : ''}`}
             type="password"
             placeholder="Confirm Password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            autoComplete="new-password"
+            disabled={loading}
           />
           {errors.confirmPassword && (
             <div className="uk-text-danger uk-text-small uk-margin-small-top">
@@ -379,15 +375,15 @@ function ActivateAccount() {
           <button
             type="submit"
             className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
-            disabled={loading}
+            disabled={loading || !password || !confirmPassword}
           >
             {loading ? (
               <>
-                <div data-uk-spinner="ratio: 0.8" className="uk-margin-small-right" />
-                ACTIVATING...
+                <span uk-spinner="ratio: 0.8" className="uk-margin-small-right"></span>
+                Activating Account...
               </>
             ) : (
-              'ACTIVATE ACCOUNT'
+              'Activate Account'
             )}
           </button>
         </div>
@@ -406,7 +402,7 @@ function ActivateAccount() {
       <p className="uk-text-lead uk-margin-small-top uk-text-muted">
         Your account has been successfully activated.
       </p>
-      <p className="uk-text-small uk-text-muted uk-margin-medium-top">
+      <p className="uk-text-small uk-text-muted">
         Redirecting to login page in a few seconds...
       </p>
       <button
@@ -421,13 +417,13 @@ function ActivateAccount() {
   const renderErrorStep = () => (
     <div className="uk-text-center uk-margin-top">
       <div className="uk-margin-bottom">
-        <span data-uk-icon="icon: close; ratio: 4" className="uk-text-danger"></span>
+        <span data-uk-icon="icon: warning; ratio: 4" className="uk-text-danger"></span>
       </div>
       <h1 className="uk-heading uk-margin-remove-bottom">
-        Activation Failed
+        Activation Error
       </h1>
       <p className="uk-text-lead uk-margin-small-top uk-text-muted">
-        The activation link is invalid or has expired.
+        We couldn't activate your account. The link may be invalid or expired.
       </p>
       <button
         onClick={handleNavigateToLogin}

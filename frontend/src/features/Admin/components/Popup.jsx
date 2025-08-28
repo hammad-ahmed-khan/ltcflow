@@ -297,23 +297,32 @@ const isValidPhone = (number) => {
   };
 
   const updateUser = async (e) => {
-    e.preventDefault();
-    try {
-      await postUpdate({
-        username,
-        email,
-        firstName,
-        lastName,
-        level: userTier,
-        user,
-      });
-      okToast(`User ${username} has been updated`);
-      onClose(true);
-    } catch (e) {
-      if (e && e.response) setErrors(e.response.data);
-      errorToast(`Failed to update user ${username}`);
-    }
-  };
+  e.preventDefault();
+  
+  // Validate phone number (same validation as createUser)
+  if (!isValidPhone(phone)) {
+    setErrors({ phone: 'Invalid phone number. Use international format like +1234567890' });
+    errorToast('Invalid phone number. Please check and try again.');
+    return;
+  }
+
+  try {
+    await postUpdate({
+      username,
+      email,
+      firstName,
+      lastName,
+      phone,        // Add the missing phone field
+      level: userTier,
+      user,
+    });
+    okToast(`User ${username} has been updated`);
+    onClose(true);
+  } catch (e) {
+    if (e && e.response) setErrors(e.response.data);
+    errorToast(`Failed to update user ${username}`);
+  }
+};
 
   const deleteUser = async (email, username) => {
     try {

@@ -553,9 +553,13 @@ const customStyles = {
           <a
             className="uk-link-text uk-text-small"
             onClick={() => {
-              setUser(row);
-              setPopup('edit');
-            }}
+  console.log('🔍 Row data:', row);
+  console.log('🔍 Row phone:', row.phone);
+  console.log('🔍 All keys:', Object.keys(row));
+  
+  setUser(row);
+  setPopup('edit');
+}}
             style={{ 
               fontSize: '11px', 
               cursor: 'pointer',
@@ -624,6 +628,7 @@ const customStyles = {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
+      phone: user.phone,
       username: user.username,
       level: user.level,
       status: user.status || 'active',
