@@ -231,91 +231,138 @@ function ActivateAccount() {
   );
 
   const renderOtpStep = () => (
-    <div>
-      <div className="uk-text-center uk-margin-top">
-        <div className="uk-margin-bottom">
-          <span data-uk-icon="icon: receiver; ratio: 3" className="uk-text-primary"></span>
-        </div>
-        <h1 className="uk-heading uk-margin-remove-bottom">
-          Verify Your Phone
-        </h1>
-        <p className="uk-text-lead uk-margin-small-top uk-text-muted">
-          We've sent a verification code to your phone number
-        </p>
-      </div>
+    <div>// Helper function to mask phone number for security
+const maskPhoneNumber = (phoneNumber) => {
+  if (!phoneNumber) return 'your phone';
+  
+  // For international numbers like +1234567890
+  if (phoneNumber.startsWith('+')) {
+    const countryCode = phoneNumber.slice(0, phoneNumber.length - 10); // Extract country code
+    const lastFour = phoneNumber.slice(-4); // Last 4 digits
+    const maskedMiddle = '*'.repeat(phoneNumber.length - countryCode.length - 4);
+    return `${countryCode}${maskedMiddle}${lastFour}`;
+  }
+  
+  // For other formats, show first 3 and last 4 with stars in between
+  if (phoneNumber.length >= 7) {
+    const first = phoneNumber.slice(0, 3);
+    const last = phoneNumber.slice(-4);
+    const maskedMiddle = '*'.repeat(phoneNumber.length - 7);
+    return `${first}${maskedMiddle}${last}`;
+  }
+  
+  // Fallback for short numbers
+  return phoneNumber.slice(0, 2) + '*'.repeat(phoneNumber.length - 2);
+};
 
-      <form onSubmit={handleOtpSubmit}>
-        {errors.general && (
-          <div className="uk-alert-danger uk-margin-bottom" uk-alert="true">
-            <p className="uk-margin-remove">{errors.general}</p>
+// Updated renderOtpStep function for ActivateAccount/index.jsx
+const renderOtpStep = () => (
+  <div>
+    <div className="uk-text-center uk-margin-top">
+      <div className="uk-margin-bottom">
+        <span data-uk-icon="icon: receiver; ratio: 3" className="uk-text-primary"></span>
+      </div>
+      <h1 className="uk-heading uk-margin-remove-bottom">
+        Verify Your Phone
+      </h1>
+      <p className="uk-text-lead uk-margin-small-top uk-text-muted">
+        We've sent a 6-digit verification code to:
+      </p>
+      {/* Display the masked phone number */}
+      <div className="uk-margin-small-top">
+        <span className="uk-text-emphasis" style={{ 
+          fontSize: '18px', 
+          fontWeight: 'bold',
+          backgroundColor: '#f8f9fa',
+          padding: '8px 16px',
+          borderRadius: '20px',
+          border: '1px solid #e9ecef'
+        }}>
+          📱 {maskPhoneNumber(user?.phone)}
+        </span>
+      </div>
+      <p className="uk-text-small uk-text-muted uk-margin-small-top">
+        If this isn't your current number, contact your administrator
+      </p>
+    </div>
+
+    <form onSubmit={handleOtpSubmit}>
+      {errors.general && (
+        <div className="uk-alert-danger uk-margin-bottom" uk-alert="true">
+          <p className="uk-margin-remove">{errors.general}</p>
+        </div>
+      )}
+
+      <div className="uk-margin-bottom">
+        <input
+          className={`uk-input uk-border-pill uk-text-center ${
+            errors.otp ? 'uk-form-danger' : ''
+          }`}
+          type="text"
+          placeholder="Enter 6-digit code"
+          value={otp}
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          maxLength={6}
+          style={{ 
+            fontSize: '24px', 
+            letterSpacing: '2px', 
+            fontWeight: 'bold',
+            padding: '12px 16px',
+          }}
+          autoComplete="one-time-code"
+          inputMode="numeric"
+          pattern="[0-9]*"
+        />
+        {errors.otp && (
+          <div className="uk-text-danger uk-text-small uk-margin-small-top uk-text-center">
+            {errors.otp}
           </div>
         )}
+      </div>
 
-        <div className="uk-margin-bottom">
-          <input
-            className={`uk-input uk-border-pill uk-text-center ${
-              errors.otp ? 'uk-form-danger' : ''
-            }`}
-            type="text"
-            placeholder="Enter 6-digit code"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            maxLength={6}
-            style={{ 
-              fontSize: '24px', 
-              letterSpacing: '8px',
-              fontWeight: 'bold'
-            }}
-            autoComplete="one-time-code"
-            inputMode="numeric"
-            pattern="[0-9]*"
-          />
-          {errors.otp && (
-            <div className="uk-text-danger uk-text-small uk-margin-small-top uk-text-center">
-              {errors.otp}
-            </div>
+      <div className="uk-margin-bottom">
+        <button
+          type="submit"
+          className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
+          disabled={otpLoading || otp.length !== 6}
+        >
+          {otpLoading ? (
+            <>
+              <span data-uk-spinner="ratio: 0.7" className="uk-margin-small-right"></span>
+              Verifying...
+            </>
+          ) : (
+            'Verify Phone Number'
           )}
-        </div>
+        </button>
+      </div>
 
-        <div className="uk-margin-bottom">
-          <button
-            type="submit"
-            className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
-            disabled={otpLoading || otp.length !== 6}
-          >
-            {otpLoading ? (
-              <>
-                <span uk-spinner="ratio: 0.8" className="uk-margin-small-right"></span>
-                Verifying...
-              </>
-            ) : (
-              'Verify Code'
-            )}
-          </button>
-        </div>
-
-        <div className="uk-text-center">
-          <button
-            type="button"
-            className="uk-button uk-button-text uk-text-small"
-            onClick={handleResendOtp}
-            disabled={resendLoading || resendCountdown > 0}
-          >
-            {resendLoading ? (
-              <>
-                <span uk-spinner="ratio: 0.6" className="uk-margin-small-right"></span>
-                Sending...
-              </>
-            ) : resendCountdown > 0 ? (
-              `Resend code in ${resendCountdown}s`
-            ) : (
-              'Resend code'
-            )}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
+      <div className="uk-text-center">
+        <p className="uk-text-small uk-margin-remove-bottom uk-text-muted">
+          Didn't receive the code?
+        </p>
+        <button
+          type="button"
+          className="uk-button uk-button-text uk-text-primary"
+          onClick={handleResendOtp}
+          disabled={resendLoading || resendCountdown > 0}
+          style={{ fontSize: '14px', textDecoration: 'underline' }}
+        >
+          {resendLoading ? (
+            <>
+              <span data-uk-spinner="ratio: 0.5" className="uk-margin-small-right"></span>
+              Sending...
+            </>
+          ) : resendCountdown > 0 ? (
+            `Resend in ${resendCountdown}s`
+          ) : (
+            'Resend Code'
+          )}
+        </button>
+      </div>
+    </form>
+  </div>
+);
 
   const renderPasswordStep = () => (
     <div>

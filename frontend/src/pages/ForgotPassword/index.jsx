@@ -1,4 +1,4 @@
-// frontend/src/pages/ForgotPassword/index.jsx (Updated for SMS messaging)
+// frontend/src/pages/ForgotPassword/index.jsx (Updated with phone number display)
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useToasts } from 'react-toast-notifications';
@@ -8,6 +8,30 @@ import getInfo from '../../actions/getInfo';
 import Credits from '../Login/components/Credits';
 import Logo from '../Login/components/Logo';
 import '../Login/Login.sass';
+
+// Helper function to mask phone number for security
+const maskPhoneNumber = (phoneNumber) => {
+  if (!phoneNumber) return 'your phone';
+  
+  // For international numbers like +1234567890
+  if (phoneNumber.startsWith('+')) {
+    const countryCode = phoneNumber.slice(0, phoneNumber.length - 10);
+    const lastFour = phoneNumber.slice(-4);
+    const maskedMiddle = '*'.repeat(phoneNumber.length - countryCode.length - 4);
+    return `${countryCode}${maskedMiddle}${lastFour}`;
+  }
+  
+  // For other formats, show first 3 and last 4 with stars in between
+  if (phoneNumber.length >= 7) {
+    const first = phoneNumber.slice(0, 3);
+    const last = phoneNumber.slice(-4);
+    const maskedMiddle = '*'.repeat(phoneNumber.length - 7);
+    return `${first}${maskedMiddle}${last}`;
+  }
+  
+  // Fallback for short numbers
+  return phoneNumber.slice(0, 2) + '*'.repeat(phoneNumber.length - 2);
+};
 
 function ForgotPassword() {
   const [step, setStep] = useState(1); // 1: email, 2: code & password
@@ -20,6 +44,7 @@ function ForgotPassword() {
   const [info, setInfo] = useState({});
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
+  const [userPhone, setUserPhone] = useState(''); // Store user's phone for display
   
   const { addToast } = useToasts();
   const navigate = useNavigate();
@@ -50,9 +75,19 @@ function ForgotPassword() {
       });
 
       if (response.data.status === 'success') {
+        // Store the masked phone if returned by backend
+        if (response.data.maskedPhone) {
+          setUserPhone(response.data.maskedPhone);
+        } else if (response.data.user?.phone) {
+          setUserPhone(response.data.user.phone);
+        }
+        
         setStep(2);
         setResendCountdown(60); // 60 second countdown
-        addToast('Password reset code sent! Please check your phone.', {
+        
+        // Show specific phone number in toast
+        const phoneDisplay = response.data.maskedPhone || maskPhoneNumber(response.data.user?.phone) || 'your phone';
+        addToast(`Password reset code sent to ${phoneDisplay}`, {
           appearance: 'success',
           autoDismiss: true,
         });
@@ -81,12 +116,15 @@ function ForgotPassword() {
     
     setResendLoading(true);
     try {
-      await apiClient.post('/api/auth/forgot-password', {
+      const response = await apiClient.post('/api/auth/forgot-password', {
         email: email.trim().toLowerCase(),
       });
       
       setResendCountdown(60);
-      addToast('Reset code sent again! Please check your phone.', {
+      
+      // Show specific phone number in toast
+      const phoneDisplay = response.data?.maskedPhone || maskPhoneNumber(response.data?.user?.phone) || userPhone || 'your phone';
+      addToast(`Reset code sent again to ${phoneDisplay}`, {
         appearance: 'success',
         autoDismiss: true,
       });
@@ -163,6 +201,7 @@ function ForgotPassword() {
     setPassword('');
     setConfirmPassword('');
     setErrors({});
+    setUserPhone(''); // Clear stored phone
   };
 
   return (
@@ -240,12 +279,25 @@ function ForgotPassword() {
                   </div>
                 )}
 
+                {/* Improved phone number display */}
                 <div className="uk-alert-primary uk-margin-bottom">
                   <p className="uk-margin-remove-bottom uk-text-small">
-                    We've sent a 6-digit code to your phone number
+                    We've sent a 6-digit code to:
                   </p>
-                  <p className="uk-margin-remove-top uk-text-small">
-                    Please check your phone for the SMS code.
+                  <div className="uk-text-center uk-margin-small-top">
+                    <span className="uk-text-emphasis" style={{ 
+                      fontSize: '16px', 
+                      fontWeight: 'bold',
+                      backgroundColor: 'rgba(255,255,255,0.8)',
+                      padding: '6px 12px',
+                      borderRadius: '15px',
+                      display: 'inline-block'
+                    }}>
+                      📱 {maskPhoneNumber(userPhone) || 'your phone'}
+                    </span>
+                  </div>
+                  <p className="uk-margin-remove-top uk-text-small uk-margin-small-top">
+                    Enter the code to continue. If this isn't your current number, contact your administrator.
                   </p>
                 </div>
 
@@ -301,10 +353,10 @@ function ForgotPassword() {
                 </div>
 
                 <div className="uk-margin-bottom">
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
-                    disabled={loading || !code.trim() || !password || !confirmPassword}
+                    disabled={loading || code.length !== 6 || !password || !confirmPassword}
                   >
                     {loading ? (
                       <>
@@ -317,13 +369,17 @@ function ForgotPassword() {
                   </button>
                 </div>
 
-                {/* Resend Code Button */}
-                <div className="uk-margin-bottom uk-text-center">
+                {/* Resend Code Section */}
+                <div className="uk-text-center uk-margin-bottom">
+                  <p className="uk-text-small uk-margin-remove-bottom uk-text-muted">
+                    Didn't receive the code?
+                  </p>
                   <button
                     type="button"
-                    className="uk-button uk-button-text uk-text-small"
+                    className="uk-button uk-button-text uk-text-primary"
                     onClick={handleResendCode}
-                    disabled={resendLoading || resendCountdown > 0 || loading}
+                    disabled={resendLoading || resendCountdown > 0}
+                    style={{ fontSize: '14px', textDecoration: 'underline' }}
                   >
                     {resendLoading ? (
                       <>
