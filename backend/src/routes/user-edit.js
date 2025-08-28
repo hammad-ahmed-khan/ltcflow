@@ -2,12 +2,14 @@ const User = require("../models/User");
 const argon2 = require("argon2");
 const validator = require("validator");
 const xss = require("xss");
+const { isEmpty } = require("validator");
 
 module.exports = async (req, res, next) => {
   let username = xss(req.fields.username);
   let email = xss(req.fields.email);
   let firstName = xss(req.fields.firstName);
   let lastName = xss(req.fields.lastName);
+  let phone = req.fields.phone; // Add phone field
   let { password, repeatPassword, user, level } = req.fields;
   const companyId = req.headers["x-company-id"]; // Read from header
 
@@ -50,6 +52,16 @@ module.exports = async (req, res, next) => {
   }
 
   !validator.isEmail(email) && (errors.email = "Invalid email.");
+
+  // Add phone validation
+  if (phone !== undefined && !isEmpty(phone)) {
+    // Validate phone format - use international format validation
+    const phoneRegex = /^\+[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(phone)) {
+      errors.phone =
+        "Invalid phone number. Use international format like +1234567890";
+    }
+  }
 
   // Validate user level if provided
   if (level !== undefined && level !== null && level !== "") {
@@ -97,6 +109,11 @@ module.exports = async (req, res, next) => {
       firstName: xss(firstName),
       lastName: xss(lastName),
     };
+
+    // Add phone field to update query
+    if (phone !== undefined) {
+      query.phone = isEmpty(phone) ? "" : xss(phone.trim());
+    }
 
     // Include level in update if provided and valid
     if (level !== undefined && level !== null && level !== "") {

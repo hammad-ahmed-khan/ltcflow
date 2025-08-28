@@ -1,46 +1,67 @@
-// backend/src/routes/complete-activation.js (Updated to require OTP verification)
+// backend/src/routes/complete-activation.js (Updated error message for SMS)
 const User = require("../models/User");
 const AuthCode = require("../models/AuthCode");
-const argon2 = require("argon2");
 const bcrypt = require("bcryptjs");
+const argon2 = require("argon2");
+const moment = require("moment");
 const isEmpty = require("../utils/isEmpty");
+const mongoose = require("mongoose");
 
 module.exports = async (req, res) => {
   try {
     const { token, password, confirmPassword } = req.fields;
     const companyId = req.headers["x-company-id"];
 
-    // Validate required fields
-    let errors = {};
-    isEmpty(token) && (errors.token = "Activation token required.");
-    isEmpty(password) && (errors.password = "Password required.");
-    isEmpty(confirmPassword) &&
-      (errors.confirmPassword = "Confirm password required.");
-    isEmpty(companyId) && (errors.companyId = "Company ID required.");
+    // Input validation
+    const errors = {};
 
-    if (Object.keys(errors).length > 0) {
-      return res.status(400).json(errors);
+    if (isEmpty(token)) {
+      errors.token = "Activation token is required";
     }
 
-    // Validate password
-    if (password.length < 6) {
+    if (isEmpty(password)) {
+      errors.password = "Password is required";
+    } else if (password.length < 6) {
+      errors.password = "Password must be at least 6 characters long";
+    }
+
+    if (isEmpty(confirmPassword)) {
+      errors.confirmPassword = "Please confirm your password";
+    } else if (password !== confirmPassword) {
+      errors.confirmPassword = "Passwords do not match";
+      errors.password = "Passwords do not match";
+    }
+
+    if (!companyId) {
+      errors.companyId = "Company ID is required";
+    }
+
+    // Return validation errors
+    if (Object.keys(errors).length > 0) {
       return res.status(400).json({
-        password: "Password must be at least 6 characters long.",
+        status: "error",
+        errors,
+        message: "Please correct the errors and try again",
       });
     }
 
-    if (password !== confirmPassword) {
+    // Convert companyId to ObjectId
+    let companyObjectId;
+    try {
+      companyObjectId = new mongoose.Types.ObjectId(companyId);
+    } catch (err) {
       return res.status(400).json({
-        confirmPassword: "Passwords do not match.",
+        error: "INVALID_COMPANY_ID",
+        message: "Invalid company ID format",
       });
     }
 
     // Find all pending users in the company
     const pendingUsers = await User.find({
-      companyId: companyId,
+      companyId: companyObjectId,
       status: "pending",
       activationToken: { $ne: null },
-    });
+    }).select("-password");
 
     // Find the user by comparing the raw token with the hashed tokens
     let user = null;
@@ -95,7 +116,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({
         error: "OTP_VERIFICATION_REQUIRED",
         message:
-          "OTP verification is required before setting password. Please verify your email code first.",
+          "OTP verification is required before setting password. Please verify your SMS code first.",
       });
     }
 

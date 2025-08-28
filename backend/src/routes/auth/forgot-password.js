@@ -1,14 +1,16 @@
-// backend/src/routes/auth/forgot-password.js
+// backend/src/routes/auth/forgot-password.js (Updated to send SMS OTP)
 const router = require("express").Router();
 const AuthCode = require("../../models/AuthCode");
 const Email = require("../../models/Email");
 const User = require("../../models/User");
+const Company = require("../../models/Company");
 const config = require("../../../config");
 const randomstring = require("randomstring");
 const moment = require("moment");
 const isEmpty = require("../../utils/isEmpty");
 const { isEmail } = require("validator");
 const mongoose = require("mongoose");
+const Twilio = require("twilio");
 
 router.post("*", async (req, res) => {
   try {
@@ -57,7 +59,7 @@ router.post("*", async (req, res) => {
     });
 
     // Always return success for security (don't reveal if email exists)
-    // But only send email if user actually exists
+    // But only send SMS if user actually exists
     if (user) {
       // Check user status
       if (user.status !== "active") {
@@ -75,6 +77,26 @@ router.post("*", async (req, res) => {
           message:
             statusMessages[user.status] ||
             "Account is not available for password reset.",
+        });
+      }
+
+      // Check if user has phone number
+      if (!user.phone) {
+        return res.status(400).json({
+          status: "error",
+          error: "NO_PHONE_NUMBER",
+          message:
+            "Your account doesn't have a phone number. Please contact your administrator to add a phone number for password reset.",
+        });
+      }
+
+      // Get company info for SMS message
+      const company = await Company.findById(companyObjectId);
+      if (!company) {
+        return res.status(404).json({
+          status: "error",
+          error: "COMPANY_NOT_FOUND",
+          message: "Company not found",
         });
       }
 
@@ -102,7 +124,27 @@ router.post("*", async (req, res) => {
 
       await authCode.save();
 
-      // Queue password reset email
+      // Initialize Twilio client
+      const twilioClient = Twilio(
+        config.twilio.accountSid,
+        config.twilio.authToken
+      );
+
+      const message = `Hello ${user.firstName}! Your ${company.name} password reset code is: ${resetCode}. This code expires in 15 minutes. Do not share this code with anyone.`;
+
+      // Send SMS
+      await twilioClient.messages.create({
+        body: message,
+        from: config.twilio.fromNumber, // Twilio phone number
+        to: user.phone, // User's phone number
+      });
+
+      console.log(
+        `🔐 Password reset code sent via SMS to user: ${user.phone} (Company: ${companyId})`
+      );
+
+      // Queue password reset email (commented out - now using SMS)
+      /*
       const resetEmail = new Email({
         companyId: companyObjectId,
         from: config.nodemailer.from,
@@ -124,7 +166,8 @@ router.post("*", async (req, res) => {
                 user.firstName
               },</p>
               <p style="color: #666; line-height: 1.6;">
-                We received a request to reset your password. Use the verification code below to reset your password:
+                We received a request to reset your password.
+                Use the verification code below to reset your password:
               </p>
               
               <div style="text-align: center; margin: 25px 0;">
@@ -166,6 +209,7 @@ router.post("*", async (req, res) => {
       console.log(
         `🔐 Password reset code generated for user: ${user.email} (Company: ${companyId})`
       );
+      */
     } else {
       console.log(
         `🔐 Password reset attempted for non-existent user: ${email} (Company: ${companyId})`
@@ -176,7 +220,7 @@ router.post("*", async (req, res) => {
     res.status(200).json({
       status: "success",
       message:
-        "If an account with that email exists, we've sent a password reset code to your email address. Please check your inbox and spam folder.",
+        "If an account with that email exists and has a phone number, we've sent a password reset code to your phone number.",
     });
   } catch (error) {
     console.error("❌ Forgot password error:", error);

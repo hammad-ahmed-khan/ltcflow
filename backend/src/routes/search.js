@@ -36,6 +36,7 @@ module.exports = (req, res, next) => {
       lastName: 1,
       username: 1,
       email: 1,
+      phone: 1, // ✅ ADD THIS LINE - Include phone field in projection
       picture: 1,
       tagLine: 1,
       level: 1,
