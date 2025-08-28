@@ -1,27 +1,30 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { FiUsers, FiDollarSign, FiTrendingUp, FiAlertTriangle, FiInfo, FiPackage, FiCreditCard } from 'react-icons/fi';
 
-const BillingDashboard = () => {
-  // Mock data - replace with actual props/API data
-  const [userStats] = useState({
-    activeUsers: 18,
-    pendingUsers: 4,
-    deactivatedUsers: 2,
-    expiredUsers: 1
-  });
-
-  // Configuration - should come from your config
-  const billingConfig = {
-    baseUserLimit: 20,
-    perUserRate: 5.0,
+// Import your config
+const Config = {
+  billing: {
+    baseUserLimit: parseInt(import.meta.env.VITE_BASE_USER_LIMIT) || 20,
+    perUserRate: parseFloat(import.meta.env.VITE_PER_USER_RATE) || 5.0,
     currency: "USD"
-  };
+  }
+};
 
-  const { baseUserLimit, perUserRate, currency } = billingConfig;
-  const currencySymbol = currency === 'USD' ? '$' : currency;
+const BillingDashboard = ({ userStats = {} }) => {
+  // Configuration from your env variables
+  const billingConfig = Config.billing;
+
+  const { baseUserLimit, perUserRate, currency = "USD" } = billingConfig;
+  const currencySymbol = currency === 'USD' ? '$' : '';
+
+  // Use real data with fallbacks
+  const activeUsers = userStats.activeUsers || 0;
+  const pendingUsers = userStats.pendingUsers || 0;
+  const deactivatedUsers = userStats.deactivatedUsers || 0;
+  const expiredUsers = userStats.expiredUsers || 0;
 
   // Calculate billing metrics
-  const billableUserCount = userStats.activeUsers + userStats.pendingUsers;
+  const billableUserCount = activeUsers + pendingUsers;
   const remainingUsers = Math.max(0, baseUserLimit - billableUserCount);
   const additionalUsers = Math.max(0, billableUserCount - baseUserLimit);
   const utilizationPercentage = Math.min(100, (billableUserCount / baseUserLimit) * 100);
@@ -155,8 +158,8 @@ const BillingDashboard = () => {
 
   // Chart data
   const chartData = [
-    { label: 'Active', value: userStats.activeUsers, color: '#4caf50' },
-    { label: 'Pending', value: userStats.pendingUsers, color: '#ff9800' },
+    { label: 'Active', value: activeUsers, color: '#4caf50' },
+    { label: 'Pending', value: pendingUsers, color: '#ff9800' },
     { label: 'Available', value: Math.max(0, remainingUsers), color: '#e0e0e0' }
   ];
 
@@ -165,17 +168,41 @@ const BillingDashboard = () => {
     chartData[2] = { label: 'Over Limit', value: additionalUsers, color: '#f44336' };
   }
 
+  // Show loading state if no data provided
+  if (!userStats || (activeUsers === 0 && pendingUsers === 0 && deactivatedUsers === 0)) {
+    return (
+      <div className="billing-dashboard-container">
+        <div className="billing-header">
+          <div className="billing-title">
+            <FiPackage size={16} />
+            Base Plan Status
+          </div>
+          <div className="billing-subtitle">Loading user data...</div>
+        </div>
+        <div className="billing-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ textAlign: 'center', color: '#666' }}>
+            <FiUsers size={24} style={{ marginBottom: '8px' }} />
+            <div>Loading billing information...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="billing-dashboard-container">
       <style>{`
         .billing-dashboard-container {
           width: 100%;
           max-width: 320px;
+          height: 100vh;
           background: white;
           border-radius: 12px;
           box-shadow: 0 4px 12px rgba(0,0,0,0.1);
           overflow: hidden;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+          display: flex;
+          flex-direction: column;
         }
 
         .billing-header {
@@ -183,6 +210,7 @@ const BillingDashboard = () => {
           border-bottom: 2px solid ${status.color}20;
           padding: 20px;
           position: relative;
+          flex-shrink: 0;
         }
 
         .billing-title {
@@ -218,6 +246,27 @@ const BillingDashboard = () => {
 
         .billing-content {
           padding: 24px 20px;
+          overflow-y: auto;
+          flex: 1;
+          min-height: 0;
+        }
+
+        .billing-content::-webkit-scrollbar {
+          width: 4px;
+        }
+
+        .billing-content::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 4px;
+        }
+
+        .billing-content::-webkit-scrollbar-thumb {
+          background: 'c1c1c1';
+          border-radius: 4px;
+        }
+
+        .billing-content::-webkit-scrollbar-thumb:hover {
+          background: 'a8a8a8';
         }
 
         .chart-section {
@@ -268,12 +317,12 @@ const BillingDashboard = () => {
 
         .legend-label {
           flex: 1;
-          color: #555;
+          color: '#555';
         }
 
         .legend-value {
           font-weight: 500;
-          color: #333;
+          color: '#333';
         }
 
         .metrics-grid {
@@ -284,8 +333,8 @@ const BillingDashboard = () => {
         }
 
         .metric-card {
-          background: #f8f9fa;
-          border: 1px solid #e9ecef;
+          background: '#f8f9fa';
+          border: 1px solid '#e9ecef';
           border-radius: 8px;
           padding: 12px;
           text-align: center;
@@ -300,20 +349,20 @@ const BillingDashboard = () => {
         .metric-number {
           font-size: 18px;
           font-weight: bold;
-          color: #333;
+          color: '#333';
           line-height: 1;
           margin-bottom: 4px;
         }
 
         .metric-label {
           font-size: 10px;
-          color: #666;
+          color: '#666';
           text-transform: uppercase;
           letter-spacing: 0.3px;
         }
 
         .usage-bar {
-          background: #e9ecef;
+          background: '#e9ecef';
           border-radius: 6px;
           height: 8px;
           overflow: hidden;
@@ -334,7 +383,7 @@ const BillingDashboard = () => {
           top: 0;
           left: 100%;
           height: 100%;
-          background: #f44336;
+          background: '#f44336';
           border-radius: 0 6px 6px 0;
         }
 
@@ -342,7 +391,7 @@ const BillingDashboard = () => {
           display: flex;
           justify-content: space-between;
           font-size: 11px;
-          color: #666;
+          color: '#666';
           margin-bottom: 4px;
         }
 
@@ -388,8 +437,8 @@ const BillingDashboard = () => {
         }
 
         .plan-info {
-          background: #f8f9fa;
-          border: 1px solid #dee2e6;
+          background: '#f8f9fa';
+          border: 1px solid '#dee2e6';
           border-radius: 8px;
           padding: 12px;
         }
@@ -404,18 +453,18 @@ const BillingDashboard = () => {
         .plan-title {
           font-size: 13px;
           font-weight: 600;
-          color: #495057;
+          color: '#495057';
         }
 
         .plan-details {
           font-size: 11px;
-          color: #6c757d;
+          color: '#6c757d';
           line-height: 1.4;
         }
 
         .plan-rate {
           font-weight: 500;
-          color: #495057;
+          color: '#495057';
         }
 
         .breakdown-list {
@@ -423,7 +472,7 @@ const BillingDashboard = () => {
           padding: 0;
           margin: 8px 0 0 0;
           font-size: 11px;
-          color: #6c757d;
+          color: '#6c757d';
         }
 
         .breakdown-list li {
@@ -440,13 +489,15 @@ const BillingDashboard = () => {
           margin-right: 6px;
         }
 
-        .breakdown-active { background: #4caf50; }
-        .breakdown-pending { background: #ff9800; }
-        .breakdown-deactivated { background: #9e9e9e; }
+        .breakdown-active { background: '#4caf50'; }
+        .breakdown-pending { background: '#ff9800'; }
+        .breakdown-deactivated { background: '#9e9e9e'; }
 
         @media (max-width: 768px) {
           .billing-dashboard-container {
             max-width: 100%;
+            height: auto;
+            max-height: 100vh;
           }
           
           .billing-header {
@@ -455,11 +506,18 @@ const BillingDashboard = () => {
           
           .billing-content {
             padding: 20px 16px;
+            max-height: calc(100vh - 80px);
           }
           
           .metrics-grid {
             grid-template-columns: 1fr;
           }
+        }
+
+        /* Better scrollbar for Firefox */
+        .billing-content {
+          scrollbar-width: thin;
+          scrollbar-color: #c1c1c1 #f1f1f1;
         }
       `}</style>
 
@@ -553,16 +611,22 @@ const BillingDashboard = () => {
           <ul className="breakdown-list">
             <li>
               <span><span className="breakdown-dot breakdown-active"></span>Active users</span>
-              <span>{userStats.activeUsers}</span>
+              <span>{activeUsers}</span>
             </li>
             <li>
               <span><span className="breakdown-dot breakdown-pending"></span>Pending invites</span>
-              <span>{userStats.pendingUsers}</span>
+              <span>{pendingUsers}</span>
             </li>
             <li>
               <span><span className="breakdown-dot breakdown-deactivated"></span>Deactivated</span>
-              <span>{userStats.deactivatedUsers} (not billed)</span>
+              <span>{deactivatedUsers} (not billed)</span>
             </li>
+            {expiredUsers > 0 && (
+              <li>
+                <span><span className="breakdown-dot breakdown-deactivated"></span>Expired invites</span>
+                <span>{expiredUsers} (not billed)</span>
+              </li>
+            )}
           </ul>
         </div>
       </div>
