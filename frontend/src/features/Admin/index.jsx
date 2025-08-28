@@ -11,7 +11,6 @@ import apiClient from '../../api/apiClient';
 import Popup from './components/Popup';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import { postDelete } from '../../actions/admin';
-import BillingDashboard from './components/BillingDashboard';
 
 function Admin() {
   const { addToast } = useToasts();
@@ -924,7 +923,6 @@ const customStyles = {
           </li>
         </div>
       </div>
-      
       <div className="content uk-flex uk-flex-center uk-flex-middle uk-flex-column">
         <div className="data-table" style={{ background: '#fff', width: '100%', maxWidth: '1200px' }}>
           <div className="data-create uk-flex uk-flex-between uk-flex-middle">
