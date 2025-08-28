@@ -197,6 +197,7 @@ function AddPeers({ onClose, type, user }) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [username, setUsername] = useState('');
   const [userTier, setUserTier] = useState('');
   const [activationLink, setActivationLink] = useState('');
@@ -210,6 +211,7 @@ function AddPeers({ onClose, type, user }) {
       setFirstName(user.firstName || '');
       setLastName(user.lastName || '');
       setEmail(user.email || '');
+      setPhone(user.phone || '');
       setUsername(user.username || '');
       setUserTier(user.level || '');
     } else if (type === 'create') {
@@ -217,6 +219,7 @@ function AddPeers({ onClose, type, user }) {
       setFirstName('');
       setLastName('');
       setEmail('');
+      setPhone('');
       setUsername('');
       setUserTier('');
     }
@@ -254,14 +257,28 @@ function AddPeers({ onClose, type, user }) {
     }
   };
 
+const isValidPhone = (number) => {
+  const regex = /^\+[1-9]\d{1,14}$/; // Must start with '+' and country code
+  return regex.test(number);
+};
+
   const createUser = async (e) => {
     e.preventDefault();
+
+    // Validate phone
+  if (!isValidPhone(phone)) {
+    setErrors({ phone: 'Invalid phone number. Use international format like +1234567890' });
+    errorToast('Invalid phone number. Please check and try again.');
+    return;
+  }
+
     try {
       const response = await postCreate({
         username,
         email,
         firstName,
         lastName,
+        phone,        // Include phone for Twilio
         level: userTier,
       });
       
@@ -393,6 +410,16 @@ function AddPeers({ onClose, type, user }) {
                   onChange={(e) => setLastName(e.target.value)}
                 />
                 {errors && errors.lastName && <div className="admin-form-error">{errors.lastName}</div>}
+
+                <Input
+                  icon="phone"
+                  placeholder="Phone (e.g. +1234567890)"
+                  type="text"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+                {errors && errors.phone && <div className="admin-form-error">{errors.phone}</div>}
 
                 <UserTierSelect
                   value={userTier}

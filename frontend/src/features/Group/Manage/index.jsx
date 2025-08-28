@@ -161,76 +161,75 @@ const canManageMembers = user.level === 'root' || (isManagerOrAbove && isGroupMe
     }
   };
 
-  const updateGroupTitle = async () => {
-    if (!newTitle.trim()) {
-      showToast('Group name cannot be empty', 'error');
-      return;
-    }
+const updateGroupTitle = async () => {
+  if (!newTitle.trim()) {
+    showToast('Group name cannot be empty', 'error');
+    return;
+  }
+  
+  setLoading(prev => ({ ...prev, updateTitle: true }));
+  
+  try {
+    await apiClient.post('/api/group/update-info', { 
+      groupId: id, 
+      title: newTitle.trim() 
+    });
     
-    setLoading(prev => ({ ...prev, updateTitle: true }));
+    showToast('Group name updated successfully');
+    setEditingTitle(false);
+    await refreshGroup();
+  } catch (err) {
+    const message = err.response?.data?.message || 'Failed to update group name';
+    showToast(message, 'error');
+  } finally {
+    setLoading(prev => ({ ...prev, updateTitle: false }));
+  }
+};
+
+const changeGroupPicture = async (imageFile) => {
+  setLoading(prev => ({ ...prev, changePicture: true }));
+  
+  try {
+    // Upload the image
+    const uploadResult = await upload(imageFile, null, () => {}, 'square');
     
-    try {
-      await apiClient.post('/api/group/update-title', { 
-        groupId: id, 
-        title: newTitle.trim() 
-      });
-      
-      showToast('Group name updated successfully');
-      setEditingTitle(false);
-      await refreshGroup();
-    } catch (err) {
-      const message = err.response?.data?.message || 'Failed to update group name';
-      showToast(message, 'error');
-    } finally {
-      setLoading(prev => ({ ...prev, updateTitle: false }));
-    }
-  };
-
-  const changeGroupPicture = async (imageFile) => {
-    setLoading(prev => ({ ...prev, changePicture: true }));
+    // Update group picture using the unified endpoint
+    await apiClient.post('/api/group/update-info', {
+      groupId: id,
+      picture: uploadResult.data.image._id
+    });
     
-    try {
-      // Upload the image
-      const uploadResult = await upload(imageFile, null, () => {}, 'square');
-      
-      // Update group picture
-      await apiClient.post('/api/group/update-picture', {
-        groupId: id,
-        pictureId: uploadResult.data.image._id
-      });
-      
-      showToast('Group picture updated successfully');
-      await refreshGroup();
-    } catch (err) {
-      const message = err.response?.data?.message || 'Failed to update group picture';
-      showToast(message, 'error');
-    } finally {
-      setLoading(prev => ({ ...prev, changePicture: false }));
-    }
-  };
+    showToast('Group picture updated successfully');
+    await refreshGroup();
+  } catch (err) {
+    const message = err.response?.data?.message || 'Failed to update group picture';
+    showToast(message, 'error');
+  } finally {
+    setLoading(prev => ({ ...prev, changePicture: false }));
+  }
+};
 
-  const removeGroupPicture = async () => {
-    const confirmed = window.confirm("Are you sure you want to remove the group picture?");
-    if (!confirmed) return;
+const removeGroupPicture = async () => {
+  const confirmed = window.confirm("Are you sure you want to remove the group picture?");
+  if (!confirmed) return;
 
-    setLoading(prev => ({ ...prev, removePicture: true }));
+  setLoading(prev => ({ ...prev, removePicture: true }));
+  
+  try {
+    await apiClient.post('/api/group/update-info', {
+      groupId: id,
+      picture: null // Set to null to remove picture
+    });
     
-    try {
-      await apiClient.post('/api/group/remove-picture', {
-        groupId: id
-      });
-      
-      showToast('Group picture removed successfully');
-      await refreshGroup();
-    } catch (err) {
-      const message = err.response?.data?.message || 'Failed to remove group picture';
-      showToast(message, 'error');
-    } finally {
-      setLoading(prev => ({ ...prev, removePicture: false }));
-    }
-  };
-
-// Replace the access denied section in GroupManage.jsx with this more descriptive message:
+    showToast('Group picture removed successfully');
+    await refreshGroup();
+  } catch (err) {
+    const message = err.response?.data?.message || 'Failed to remove group picture';
+    showToast(message, 'error');
+  } finally {
+    setLoading(prev => ({ ...prev, removePicture: false }));
+  }
+};
 
 if (!group || !canManageMembers) {
   const accessDeniedMessage = !group ? 

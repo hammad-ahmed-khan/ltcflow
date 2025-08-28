@@ -245,7 +245,7 @@ const BillingDashboard = ({ userStats = {} }) => {
         }
 
         .billing-content {
-          padding: 24px 20px;
+          padding: 24px 10px;
           overflow-y: auto;
           flex: 1;
           min-height: 0;
