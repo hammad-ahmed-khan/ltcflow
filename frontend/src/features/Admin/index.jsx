@@ -11,6 +11,7 @@ import apiClient from '../../api/apiClient';
 import Popup from './components/Popup';
 import ConfirmationDialog from '../../components/ConfirmationDialog';
 import { postDelete } from '../../actions/admin';
+import BillingDashboard from '../Details/components/BillingDashboard';
 
 function Admin() {
   const { addToast } = useToasts();
@@ -573,7 +574,7 @@ const customStyles = {
               e.target.style.transform = 'scale(1.05)';
             }}
             onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
+              e.target.style.backgroundColor = '#eeeeee';
               e.target.style.transform = 'scale(1)';
             }}
           >
@@ -595,7 +596,7 @@ const customStyles = {
               e.target.style.transform = 'scale(1.05)';
             }}
             onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
+              e.target.style.backgroundColor = '#eeeeee';
               e.target.style.transform = 'scale(1)';
             }}
           >
@@ -714,7 +715,7 @@ const customStyles = {
       
       {/* FIXED: Status Filter Tabs with Counts and proper styling */}
       <div className="uk-flex uk-flex-center uk-margin-small">
-        <div className="uk-subnav uk-subnav-pill" data-uk-subnav>
+        <div className="uk-subnav uk-subnav-pill uk-flex-center" data-uk-subnav>
           <li className={statusFilter === 'all' ? 'uk-active' : ''}>
             <a 
               onClick={() => setStatusFilter('all')}
@@ -726,7 +727,7 @@ const customStyles = {
                 alignItems: 'center',
                 gap: '6px',
                 // FIXED: Proper contrast for selected tab
-                backgroundColor: statusFilter === 'all' ? '#1976d2' : 'transparent',
+                backgroundColor: statusFilter === 'all' ? '#1976d2' : '#eeeeee',
                 color: statusFilter === 'all' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
                 padding: '8px 16px',
@@ -739,7 +740,7 @@ const customStyles = {
               }}
               onMouseLeave={(e) => {
                 if (statusFilter !== 'all') {
-                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.backgroundColor = '#eeeeee';
                 }
               }}
             >
@@ -768,7 +769,7 @@ const customStyles = {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                backgroundColor: statusFilter === 'active' ? '#2e7d32' : 'transparent',
+                backgroundColor: statusFilter === 'active' ? '#2e7d32' : '#eeeeee',
                 color: statusFilter === 'active' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
                 padding: '8px 16px',
@@ -781,7 +782,7 @@ const customStyles = {
               }}
               onMouseLeave={(e) => {
                 if (statusFilter !== 'active') {
-                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.backgroundColor = '#eeeeee';
                 }
               }}
             >
@@ -810,7 +811,7 @@ const customStyles = {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                backgroundColor: statusFilter === 'pending' ? '#f57c00' : 'transparent',
+                backgroundColor: statusFilter === 'pending' ? '#f57c00' : '#eeeeee',
                 color: statusFilter === 'pending' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
                 padding: '8px 16px',
@@ -823,7 +824,7 @@ const customStyles = {
               }}
               onMouseLeave={(e) => {
                 if (statusFilter !== 'pending') {
-                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.backgroundColor = '#eeeeee';
                 }
               }}
             >
@@ -852,7 +853,7 @@ const customStyles = {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                backgroundColor: statusFilter === 'expired' ? '#c62828' : 'transparent',
+                backgroundColor: statusFilter === 'expired' ? '#c62828' : '#eeeeee',
                 color: statusFilter === 'expired' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
                 padding: '8px 16px',
@@ -865,7 +866,7 @@ const customStyles = {
               }}
               onMouseLeave={(e) => {
                 if (statusFilter !== 'expired') {
-                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.backgroundColor = '#eeeeee';
                 }
               }}
             >
@@ -894,7 +895,7 @@ const customStyles = {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                backgroundColor: statusFilter === 'deactivated' ? '#666' : 'transparent',
+                backgroundColor: statusFilter === 'deactivated' ? '#666' : '#eeeeee',
                 color: statusFilter === 'deactivated' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
                 padding: '8px 16px',
@@ -907,7 +908,7 @@ const customStyles = {
               }}
               onMouseLeave={(e) => {
                 if (statusFilter !== 'deactivated') {
-                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.backgroundColor = '#eeeeee';
                 }
               }}
             >
@@ -929,6 +930,18 @@ const customStyles = {
         </div>
       </div>
       <div className="content uk-flex uk-flex-center uk-flex-middle uk-flex-column">
+       <div id="billing-dashboard-modal" uk-modal="true">
+        <div className="uk-modal-dialog uk-modal-body uk-margin-auto-vertical">
+          <button
+            className="uk-modal-close-default"
+            type="button"
+            uk-close="true"
+          ></button>
+
+          {/* Your Component inside modal */}
+          <BillingDashboard  userStats={stats || {}}/>
+        </div>
+      </div>
         <div className="data-table" style={{ background: '#fff', width: '100%', maxWidth: '1200px' }}>
           <div className="data-create uk-flex uk-flex-between uk-flex-middle">
             <button 
