@@ -110,11 +110,12 @@ function ActivateAccount() {
           } else {
             toastMessage += '!';
           }
-          
+          /*
           addToast(toastMessage, {
             appearance: 'success',
             autoDismiss: true,
           });
+          */
         } else {
           setStep('password');
         }
@@ -289,7 +290,7 @@ function ActivateAccount() {
   const renderOtpStep = () => (
     <div>
       <div className="uk-text-center uk-margin-bottom">
-        <h2 className="uk-heading-small uk-margin-remove-bottom">
+        <h2 className="uk-margin-remove-bottom">
           {otpDeliveryInfo.email && otpDeliveryInfo.sms ? 'Verify Your Code' : 
            otpDeliveryInfo.email ? 'Verify Your Email' : 'Verify Your Phone Number'}
         </h2>
@@ -559,7 +560,7 @@ function ActivateAccount() {
     <Div100vh>
       <div className="uk-height-1-1 uk-flex uk-flex-middle uk-flex-center uk-background-muted">
         <div className="uk-width-1-1 uk-width-medium@s">
-          <div className="uk-card uk-card-default uk-card-body uk-box-shadow-large uk-border-rounded">
+          <div className="">
             <div className="uk-text-center uk-margin-bottom">
               <Logo info={info} />
               <h1 className="uk-heading-small uk-margin-remove-top">
