@@ -33,7 +33,7 @@ function Login() {
   const [activationToken, setActivationToken] = useState('');
   const [activationEmail, setActivationEmail] = useState('');
   const [activationPassword, setActivationPassword] = useState('');
-  const [activationRepeatPassword, setActivationRepeatPassword] = useState('');
+  const [activationConfirmPassword, setActivationConfirmPassword] = useState('');
   const [activationErrors, setActivationErrors] = useState({});
   const [activationLoading, setActivationLoading] = useState(false);
   const [isActivationMode, setIsActivationMode] = useState(false);
@@ -116,10 +116,10 @@ function Login() {
     if (!activationToken) newErrors.token = 'Activation token is required';
     if (!activationEmail) newErrors.email = 'Email address is required';
     if (!activationPassword) newErrors.password = 'Password is required';
-    if (!activationRepeatPassword) newErrors.repeatPassword = 'Please confirm your password';
-    if (activationPassword !== activationRepeatPassword) {
+    if (!activationConfirmPassword) newErrors.confirmPassword = 'Please confirm your password';
+    if (activationPassword !== activationConfirmPassword) {
       newErrors.password = 'Passwords do not match';
-      newErrors.repeatPassword = 'Passwords do not match';
+      newErrors.confirmPassword = 'Passwords do not match';
     }
     if (activationPassword.length < 6) {
       newErrors.password = 'Password must be at least 6 characters long';
@@ -136,7 +136,7 @@ function Login() {
         token: activationToken,
         email: activationEmail,
         password: activationPassword,
-        repeatPassword: activationRepeatPassword
+        confirmPassword: activationConfirmPassword
       });
 
       if (response.data.status === 'success') {
@@ -150,7 +150,7 @@ function Login() {
         setActivationToken('');
         setActivationEmail('');
         setActivationPassword('');
-        setActivationRepeatPassword('');
+        setActivationConfirmPassword('');
         setActivationErrors({});
         setActivationLoading(false);
         
@@ -275,11 +275,11 @@ function Login() {
                     icon="lock"
                     placeholder="Confirm Password"
                     type="password"
-                    value={activationRepeatPassword}
-                    onChange={(e) => setActivationRepeatPassword(e.target.value)}
+                    value={activationConfirmPassword}
+                    onChange={(e) => setActivationConfirmPassword(e.target.value)}
                     required
                   />
-                  {activationErrors.repeatPassword && <div className="uk-text-danger uk-text-small">{activationErrors.repeatPassword}</div>}
+                  {activationErrors.confirmPassword && <div className="uk-text-danger uk-text-small">{activationErrors.confirmPassword}</div>}
                   
                   <div className="uk-margin-bottom">
                     <button 

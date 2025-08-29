@@ -127,11 +127,12 @@ function ForgotPassword() {
           const phoneDisplay = response.data.maskedPhone || maskPhoneNumber(response.data.user?.phone) || 'your registered contact';
           toastMessage += ` to ${phoneDisplay}!`;
         }
-        
+        /*
         addToast(toastMessage, {
           appearance: 'success',
           autoDismiss: true,
         });
+        */
       }
     } catch (error) {
       console.error('Forgot password error:', error);
