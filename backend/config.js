@@ -95,7 +95,7 @@ module.exports = {
 
   // 🆕 NEW: OTP Configuration
   otp: {
-    method: process.env.OTP_METHOD || "sms", // "email", "sms", "both"
+    method: process.env.OTP_METHOD || "email", // "email", "sms", "both"
     fallbackEnabled:
       (process.env.OTP_FALLBACK_ENABLED || "true").toString() === "true",
   },
