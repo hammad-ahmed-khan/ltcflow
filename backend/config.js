@@ -92,4 +92,11 @@ module.exports = {
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
     region: process.env.AWS_REGION || "us-east-1",
   },
+
+  // 🆕 NEW: OTP Configuration
+  otp: {
+    method: process.env.OTP_METHOD || "sms", // "email", "sms", "both"
+    fallbackEnabled:
+      (process.env.OTP_FALLBACK_ENABLED || "true").toString() === "true",
+  },
 };

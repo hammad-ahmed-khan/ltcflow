@@ -1,4 +1,4 @@
-﻿// frontend/src/pages/ActivateAccount/index.jsx (Updated for SMS messaging)
+﻿// frontend/src/pages/ActivateAccount/index.jsx (Updated for configurable OTP)
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGlobal } from 'reactn';
@@ -14,14 +14,21 @@ function ActivateAccount() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToasts();
-  const setEntryPath = useGlobal('entryPath')[1]; // Use ReactN global state
+  const setEntryPath = useGlobal('entryPath')[1];
 
   // States for different steps
-  const [step, setStep] = useState('validating'); // 'validating', 'otp', 'password', 'success'
+  const [step, setStep] = useState('validating'); // 'validating', 'otp', 'password', 'success', 'error'
   const [user, setUser] = useState(null);
   const [info, setInfo] = useState({});
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // 🆕 OTP delivery method tracking
+  const [otpDeliveryInfo, setOtpDeliveryInfo] = useState({
+    email: false,
+    sms: false,
+    method: 'email' // default
+  });
 
   // OTP states
   const [otp, setOtp] = useState('');
@@ -32,6 +39,22 @@ function ActivateAccount() {
   // Password states
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // 🆕 Helper function to mask email
+  const maskEmail = (email) => {
+    if (!email) return 'your email';
+    const [localPart, domain] = email.split('@');
+    if (localPart.length <= 2) return email;
+    const maskedLocal = localPart.charAt(0) + '*'.repeat(localPart.length - 2) + localPart.charAt(localPart.length - 1);
+    return `${maskedLocal}@${domain}`;
+  };
+
+  // 🆕 Helper function to mask phone number
+  const maskPhoneNumber = (phone) => {
+    if (!phone) return 'your phone';
+    if (phone.length <= 4) return phone;
+    return phone.slice(0, -4).replace(/\d/g, '*') + phone.slice(-4);
+  };
 
   useEffect(() => {
     getInfo().then((res) => {
@@ -62,15 +85,37 @@ function ActivateAccount() {
 
       if (response.data.status === 'success') {
         setUser(response.data.user);
+        
+        // 🆕 Handle OTP delivery info from backend
+        if (response.data.otpSent) {
+          setOtpDeliveryInfo({
+            email: response.data.otpSent.email || false,
+            sms: response.data.otpSent.sms || false,
+            method: response.data.otpSent.method || 'sms'
+          });
+        }
+        
         if (response.data.nextStep === 'verify_otp') {
           setStep('otp');
-          setResendCountdown(60); // 60 second countdown
-          addToast('Verification code sent to your phone!', {
+          setResendCountdown(60);
+          
+          // 🆕 Dynamic toast message based on delivery method
+          let toastMessage = 'Verification code sent';
+          if (response.data.otpSent?.email && response.data.otpSent?.sms) {
+            toastMessage += ' to your email and phone!';
+          } else if (response.data.otpSent?.email) {
+            toastMessage += ' to your email address!';
+          } else if (response.data.otpSent?.sms) {
+            toastMessage += ' to your phone number!';
+          } else {
+            toastMessage += '!';
+          }
+          
+          addToast(toastMessage, {
             appearance: 'success',
             autoDismiss: true,
           });
         } else {
-          // Fallback to password step if OTP not required
           setStep('password');
         }
       }
@@ -138,10 +183,32 @@ function ActivateAccount() {
     
     setResendLoading(true);
     try {
-      await apiClient.post('/api/resend-activation-otp', { token });
+      const response = await apiClient.post('/api/resend-activation-otp', { token });
+      
+      // 🆕 Update delivery info from response
+      if (response.data.otpSent) {
+        setOtpDeliveryInfo(prev => ({
+          ...prev,
+          email: response.data.otpSent.email || false,
+          sms: response.data.otpSent.sms || false
+        }));
+      }
       
       setResendCountdown(60);
-      addToast('New verification code sent!', {
+      
+      // 🆕 Dynamic success message
+      let successMessage = 'New verification code sent';
+      if (response.data.otpSent?.email && response.data.otpSent?.sms) {
+        successMessage += ' to your email and phone!';
+      } else if (response.data.otpSent?.email) {
+        successMessage += ' to your email!';
+      } else if (response.data.otpSent?.sms) {
+        successMessage += ' to your phone!';
+      } else {
+        successMessage = response.data.message || 'New verification code sent!';
+      }
+      
+      addToast(successMessage, {
         appearance: 'success',
         autoDismiss: true,
       });
@@ -210,175 +277,86 @@ function ActivateAccount() {
     }
   };
 
-  const handleNavigateToLogin = () => {
-    // Clear entryPath before navigating to login
-    setEntryPath(null);
-    navigate('/login', { replace: true });
-  };
-
+  // Render different steps
   const renderValidatingStep = () => (
-    <div className="uk-text-center uk-margin-top">
-      <div className="uk-margin-bottom">
-        <div data-uk-spinner="ratio: 2" className="uk-text-primary"></div>
-      </div>
-      <h1 className="uk-heading uk-margin-remove-bottom">
-        Validating Token
-      </h1>
-      <p className="uk-text-lead uk-margin-small-top uk-text-muted">
-        Please wait while we verify your activation link...
-      </p>
+    <div className="uk-text-center">
+      <div data-uk-spinner="ratio: 1.5" className="uk-margin-bottom"></div>
+      <h3 className="uk-heading-small">Validating activation link...</h3>
+      <p className="uk-text-muted">Please wait while we verify your activation token.</p>
     </div>
   );
 
-const maskPhoneNumber = (phoneNumber) => {
-  if (!phoneNumber) return 'your phone';
-  
-  // For international numbers like +1234567890
-  if (phoneNumber.startsWith('+')) {
-    const countryCode = phoneNumber.slice(0, phoneNumber.length - 10); // Extract country code
-    const lastFour = phoneNumber.slice(-4); // Last 4 digits
-    const maskedMiddle = '*'.repeat(phoneNumber.length - countryCode.length - 4);
-    return `${countryCode}${maskedMiddle}${lastFour}`;
-  }
-  
-  // For other formats, show first 3 and last 4 with stars in between
-  if (phoneNumber.length >= 7) {
-    const first = phoneNumber.slice(0, 3);
-    const last = phoneNumber.slice(-4);
-    const maskedMiddle = '*'.repeat(phoneNumber.length - 7);
-    return `${first}${maskedMiddle}${last}`;
-  }
-  
-  // Fallback for short numbers
-  return phoneNumber.slice(0, 2) + '*'.repeat(phoneNumber.length - 2);
-};
-
-// Updated renderOtpStep function for ActivateAccount/index.jsx
-const renderOtpStep = () => (
-  <div>
-    <div className="uk-text-center uk-margin-top">
-      <div className="uk-margin-bottom">
-        <span data-uk-icon="icon: receiver; ratio: 3" className="uk-text-primary"></span>
-      </div>
-      <h1 className="uk-heading uk-margin-remove-bottom">
-        Verify Your Phone
-      </h1>
-      <p className="uk-text-lead uk-margin-small-top uk-text-muted">
-        We've sent a 6-digit verification code to:
-      </p>
-      {/* Display the masked phone number */}
-      <div className="uk-margin-small-top">
-        <span className="uk-text-emphasis" style={{ 
-          fontSize: '18px', 
-          fontWeight: 'bold',
-          backgroundColor: '#f8f9fa',
-          padding: '8px 16px',
-          borderRadius: '20px',
-          border: '1px solid #e9ecef'
-        }}>
-          📱 {maskPhoneNumber(user?.phone)}
-        </span>
-      </div>
-      {/*
-      <p className="uk-text-small uk-text-muted uk-margin-small-top">
-        If this isn't your current number, contact your administrator
-      </p>
-      */}
-    </div>
-
-    <form onSubmit={handleOtpSubmit}>
-      {errors.general && (
-        <div className="uk-alert-danger uk-margin-bottom" uk-alert="true">
-          <p className="uk-margin-remove">{errors.general}</p>
-        </div>
-      )}
-
-      <div className="uk-margin-bottom">
-        <input
-          className={`uk-input uk-border-pill uk-text-center ${
-            errors.otp ? 'uk-form-danger' : ''
-          }`}
-          type="text"
-          placeholder="Enter 6-digit code"
-          value={otp}
-          onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          maxLength={6}
-          style={{ 
-            fontSize: '24px', 
-            letterSpacing: '2px', 
-            fontWeight: 'bold',
-            padding: '12px 16px',
-          }}
-          autoComplete="one-time-code"
-          inputMode="numeric"
-          pattern="[0-9]*"
-        />
-        {errors.otp && (
-          <div className="uk-text-danger uk-text-small uk-margin-small-top uk-text-center">
-            {errors.otp}
-          </div>
-        )}
-      </div>
-
-      <div className="uk-margin-bottom">
-        <button
-          type="submit"
-          className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
-          disabled={otpLoading || otp.length !== 6}
-        >
-          {otpLoading ? (
-            <>
-              <span data-uk-spinner="ratio: 0.7" className="uk-margin-small-right"></span>
-              Verifying...
-            </>
-          ) : (
-            'Verify Phone Number'
-          )}
-        </button>
-      </div>
-
-      <div className="uk-text-center">
-        <p className="uk-text-small uk-margin-remove-bottom uk-text-muted">
-          Didn't receive the code?
-        </p>
-        <button
-          type="button"
-          className="uk-button uk-button-text uk-text-primary"
-          onClick={handleResendOtp}
-          disabled={resendLoading || resendCountdown > 0}
-          style={{ fontSize: '14px', textDecoration: 'underline' }}
-        >
-          {resendLoading ? (
-            <>
-              <span data-uk-spinner="ratio: 0.5" className="uk-margin-small-right"></span>
-              Sending...
-            </>
-          ) : resendCountdown > 0 ? (
-            `Resend in ${resendCountdown}s`
-          ) : (
-            'Resend Code'
-          )}
-        </button>
-      </div>
-    </form>
-  </div>
-);
-
-  const renderPasswordStep = () => (
+  const renderOtpStep = () => (
     <div>
-      <div className="uk-text-center uk-margin-top">
-        <div className="uk-margin-bottom">
-          <span data-uk-icon="icon: lock; ratio: 3" className="uk-text-primary"></span>
-        </div>
-        <h1 className="uk-heading uk-margin-remove-bottom">
-          Set Your Password
-        </h1>
-        <p className="uk-text-lead uk-margin-small-top uk-text-muted">
-          Choose a secure password for your account
+      <div className="uk-text-center uk-margin-bottom">
+        <h2 className="uk-heading-small uk-margin-remove-bottom">
+          {otpDeliveryInfo.email && otpDeliveryInfo.sms ? 'Verify Your Code' : 
+           otpDeliveryInfo.email ? 'Verify Your Email' : 'Verify Your Phone Number'}
+        </h2>
+        <p className="uk-text-muted uk-margin-small-top">
+          We've sent a 6-digit verification code to:
         </p>
+        
+        {/* 🆕 Dynamic delivery info display */}
+        <div className="uk-margin-small-top">
+          {otpDeliveryInfo.email && otpDeliveryInfo.sms && (
+            <div className="uk-margin-small-bottom">
+              <div className="uk-text-emphasis" style={{ 
+                fontSize: '16px', 
+                fontWeight: 'bold',
+                backgroundColor: '#f8f9fa',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                border: '1px solid #e9ecef',
+                marginBottom: '8px',
+                display: 'inline-block'
+              }}>
+                📧 {maskEmail(user?.email)}
+              </div>
+              <div style={{ margin: '8px 0', color: '#666' }}>and</div>
+              <div className="uk-text-emphasis" style={{ 
+                fontSize: '16px', 
+                fontWeight: 'bold',
+                backgroundColor: '#f8f9fa',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                border: '1px solid #e9ecef',
+                display: 'inline-block'
+              }}>
+                📱 {maskPhoneNumber(user?.phone)}
+              </div>
+            </div>
+          )}
+          
+          {otpDeliveryInfo.email && !otpDeliveryInfo.sms && (
+            <span className="uk-text-emphasis" style={{ 
+              fontSize: '18px', 
+              fontWeight: 'bold',
+              backgroundColor: '#f8f9fa',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              border: '1px solid #e9ecef'
+            }}>
+              📧 {maskEmail(user?.email)}
+            </span>
+          )}
+          
+          {!otpDeliveryInfo.email && otpDeliveryInfo.sms && (
+            <span className="uk-text-emphasis" style={{ 
+              fontSize: '18px', 
+              fontWeight: 'bold',
+              backgroundColor: '#f8f9fa',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              border: '1px solid #e9ecef'
+            }}>
+              📱 {maskPhoneNumber(user?.phone)}
+            </span>
+          )}
+        </div>
       </div>
 
-      <form onSubmit={handlePasswordSubmit}>
+      <form onSubmit={handleOtpSubmit}>
         {errors.general && (
           <div className="uk-alert-danger uk-margin-bottom" uk-alert="true">
             <p className="uk-margin-remove">{errors.general}</p>
@@ -387,13 +365,96 @@ const renderOtpStep = () => (
 
         <div className="uk-margin-bottom">
           <input
+            className={`uk-input uk-border-pill uk-text-center ${
+              errors.otp ? 'uk-form-danger' : ''
+            }`}
+            type="text"
+            placeholder="Enter 6-digit code"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            maxLength={6}
+            style={{ 
+              fontSize: '24px', 
+              letterSpacing: '2px', 
+              fontWeight: 'bold',
+              padding: '12px 16px',
+            }}
+            autoComplete="one-time-code"
+            inputMode="numeric"
+            pattern="[0-9]*"
+          />
+          {errors.otp && (
+            <div className="uk-text-danger uk-text-small uk-margin-small-top uk-text-center">
+              {errors.otp}
+            </div>
+          )}
+        </div>
+
+        <div className="uk-margin-bottom">
+          <button
+            type="submit"
+            className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
+            disabled={otpLoading || otp.length !== 6}
+          >
+            {otpLoading ? (
+              <>
+                <span data-uk-spinner="ratio: 0.7" className="uk-margin-small-right"></span>
+                Verifying...
+              </>
+            ) : (
+              otpDeliveryInfo.email && otpDeliveryInfo.sms ? 'Verify Code' : 
+              otpDeliveryInfo.email ? 'Verify Email Code' : 'Verify Phone Code'
+            )}
+          </button>
+        </div>
+
+        <div className="uk-text-center">
+          <p className="uk-text-small uk-margin-remove-bottom uk-text-muted">
+            Didn't receive the code?
+          </p>
+          <button
+            type="button"
+            className="uk-button uk-button-text uk-text-primary"
+            onClick={handleResendOtp}
+            disabled={resendLoading || resendCountdown > 0}
+            style={{ fontSize: '14px', textDecoration: 'underline' }}
+          >
+            {resendLoading ? (
+              <>
+                <span data-uk-spinner="ratio: 0.5" className="uk-margin-small-right"></span>
+                Sending...
+              </>
+            ) : resendCountdown > 0 ? (
+              `Resend in ${resendCountdown}s`
+            ) : (
+              'Resend Code'
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+
+  const renderPasswordStep = () => (
+    <div>
+      <div className="uk-text-center uk-margin-bottom">
+        <h2 className="uk-heading-small uk-margin-remove-bottom">
+          Set Your Password
+        </h2>
+        <p className="uk-text-muted uk-margin-small-top">
+          Create a secure password for your account
+        </p>
+      </div>
+
+      <form onSubmit={handlePasswordSubmit}>
+        <div className="uk-margin-bottom">
+          <input
             className={`uk-input uk-border-pill ${errors.password ? 'uk-form-danger' : ''}`}
             type="password"
-            placeholder="New Password"
+            placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            disabled={loading}
-            autoFocus
+            style={{ padding: '12px 16px' }}
           />
           {errors.password && (
             <div className="uk-text-danger uk-text-small uk-margin-small-top">
@@ -406,10 +467,10 @@ const renderOtpStep = () => (
           <input
             className={`uk-input uk-border-pill ${errors.confirmPassword ? 'uk-form-danger' : ''}`}
             type="password"
-            placeholder="Confirm Password"
+            placeholder="Confirm your password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            disabled={loading}
+            style={{ padding: '12px 16px' }}
           />
           {errors.confirmPassword && (
             <div className="uk-text-danger uk-text-small uk-margin-small-top">
@@ -426,7 +487,7 @@ const renderOtpStep = () => (
           >
             {loading ? (
               <>
-                <span uk-spinner="ratio: 0.8" className="uk-margin-small-right"></span>
+                <span data-uk-spinner="ratio: 0.7" className="uk-margin-small-right"></span>
                 Activating Account...
               </>
             ) : (
@@ -439,62 +500,78 @@ const renderOtpStep = () => (
   );
 
   const renderSuccessStep = () => (
-    <div className="uk-text-center uk-margin-top">
+    <div className="uk-text-center">
       <div className="uk-margin-bottom">
-        <span data-uk-icon="icon: check; ratio: 4" className="uk-text-success"></span>
+        <span className="uk-text-success" style={{ fontSize: '48px' }}>✓</span>
       </div>
-      <h1 className="uk-heading uk-margin-remove-bottom">
+      <h2 className="uk-heading-small uk-margin-remove-bottom uk-text-success">
         Account Activated!
-      </h1>
-      <p className="uk-text-lead uk-margin-small-top uk-text-muted">
+      </h2>
+      <p className="uk-text-muted uk-margin-small-top">
         Your account has been successfully activated.
       </p>
       <p className="uk-text-small uk-text-muted">
         Redirecting to login page in a few seconds...
       </p>
-      <button
-        onClick={handleNavigateToLogin}
-        className="uk-button uk-button-primary uk-border-pill uk-margin-top"
-      >
-        Go to Login
-      </button>
     </div>
   );
 
   const renderErrorStep = () => (
-    <div className="uk-text-center uk-margin-top">
+    <div className="uk-text-center">
       <div className="uk-margin-bottom">
-        <span data-uk-icon="icon: warning; ratio: 4" className="uk-text-danger"></span>
+        <span className="uk-text-danger" style={{ fontSize: '48px' }}>✗</span>
       </div>
-      <h1 className="uk-heading uk-margin-remove-bottom">
-        Activation Error
-      </h1>
-      <p className="uk-text-lead uk-margin-small-top uk-text-muted">
-        We couldn't activate your account. The link may be invalid or expired.
+      <h2 className="uk-heading-small uk-margin-remove-bottom uk-text-danger">
+        Activation Failed
+      </h2>
+      <p className="uk-text-muted uk-margin-small-top">
+        There was a problem activating your account.
       </p>
-      <button
-        onClick={handleNavigateToLogin}
-        className="uk-button uk-button-primary uk-border-pill uk-margin-top"
-      >
-        Back to Login
-      </button>
+      <div className="uk-margin-top">
+        <button
+          className="uk-button uk-button-primary uk-border-pill"
+          onClick={() => navigate('/login')}
+        >
+          Go to Login
+        </button>
+      </div>
     </div>
   );
 
+  const getCurrentStep = () => {
+    switch (step) {
+      case 'validating':
+        return renderValidatingStep();
+      case 'otp':
+        return renderOtpStep();
+      case 'password':
+        return renderPasswordStep();
+      case 'success':
+        return renderSuccessStep();
+      case 'error':
+        return renderErrorStep();
+      default:
+        return renderValidatingStep();
+    }
+  };
+
   return (
     <Div100vh>
-      <div className="login uk-cover-container uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-dark">
-        <div className="uk-position-cover" />
-        <div className="login-scrollable uk-flex uk-flex-center uk-flex-middle uk-position-z-index">
-          <Credits />
-          <div className="login-inner uk-width-medium uk-padding-small" data-uk-scrollspy="cls: uk-animation-fade">
-            <Logo />
-            
-            {step === 'validating' && renderValidatingStep()}
-            {step === 'otp' && renderOtpStep()}
-            {step === 'password' && renderPasswordStep()}
-            {step === 'success' && renderSuccessStep()}
-            {step === 'error' && renderErrorStep()}
+      <div className="uk-height-1-1 uk-flex uk-flex-middle uk-flex-center uk-background-muted">
+        <div className="uk-width-1-1 uk-width-medium@s">
+          <div className="uk-card uk-card-default uk-card-body uk-box-shadow-large uk-border-rounded">
+            <div className="uk-text-center uk-margin-bottom">
+              <Logo info={info} />
+              <h1 className="uk-heading-small uk-margin-remove-top">
+                Account Activation
+              </h1>
+            </div>
+
+            {getCurrentStep()}
+
+            <div className="uk-margin-top uk-text-center">
+              <Credits />
+            </div>
           </div>
         </div>
       </div>
