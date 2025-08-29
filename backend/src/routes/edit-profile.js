@@ -173,7 +173,9 @@ module.exports = async (req, res) => {
       { _id: req.user.id, companyId: companyObjectId },
       { $set: updateData },
       { new: true, runValidators: true }
-    ).select("-password -activationToken"); // Exclude sensitive fields from response
+    )
+      .select("-password -activationToken")
+      .populate([{ path: "picture", strictPopulate: false }]); // Exclude sensitive fields from response
 
     if (!updatedUser) {
       return res.status(404).json({
