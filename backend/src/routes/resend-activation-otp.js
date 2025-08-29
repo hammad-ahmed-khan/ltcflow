@@ -227,6 +227,7 @@ module.exports = async (req, res) => {
       message: "New verification code sent to your email address.",
       data: {
         email: user.email,
+        phone: user.phone,
         codeExpiry: moment().add(15, "minutes").toDate(),
         resentAt: new Date(),
       },

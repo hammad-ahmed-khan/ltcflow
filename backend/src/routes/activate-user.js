@@ -209,6 +209,7 @@ module.exports = async (req, res) => {
         firstName: user.firstName,
         lastName: user.lastName,
         username: user.username,
+        phone: user.phone,
         level: user.level,
       },
       nextStep: "verify_otp", // Indicate that OTP verification is required

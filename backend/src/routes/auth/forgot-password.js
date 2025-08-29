@@ -211,14 +211,18 @@ router.post("*", async (req, res) => {
       );
       */
     } else {
-      console.log(
-        `🔐 Password reset attempted for non-existent user: ${email} (Company: ${companyId})`
-      );
+      return res.status(404).json({
+        status: "error",
+        error: "EMAIL_NOT_FOUND",
+        message:
+          "No account found with this email address. Please check your email or contact your administrator.",
+      });
     }
 
     // Always return success response for security
     res.status(200).json({
       status: "success",
+      user: user,
       message:
         "If an account with that email exists and has a phone number, we've sent a password reset code to your phone number.",
     });

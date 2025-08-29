@@ -219,7 +219,7 @@ function ForgotPassword() {
               </h1>
               <p className="uk-text-lead uk-margin-small-top">
                 {step === 1 
-                  ? 'Enter your email to receive a reset code'
+                  ? 'Enter your email address to identify your account'
                   : 'Enter the code and your new password'
                 }
               </p>
@@ -395,6 +395,7 @@ function ForgotPassword() {
                 </div>
 
                 {/* Back to Email Step */}
+                {/*
                 <div className="uk-text-center">
                   <button
                     type="button"
@@ -405,6 +406,7 @@ function ForgotPassword() {
                     ← Use different email
                   </button>
                 </div>
+                */}
               </form>
             )}
 
