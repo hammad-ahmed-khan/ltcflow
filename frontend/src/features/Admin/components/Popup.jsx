@@ -257,20 +257,41 @@ function AddPeers({ onClose, type, user }) {
     }
   };
 
+// Updated phone validation for USA format (10-digit numbers)
 const isValidPhone = (number) => {
-  const regex = /^\+[1-9]\d{1,14}$/; // Must start with '+' and country code
-  return regex.test(number);
+  // Remove all non-digits
+  const digitsOnly = number.replace(/\D/g, '');
+  
+  // Check if it's exactly 10 digits (USA format)
+  if (digitsOnly.length === 10) {
+    return true;
+  }
+  
+  // Also accept 11 digits if it starts with 1 (USA country code)
+  if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
+    return true;
+  }
+  
+  return false;
 };
 
   const createUser = async (e) => {
     e.preventDefault();
 
-    // Validate phone
-  if (!isValidPhone(phone)) {
-    setErrors({ phone: 'Invalid phone number. Use international format like +1234567890' });
-    errorToast('Invalid phone number. Please check and try again.');
-    return;
-  }
+    // Validate phone for USA format
+    if (!isValidPhone(phone)) {
+      setErrors({ phone: 'Invalid phone number. Please enter a 10-digit USA phone number (e.g., 2345678901)' });
+      errorToast('Invalid phone number. Please check and try again.');
+      return;
+    }
+
+    // Format phone number - ensure it has USA country code prefix for backend
+    let formattedPhone = phone.replace(/\D/g, ''); // Remove non-digits
+    if (formattedPhone.length === 10) {
+      formattedPhone = '+1' + formattedPhone; // Add USA country code
+    } else if (formattedPhone.length === 11 && formattedPhone.startsWith('1')) {
+      formattedPhone = '+' + formattedPhone; // Add + prefix
+    }
 
     try {
       const response = await postCreate({
@@ -278,7 +299,7 @@ const isValidPhone = (number) => {
         email,
         firstName,
         lastName,
-        phone,        // Include phone for Twilio
+        phone: formattedPhone,        // Send formatted phone for Twilio
         level: userTier,
       });
       
@@ -299,20 +320,30 @@ const isValidPhone = (number) => {
   const updateUser = async (e) => {
   e.preventDefault();
   
-  // Validate phone number (same validation as createUser)
+  // Validate phone number for USA format
   if (!isValidPhone(phone)) {
-    setErrors({ phone: 'Invalid phone number. Use international format like +1234567890' });
+    setErrors({ phone: 'Invalid phone number. Please enter a 10-digit USA phone number (e.g., 2345678901)' });
     errorToast('Invalid phone number. Please check and try again.');
     return;
   }
 
+  // Format phone number - ensure it has USA country code prefix for backend
+  let formattedPhone = phone.replace(/\D/g, ''); // Remove non-digits
+  /*
+  if (formattedPhone.length === 10) {
+    formattedPhone = '+1' + formattedPhone; // Add USA country code
+  } else if (formattedPhone.length === 11 && formattedPhone.startsWith('1')) {
+    formattedPhone = '+' + formattedPhone; // Add + prefix
+  }
+  */
+ 
   try {
     await postUpdate({
       username,
       email,
       firstName,
       lastName,
-      phone,        // Add the missing phone field
+      phone: formattedPhone,        // Send formatted phone
       level: userTier,
       user,
     });
@@ -422,12 +453,15 @@ const isValidPhone = (number) => {
 
                 <Input
                   icon="phone"
-                  placeholder="Phone (e.g. +1234567890)"
+                  placeholder="Phone (e.g. 2345678901)"
                   type="text"
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
+                <div className="uk-text-small uk-text-muted uk-margin-small-top uk-text-center">
+                  Required only for MFA account verification
+                </div>
                 {errors && errors.phone && <div className="admin-form-error">{errors.phone}</div>}
 
                 <UserTierSelect
