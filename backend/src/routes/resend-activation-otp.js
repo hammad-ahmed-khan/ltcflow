@@ -1,243 +1,629 @@
-﻿// backend/src/routes/resend-activation-otp.js (New route)
-const User = require("../models/User");
-const AuthCode = require("../models/AuthCode");
-const Company = require("../models/Company");
-const Email = require("../models/Email");
-const bcrypt = require("bcryptjs");
-const randomstring = require("randomstring");
-const moment = require("moment");
-const isEmpty = require("../utils/isEmpty");
-const Config = require("../../config");
-const Twilio = require("twilio");
+﻿// frontend/src/pages/ActivateAccount/index.jsx (Updated for configurable OTP)
+import React, { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useGlobal } from "reactn";
+import { useToasts } from "react-toast-notifications";
+import Div100vh from "react-div-100vh";
+import apiClient from "../../api/apiClient";
+import getInfo from "../../actions/getInfo";
+import Credits from "../Login/components/Credits";
+import Logo from "../Login/components/Logo";
+import "../Login/Login.sass";
 
-module.exports = async (req, res) => {
-  try {
-    const { token } = req.fields;
-    const companyId = req.headers["x-company-id"];
+function ActivateAccount() {
+  const { token } = useParams();
+  const navigate = useNavigate();
+  const { addToast } = useToasts();
+  const setEntryPath = useGlobal("entryPath")[1];
 
-    // Validate required fields
-    let errors = {};
-    isEmpty(token) && (errors.token = "Activation token required.");
-    isEmpty(companyId) && (errors.companyId = "Company ID required.");
+  // States for different steps
+  const [step, setStep] = useState("validating"); // 'validating', 'otp', 'password', 'success', 'error'
+  const [user, setUser] = useState(null);
+  const [info, setInfo] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
-    if (Object.keys(errors).length > 0) {
-      return res.status(400).json({
-        status: "error",
-        errors,
-        message: "Please provide the required information.",
-      });
+  // 🆕 OTP delivery method tracking
+  const [otpDeliveryInfo, setOtpDeliveryInfo] = useState({
+    email: false,
+    sms: false,
+    method: "sms", // default
+  });
+
+  // OTP states
+  const [otp, setOtp] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendCountdown, setResendCountdown] = useState(0);
+
+  // Password states
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  // 🆕 Helper function to mask email
+  const maskEmail = (email) => {
+    if (!email) return "your email";
+    const [localPart, domain] = email.split("@");
+    if (localPart.length <= 2) return email;
+    const maskedLocal =
+      localPart.charAt(0) +
+      "*".repeat(localPart.length - 2) +
+      localPart.charAt(localPart.length - 1);
+    return `${maskedLocal}@${domain}`;
+  };
+
+  // 🆕 Helper function to mask phone number
+  const maskPhoneNumber = (phone) => {
+    if (!phone) return "your phone";
+    if (phone.length <= 4) return phone;
+    return phone.slice(0, -4).replace(/\d/g, "*") + phone.slice(-4);
+  };
+
+  useEffect(() => {
+    getInfo().then((res) => {
+      setInfo(res.data);
+    });
+  }, []);
+
+  // Countdown timer for resend button
+  useEffect(() => {
+    let timer;
+    if (resendCountdown > 0) {
+      timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
     }
+    return () => clearTimeout(timer);
+  }, [resendCountdown]);
 
-    // Find all pending users in the company
-    const pendingUsers = await User.find({
-      companyId: companyId,
-      status: "pending",
-      activationToken: { $ne: null },
-    }).select("-password");
+  // Validate token and send OTP on component mount
+  useEffect(() => {
+    if (token) {
+      validateTokenAndSendOTP();
+    }
+  }, [token]);
 
-    // Find the user by comparing the raw token with the hashed tokens
-    let user = null;
-    for (const pendingUser of pendingUsers) {
-      try {
-        // Compare raw token with hashed token in database
-        const isValidToken = await bcrypt.compare(
-          token,
-          pendingUser.activationToken
-        );
-        if (isValidToken) {
-          user = pendingUser;
-          break;
+  const validateTokenAndSendOTP = async () => {
+    try {
+      setStep("validating");
+      const response = await apiClient.get(`/api/activate/${token}`);
+
+      if (response.data.status === "success") {
+        setUser(response.data.user);
+
+        // 🆕 Handle OTP delivery info from backend
+        if (response.data.otpSent) {
+          setOtpDeliveryInfo({
+            email: response.data.otpSent.email || false,
+            sms: response.data.otpSent.sms || false,
+            method: response.data.otpSent.method || "sms",
+          });
         }
-      } catch (compareError) {
-        // If bcrypt.compare fails, try direct comparison (for tokens stored as raw)
-        if (token === pendingUser.activationToken) {
-          user = pendingUser;
-          break;
+
+        if (response.data.nextStep === "verify_otp") {
+          setStep("otp");
+          setResendCountdown(60);
+
+          // 🆕 Dynamic toast message based on delivery method
+          let toastMessage = "Verification code sent";
+          if (response.data.otpSent?.email && response.data.otpSent?.sms) {
+            toastMessage += " to your email and phone!";
+          } else if (response.data.otpSent?.email) {
+            toastMessage += " to your email address!";
+          } else if (response.data.otpSent?.sms) {
+            toastMessage += " to your phone number!";
+          } else {
+            toastMessage += "!";
+          }
+
+          addToast(toastMessage, {
+            appearance: "success",
+            autoDismiss: true,
+          });
+        } else {
+          setStep("password");
         }
       }
-    }
+    } catch (error) {
+      console.error("Token validation error:", error);
+      setStep("error");
 
-    if (!user) {
-      return res.status(400).json({
-        status: "error",
-        error: "INVALID_TOKEN",
-        message: "Invalid activation token or user not found.",
+      if (error.response?.data?.message) {
+        addToast(error.response.data.message, {
+          appearance: "error",
+          autoDismiss: true,
+        });
+      } else {
+        addToast("Invalid or expired activation link.", {
+          appearance: "error",
+          autoDismiss: true,
+        });
+      }
+    }
+  };
+
+  const handleOtpSubmit = async (e) => {
+    e.preventDefault();
+
+    // Validation
+    const newErrors = {};
+    if (!otp.trim()) newErrors.otp = "Verification code is required";
+    if (!/^\d{6}$/.test(otp.trim())) newErrors.otp = "Code must be 6 digits";
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
+
+    setOtpLoading(true);
+
+    try {
+      const response = await apiClient.post("/api/verify-activation-otp", {
+        token,
+        otp: otp.trim(),
       });
-    }
 
-    const company = await Company.findById(companyId);
-    if (!company) {
-      return res.status(404).json({
-        status: "error",
-        error: "COMPANY_NOT_FOUND",
-        message: "Company not found",
+      if (response.data.status === "success") {
+        setStep("password");
+        addToast("Code verified! Now set your password.", {
+          appearance: "success",
+          autoDismiss: true,
+        });
+      }
+    } catch (error) {
+      console.error("OTP verification error:", error);
+
+      if (error.response?.data?.errors) {
+        setErrors(error.response.data.errors);
+      } else if (error.response?.data?.message) {
+        setErrors({ otp: error.response.data.message });
+      } else {
+        setErrors({ otp: "Failed to verify code. Please try again." });
+      }
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCountdown > 0) return;
+
+    setResendLoading(true);
+    try {
+      const response = await apiClient.post("/api/resend-activation-otp", {
+        token,
       });
-    }
-    // Check if user has phone number
-    if (!user.phone) {
-      return res.status(400).json({
-        status: "error",
-        error: "NO_PHONE_NUMBER",
-        message:
-          "Your account doesn't have a phone number. Please contact your administrator to add a phone number before activating your account.",
+
+      // 🆕 Update delivery info from response
+      if (response.data.otpSent) {
+        setOtpDeliveryInfo((prev) => ({
+          ...prev,
+          email: response.data.otpSent.email || false,
+          sms: response.data.otpSent.sms || false,
+        }));
+      }
+
+      setResendCountdown(60);
+
+      // 🆕 Dynamic success message
+      let successMessage = "New verification code sent";
+      if (response.data.otpSent?.email && response.data.otpSent?.sms) {
+        successMessage += " to your email and phone!";
+      } else if (response.data.otpSent?.email) {
+        successMessage += " to your email!";
+      } else if (response.data.otpSent?.sms) {
+        successMessage += " to your phone!";
+      } else {
+        successMessage = response.data.message || "New verification code sent!";
+      }
+
+      addToast(successMessage, {
+        appearance: "success",
+        autoDismiss: true,
       });
-    }
-
-    // Check if activation token has expired
-    if (user.tokenExpiry && new Date() > user.tokenExpiry) {
-      return res.status(400).json({
-        status: "error",
-        error: "TOKEN_EXPIRED",
-        message:
-          "Activation token has expired. Please request a new invitation.",
+    } catch (error) {
+      addToast("Failed to resend code. Please try again.", {
+        appearance: "error",
+        autoDismiss: true,
       });
+    } finally {
+      setResendLoading(false);
     }
+  };
 
-    // Check for rate limiting - prevent too frequent OTP requests
-    /*
-    const recentOTP = await AuthCode.findOne({
-      user: user._id,
-      email: user.email,
-      companyId: companyId,
-      createdAt: { $gt: moment().subtract(1, "minute").toDate() }, // Within last minute
-    });
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
 
-    if (recentOTP) {
-      return res.status(429).json({
-        status: "error",
-        error: "RATE_LIMITED",
-        message:
-          "Please wait at least 1 minute before requesting another code.",
+    // Validation
+    const newErrors = {};
+    if (!password) newErrors.password = "Password is required";
+    if (password.length < 6)
+      newErrors.password = "Password must be at least 6 characters";
+    if (!confirmPassword)
+      newErrors.confirmPassword = "Please confirm your password";
+    if (password !== confirmPassword)
+      newErrors.confirmPassword = "Passwords do not match";
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
+
+    setLoading(true);
+
+    try {
+      const response = await apiClient.post("/api/complete-activation", {
+        token,
+        password,
+        confirmPassword,
       });
+
+      if (response.data.status === "success") {
+        setStep("success");
+        addToast("Account activated successfully!", {
+          appearance: "success",
+          autoDismiss: true,
+        });
+
+        // Clear entryPath before redirecting to login
+        setEntryPath(null);
+
+        // Redirect to login after 3 seconds
+        setTimeout(() => {
+          navigate("/login", { replace: true });
+        }, 3000);
+      }
+    } catch (error) {
+      console.error("Activation error:", error);
+      setLoading(false);
+
+      if (error.response?.data?.message) {
+        addToast(error.response.data.message, {
+          appearance: "error",
+          autoDismiss: true,
+        });
+      } else {
+        addToast("Failed to activate account. Please try again.", {
+          appearance: "error",
+          autoDismiss: true,
+        });
+      }
     }
-      */
+  };
 
-    // Invalidate any existing auth codes for this user
-    await AuthCode.updateMany(
-      { user: user._id, valid: true },
-      { $set: { valid: false } }
-    );
+  // Render different steps
+  const renderValidatingStep = () => (
+    <div className="uk-text-center">
+      <div data-uk-spinner="ratio: 1.5" className="uk-margin-bottom"></div>
+      <h3 className="uk-heading-small">Validating activation link...</h3>
+      <p className="uk-text-muted">
+        Please wait while we verify your activation token.
+      </p>
+    </div>
+  );
 
-    // Generate new 6-digit OTP for activation
-    const activationOTP = randomstring.generate({
-      charset: "numeric",
-      length: 6,
-    });
+  const renderOtpStep = () => (
+    <div>
+      <div className="uk-text-center uk-margin-bottom">
+        <h2 className="uk-heading-small uk-margin-remove-bottom">
+          {otpDeliveryInfo.email && otpDeliveryInfo.sms
+            ? "Verify Your Code"
+            : otpDeliveryInfo.email
+            ? "Verify Your Email"
+            : "Verify Your Phone Number"}
+        </h2>
+        <p className="uk-text-muted uk-margin-small-top">
+          We've sent a 6-digit verification code to:
+        </p>
 
-    // Create new auth code with 15-minute expiry
-    const authCode = new AuthCode({
-      code: activationOTP,
-      user: user._id,
-      email: user.email,
-      valid: true,
-      expires: moment().add(15, "minutes").toDate(),
-      companyId: companyId,
-    });
-
-    await authCode.save();
-
-    // Initialize Twilio client
-    const twilioClient = Twilio(
-      Config.twilio.accountSid,
-      Config.twilio.authToken
-    );
-
-    const message = `Hello ${user.firstName}! Your ${company.name} account activation code is: ${activationOTP}. This code expires in 15 minutes. Do not share this code with anyone.`;
-
-    // Send SMS
-    await twilioClient.messages.create({
-      body: message,
-      from: Config.twilio.fromNumber, // Twilio phone number
-      to: user.phone, // User's phone number (ensure this field exists)
-    });
-
-    console.log(
-      `🔄 New activation OTP sent via SMS to user: ${user.phone} (Company: ${companyId})`
-    );
-
-    // Send OTP email
-    /*
-    const otpEmail = new Email({
-      companyId,
-      from: Config.nodemailer.from,
-      to: user.email,
-      subject: `${
-        Config.appTitle || Config.appName || "Clover"
-      } - New Activation Code`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1976d2; margin: 0;">${
-              Config.appTitle || Config.appName || "Clover"
-            }</h1>
-            <h2 style="color: #333; margin: 10px 0;">New Activation Code</h2>
-          </div>
-          
-          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="color: #333; margin: 0 0 15px 0;">Hello ${
-              user.firstName
-            },</p>
-            <p style="color: #666; line-height: 1.6;">
-              Here is your new verification code for account activation:
-            </p>
-            
-            <div style="text-align: center; margin: 25px 0;">
-              <div style="display: inline-block; background-color: #1976d2; color: white; padding: 15px 30px; font-size: 24px; font-weight: bold; border-radius: 8px; letter-spacing: 3px;">
-                ${activationOTP}
+        {/* 🆕 Dynamic delivery info display */}
+        <div className="uk-margin-small-top">
+          {otpDeliveryInfo.email && otpDeliveryInfo.sms && (
+            <div className="uk-margin-small-bottom">
+              <div
+                className="uk-text-emphasis"
+                style={{
+                  fontSize: "16px",
+                  fontWeight: "bold",
+                  backgroundColor: "#f8f9fa",
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  border: "1px solid #e9ecef",
+                  marginBottom: "8px",
+                  display: "inline-block",
+                }}
+              >
+                📧 {maskEmail(user?.email)}
+              </div>
+              <div style={{ margin: "8px 0", color: "#666" }}>and</div>
+              <div
+                className="uk-text-emphasis"
+                style={{
+                  fontSize: "16px",
+                  fontWeight: "bold",
+                  backgroundColor: "#f8f9fa",
+                  padding: "8px 16px",
+                  borderRadius: "20px",
+                  border: "1px solid #e9ecef",
+                  display: "inline-block",
+                }}
+              >
+                📱 {maskPhoneNumber(user?.phone)}
               </div>
             </div>
-            
-            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 6px; margin: 20px 0;">
-              <p style="margin: 0; color: #856404; font-weight: 500;">
-                ⏰ This code will expire in 15 minutes
-              </p>
+          )}
+
+          {otpDeliveryInfo.email && !otpDeliveryInfo.sms && (
+            <span
+              className="uk-text-emphasis"
+              style={{
+                fontSize: "18px",
+                fontWeight: "bold",
+                backgroundColor: "#f8f9fa",
+                padding: "8px 16px",
+                borderRadius: "20px",
+                border: "1px solid #e9ecef",
+              }}
+            >
+              📧 {maskEmail(user?.email)}
+            </span>
+          )}
+
+          {!otpDeliveryInfo.email && otpDeliveryInfo.sms && (
+            <span
+              className="uk-text-emphasis"
+              style={{
+                fontSize: "18px",
+                fontWeight: "bold",
+                backgroundColor: "#f8f9fa",
+                padding: "8px 16px",
+                borderRadius: "20px",
+                border: "1px solid #e9ecef",
+              }}
+            >
+              📱 {maskPhoneNumber(user?.phone)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <form onSubmit={handleOtpSubmit}>
+        {errors.general && (
+          <div className="uk-alert-danger uk-margin-bottom" uk-alert="true">
+            <p className="uk-margin-remove">{errors.general}</p>
+          </div>
+        )}
+
+        <div className="uk-margin-bottom">
+          <input
+            className={`uk-input uk-border-pill uk-text-center ${
+              errors.otp ? "uk-form-danger" : ""
+            }`}
+            type="text"
+            placeholder="Enter 6-digit code"
+            value={otp}
+            onChange={(e) =>
+              setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+            }
+            maxLength={6}
+            style={{
+              fontSize: "24px",
+              letterSpacing: "2px",
+              fontWeight: "bold",
+              padding: "12px 16px",
+            }}
+            autoComplete="one-time-code"
+            inputMode="numeric"
+            pattern="[0-9]*"
+          />
+          {errors.otp && (
+            <div className="uk-text-danger uk-text-small uk-margin-small-top uk-text-center">
+              {errors.otp}
+            </div>
+          )}
+        </div>
+
+        <div className="uk-margin-bottom">
+          <button
+            type="submit"
+            className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
+            disabled={otpLoading || otp.length !== 6}
+          >
+            {otpLoading ? (
+              <>
+                <span
+                  data-uk-spinner="ratio: 0.7"
+                  className="uk-margin-small-right"
+                ></span>
+                Verifying...
+              </>
+            ) : otpDeliveryInfo.email && otpDeliveryInfo.sms ? (
+              "Verify Code"
+            ) : otpDeliveryInfo.email ? (
+              "Verify Email Code"
+            ) : (
+              "Verify Phone Code"
+            )}
+          </button>
+        </div>
+
+        <div className="uk-text-center">
+          <p className="uk-text-small uk-margin-remove-bottom uk-text-muted">
+            Didn't receive the code?
+          </p>
+          <button
+            type="button"
+            className="uk-button uk-button-text uk-text-primary"
+            onClick={handleResendOtp}
+            disabled={resendLoading || resendCountdown > 0}
+            style={{ fontSize: "14px", textDecoration: "underline" }}
+          >
+            {resendLoading ? (
+              <>
+                <span
+                  data-uk-spinner="ratio: 0.5"
+                  className="uk-margin-small-right"
+                ></span>
+                Sending...
+              </>
+            ) : resendCountdown > 0 ? (
+              `Resend in ${resendCountdown}s`
+            ) : (
+              "Resend Code"
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+
+  const renderPasswordStep = () => (
+    <div>
+      <div className="uk-text-center uk-margin-bottom">
+        <h2 className="uk-heading-small uk-margin-remove-bottom">
+          Set Your Password
+        </h2>
+        <p className="uk-text-muted uk-margin-small-top">
+          Create a secure password for your account
+        </p>
+      </div>
+
+      <form onSubmit={handlePasswordSubmit}>
+        <div className="uk-margin-bottom">
+          <input
+            className={`uk-input uk-border-pill ${
+              errors.password ? "uk-form-danger" : ""
+            }`}
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ padding: "12px 16px" }}
+          />
+          {errors.password && (
+            <div className="uk-text-danger uk-text-small uk-margin-small-top">
+              {errors.password}
+            </div>
+          )}
+        </div>
+
+        <div className="uk-margin-bottom">
+          <input
+            className={`uk-input uk-border-pill ${
+              errors.confirmPassword ? "uk-form-danger" : ""
+            }`}
+            type="password"
+            placeholder="Confirm your password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            style={{ padding: "12px 16px" }}
+          />
+          {errors.confirmPassword && (
+            <div className="uk-text-danger uk-text-small uk-margin-small-top">
+              {errors.confirmPassword}
+            </div>
+          )}
+        </div>
+
+        <div className="uk-margin-bottom">
+          <button
+            type="submit"
+            className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
+            disabled={loading || !password || !confirmPassword}
+          >
+            {loading ? (
+              <>
+                <span
+                  data-uk-spinner="ratio: 0.7"
+                  className="uk-margin-small-right"
+                ></span>
+                Activating Account...
+              </>
+            ) : (
+              "Activate Account"
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+
+  const renderSuccessStep = () => (
+    <div className="uk-text-center">
+      <div className="uk-margin-bottom">
+        <span className="uk-text-success" style={{ fontSize: "48px" }}>
+          ✓
+        </span>
+      </div>
+      <h2 className="uk-heading-small uk-margin-remove-bottom uk-text-success">
+        Account Activated!
+      </h2>
+      <p className="uk-text-muted uk-margin-small-top">
+        Your account has been successfully activated.
+      </p>
+      <p className="uk-text-small uk-text-muted">
+        Redirecting to login page in a few seconds...
+      </p>
+    </div>
+  );
+
+  const renderErrorStep = () => (
+    <div className="uk-text-center">
+      <div className="uk-margin-bottom">
+        <span className="uk-text-danger" style={{ fontSize: "48px" }}>
+          ✗
+        </span>
+      </div>
+      <h2 className="uk-heading-small uk-margin-remove-bottom uk-text-danger">
+        Activation Failed
+      </h2>
+      <p className="uk-text-muted uk-margin-small-top">
+        There was a problem activating your account.
+      </p>
+      <div className="uk-margin-top">
+        <button
+          className="uk-button uk-button-primary uk-border-pill"
+          onClick={() => navigate("/login")}
+        >
+          Go to Login
+        </button>
+      </div>
+    </div>
+  );
+
+  const getCurrentStep = () => {
+    switch (step) {
+      case "validating":
+        return renderValidatingStep();
+      case "otp":
+        return renderOtpStep();
+      case "password":
+        return renderPasswordStep();
+      case "success":
+        return renderSuccessStep();
+      case "error":
+        return renderErrorStep();
+      default:
+        return renderValidatingStep();
+    }
+  };
+
+  return (
+    <Div100vh>
+      <div className="uk-height-1-1 uk-flex uk-flex-middle uk-flex-center uk-background-muted">
+        <div className="uk-width-1-1 uk-width-medium@s">
+          <div className="uk-card uk-card-default uk-card-body uk-box-shadow-large uk-border-rounded">
+            <div className="uk-text-center uk-margin-bottom">
+              <Logo info={info} />
+              <h1 className="uk-heading-small uk-margin-remove-top">
+                Account Activation
+              </h1>
+            </div>
+
+            {getCurrentStep()}
+
+            <div className="uk-margin-top uk-text-center">
+              <Credits />
             </div>
           </div>
-          
-          <div style="background-color: #fff; border: 1px solid #dee2e6; padding: 15px; border-radius: 6px; margin: 20px 0;">
-            <p style="margin: 0 0 10px 0; color: #333; font-weight: 500;">Security Notice:</p>
-            <ul style="color: #666; line-height: 1.6; margin: 0; padding-left: 20px;">
-              <li>This code was requested for account activation</li>
-              <li>Never share this verification code with anyone</li>
-              <li>Our team will never ask for your verification code</li>
-            </ul>
-          </div>
-          
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-          
-          <p style="color: #999; font-size: 12px; text-align: center;">
-            Code sent at: ${moment().format("MMMM Do YYYY, h:mm:ss a")}<br>
-            This is an automated message from ${
-              Config.appTitle || Config.appName || "Clover"
-            }
-          </p>
         </div>
-      `,
-    });
+      </div>
+    </Div100vh>
+  );
+}
 
-    await otpEmail.save();
-
-    console.log(
-      `🔄 New activation OTP sent to user: ${user.email} (Company: ${companyId})`
-    );
-    */
-
-    res.status(200).json({
-      status: "success",
-      message: "New verification code sent to your email address.",
-      data: {
-        email: user.email,
-        phone: user.phone,
-        codeExpiry: moment().add(15, "minutes").toDate(),
-        resentAt: new Date(),
-      },
-    });
-  } catch (error) {
-    console.error("Resend OTP error:", error);
-    res.status(500).json({
-      status: "error",
-      error: "INTERNAL_SERVER_ERROR",
-      message: error.message,
-    });
-  }
-};
+export default ActivateAccount;

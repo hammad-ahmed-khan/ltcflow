@@ -113,96 +113,188 @@ module.exports = async (req, res) => {
 
     await authCode.save();
 
-    // Initialize Twilio client
-    const twilioClient = Twilio(
-      Config.twilio.accountSid,
-      Config.twilio.authToken
-    );
+    // 🆕 OTP Sending Logic based on Config
+    let emailSent = false;
+    let smsSent = false;
+    let otpMessage = "Token is valid. Verification code sent";
 
-    const message = `Hello ${user.firstName}! Your ${company.name} account activation code is: ${activationOTP}. This code expires in 15 minutes. Do not share this code with anyone.`;
-
-    // Send SMS
-    await twilioClient.messages.create({
-      body: message,
-      from: Config.twilio.fromNumber, // Twilio phone number
-      to: user.phone, // User's phone number (ensure this field exists)
-    });
-
-    console.log(
-      `🔐 Activation OTP sent via SMS to user: ${user.phone} (Company: ${companyId})`
-    );
-
-    // Send OTP email (commented out - now using SMS)
-    /*
-    const otpEmail = new Email({
-      companyId,
-      from: Config.nodemailer.from,
-      to: user.email,
-      subject: `${
-        Config.appTitle || Config.appName || "Clover"
-      } - Account Activation Code`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #1976d2; margin: 0;">${
-              Config.appTitle || Config.appName || "Clover"
-            }</h1>
-            <h2 style="color: #333; margin: 10px 0;">Account Activation</h2>
-          </div>
-          
-          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <p style="color: #333; margin: 0 0 15px 0;">Hello ${
-              user.firstName
-            },</p>
-            <p style="color: #666; line-height: 1.6;">
-              Please use the verification code below to complete your account activation:
-            </p>
-            
-            <div style="text-align: center; margin: 25px 0;">
-              <div style="display: inline-block; background-color: #1976d2; color: white; padding: 15px 30px; font-size: 24px; font-weight: bold; border-radius: 8px; letter-spacing: 3px;">
-                ${activationOTP}
+    // Send via Email
+    if (Config.otp.method === "email" || Config.otp.method === "both") {
+      try {
+        // Uncomment and use existing email code
+        const otpEmail = new Email({
+          companyId,
+          from: Config.nodemailer.from,
+          to: user.email,
+          subject: `${
+            Config.appTitle || Config.appName || "Clover"
+          } - Account Activation Code`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #1976d2; margin: 0;">${
+                  Config.appTitle || Config.appName || "Clover"
+                }</h1>
+                <h2 style="color: #333; margin: 10px 0;">Account Activation</h2>
               </div>
-            </div>
-            
-            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 6px; margin: 20px 0;">
-              <p style="margin: 0; color: #856404; font-weight: 500;">
-                ⏰ This code will expire in 15 minutes
+              
+              <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <p style="color: #333; margin: 0 0 15px 0;">Hello ${
+                  user.firstName
+                },</p>
+                <p style="color: #666; line-height: 1.6;">
+                  Please use the verification code below to complete your account activation:
+                </p>
+                
+                <div style="text-align: center; margin: 25px 0;">
+                  <div style="display: inline-block; background-color: #1976d2; color: white; padding: 15px 30px; font-size: 24px; font-weight: bold; border-radius: 8px; letter-spacing: 3px;">
+                    ${activationOTP}
+                  </div>
+                </div>
+                
+                <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                  <p style="margin: 0; color: #856404; font-weight: 500;">
+                    ⏰ This code will expire in 15 minutes
+                  </p>
+                </div>
+              </div>
+              
+              <div style="background-color: #fff; border: 1px solid #dee2e6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                <p style="margin: 0 0 10px 0; color: #333; font-weight: 500;">Security Notice:</p>
+                <ul style="color: #666; line-height: 1.6; margin: 0; padding-left: 20px;">
+                  <li>If you didn't request this activation, please ignore this email</li>
+                  <li>Never share this verification code with anyone</li>
+                  <li>Our team will never ask for your verification code</li>
+                </ul>
+              </div>
+              
+              <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+              
+              <p style="color: #999; font-size: 12px; text-align: center;">
+                Request made at: ${moment().format(
+                  "MMMM Do YYYY, h:mm:ss a"
+                )}<br>
+                This is an automated message from ${
+                  Config.appTitle || Config.appName || "Clover"
+                }
               </p>
             </div>
-          </div>
-          
-          <div style="background-color: #fff; border: 1px solid #dee2e6; padding: 15px; border-radius: 6px; margin: 20px 0;">
-            <p style="margin: 0 0 10px 0; color: #333; font-weight: 500;">Security Notice:</p>
-            <ul style="color: #666; line-height: 1.6; margin: 0; padding-left: 20px;">
-              <li>If you didn't request this activation, please ignore this email</li>
-              <li>Never share this verification code with anyone</li>
-              <li>Our team will never ask for your verification code</li>
-            </ul>
-          </div>
-          
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-          
-          <p style="color: #999; font-size: 12px; text-align: center;">
-            Request made at: ${moment().format("MMMM Do YYYY, h:mm:ss a")}<br>
-            This is an automated message from ${
-              Config.appTitle || Config.appName || "Clover"
-            }
-          </p>
-        </div>
-      `,
-    });
+          `,
+        });
 
-    await otpEmail.save();
+        await otpEmail.save();
+        emailSent = true;
+        console.log(
+          `📧 Activation OTP sent via email to user: ${user.email} (Company: ${companyId})`
+        );
+      } catch (emailError) {
+        console.error(
+          `❌ Email OTP failed for ${user.email}:`,
+          emailError.message
+        );
+        if (Config.otp.method === "email" && !Config.otp.fallbackEnabled) {
+          throw emailError;
+        }
+      }
+    }
+
+    // Send via SMS
+    if (
+      Config.otp.method === "sms" ||
+      Config.otp.method === "both" ||
+      (Config.otp.fallbackEnabled &&
+        !emailSent &&
+        Config.otp.method === "email")
+    ) {
+      try {
+        if (!user.phone) {
+          throw new Error("User has no phone number configured");
+        }
+
+        // Initialize Twilio client
+        const twilioClient = Twilio(
+          Config.twilio.accountSid,
+          Config.twilio.authToken
+        );
+
+        const message = `Hello ${user.firstName}! Your ${company.name} account activation code is: ${activationOTP}. This code expires in 15 minutes. Do not share this code with anyone.`;
+
+        // Send SMS
+        await twilioClient.messages.create({
+          body: message,
+          from: Config.twilio.fromNumber,
+          to: user.phone,
+        });
+
+        smsSent = true;
+        console.log(
+          `📱 Activation OTP sent via SMS to user: ${user.phone} (Company: ${companyId})`
+        );
+      } catch (smsError) {
+        console.error(`❌ SMS OTP failed for ${user.phone}:`, smsError.message);
+        if (Config.otp.method === "sms" && !Config.otp.fallbackEnabled) {
+          throw smsError;
+        }
+      }
+    }
+
+    // Try email fallback if SMS failed
+    if (
+      Config.otp.fallbackEnabled &&
+      !emailSent &&
+      !smsSent &&
+      Config.otp.method === "sms"
+    ) {
+      try {
+        const otpEmail = new Email({
+          companyId,
+          from: Config.nodemailer.from,
+          to: user.email,
+          subject: `${
+            Config.appTitle || Config.appName || "Clover"
+          } - Account Activation Code`,
+          html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h1 style="color: #1976d2;">${
+              Config.appTitle || Config.appName || "Clover"
+            }</h1>
+            <h2>Account Activation</h2>
+            <p>Hello ${user.firstName},</p>
+            <p>Your activation code is: <strong style="font-size: 24px; color: #1976d2;">${activationOTP}</strong></p>
+            <p>This code expires in 15 minutes.</p>
+            </div>`,
+        });
+        await otpEmail.save();
+        emailSent = true;
+        console.log(
+          `📧 Activation OTP sent via email (fallback) to user: ${user.email}`
+        );
+      } catch (fallbackError) {
+        console.error(`❌ Email fallback failed:`, fallbackError.message);
+      }
+    }
+
+    // Check if at least one method succeeded
+    if (!emailSent && !smsSent) {
+      throw new Error("Failed to send OTP via any available method");
+    }
+
+    // Update response message
+    if (emailSent && smsSent) {
+      otpMessage += " to your email and phone number.";
+    } else if (emailSent) {
+      otpMessage += " to your email address.";
+    } else if (smsSent) {
+      otpMessage += " to your phone number.";
+    }
 
     console.log(
-      `🔐 Activation OTP sent to user: ${user.email} (Company: ${companyId})`
+      `🔐 Activation OTP sent (Method: ${Config.otp.method}) to user: ${user.email} (Company: ${companyId})`
     );
-    */
 
     // Return user info for the activation form (but don't include the OTP)
     res.status(200).json({
       status: "success",
-      message: "Token is valid. Verification code sent to your phone number.",
+      message: otpMessage,
       user: {
         id: user._id,
         email: user.email,

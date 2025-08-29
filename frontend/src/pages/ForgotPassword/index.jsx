@@ -1,4 +1,4 @@
-// frontend/src/pages/ForgotPassword/index.jsx (Updated with phone number display)
+// frontend/src/pages/ForgotPassword/index.jsx (Updated for configurable OTP)
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useToasts } from 'react-toast-notifications';
@@ -8,6 +8,15 @@ import getInfo from '../../actions/getInfo';
 import Credits from '../Login/components/Credits';
 import Logo from '../Login/components/Logo';
 import '../Login/Login.sass';
+
+// 🆕 Helper function to mask email
+const maskEmail = (email) => {
+  if (!email) return 'your email';
+  const [localPart, domain] = email.split('@');
+  if (localPart.length <= 2) return email;
+  const maskedLocal = localPart.charAt(0) + '*'.repeat(localPart.length - 2) + localPart.charAt(localPart.length - 1);
+  return `${maskedLocal}@${domain}`;
+};
 
 // Helper function to mask phone number for security
 const maskPhoneNumber = (phoneNumber) => {
@@ -44,7 +53,15 @@ function ForgotPassword() {
   const [info, setInfo] = useState({});
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
-  const [userPhone, setUserPhone] = useState(''); // Store user's phone for display
+  
+  // 🆕 OTP delivery method tracking
+  const [otpDeliveryInfo, setOtpDeliveryInfo] = useState({
+    email: false,
+    sms: false,
+    method: 'sms', // default
+    userEmail: '',
+    userPhone: ''
+  });
   
   const { addToast } = useToasts();
   const navigate = useNavigate();
@@ -75,19 +92,43 @@ function ForgotPassword() {
       });
 
       if (response.data.status === 'success') {
-        // Store the masked phone if returned by backend
-        if (response.data.maskedPhone) {
-          setUserPhone(response.data.maskedPhone);
-        } else if (response.data.user?.phone) {
-          setUserPhone(response.data.user.phone);
+        // 🆕 Handle new OTP delivery info from backend
+        if (response.data.otpSent) {
+          setOtpDeliveryInfo({
+            email: response.data.otpSent.email || false,
+            sms: response.data.otpSent.sms || false,
+            method: response.data.otpSent.method || 'sms',
+            userEmail: response.data.user?.email || email.trim().toLowerCase(),
+            userPhone: response.data.user?.phone || ''
+          });
+        } else {
+          // Fallback for backward compatibility
+          setOtpDeliveryInfo(prev => ({
+            ...prev,
+            userEmail: email.trim().toLowerCase(),
+            userPhone: response.data.user?.phone || response.data.maskedPhone || ''
+          }));
         }
         
         setStep(2);
-        setResendCountdown(60); // 60 second countdown
+        setResendCountdown(60);
         
-        // Show specific phone number in toast
-        const phoneDisplay = response.data.maskedPhone || maskPhoneNumber(response.data.user?.phone) || 'your phone';
-        addToast(`Password reset code sent to ${phoneDisplay}`, {
+        // 🆕 Dynamic toast message based on delivery method
+        let toastMessage = 'Password reset code sent';
+        if (response.data.otpSent?.email && response.data.otpSent?.sms) {
+          toastMessage += ' to your email and phone!';
+        } else if (response.data.otpSent?.email) {
+          toastMessage += ' to your email address!';
+        } else if (response.data.otpSent?.sms) {
+          const phoneDisplay = response.data.maskedPhone || maskPhoneNumber(response.data.user?.phone) || 'your phone';
+          toastMessage += ` to ${phoneDisplay}!`;
+        } else {
+          // Fallback message
+          const phoneDisplay = response.data.maskedPhone || maskPhoneNumber(response.data.user?.phone) || 'your registered contact';
+          toastMessage += ` to ${phoneDisplay}!`;
+        }
+        
+        addToast(toastMessage, {
           appearance: 'success',
           autoDismiss: true,
         });
@@ -120,11 +161,33 @@ function ForgotPassword() {
         email: email.trim().toLowerCase(),
       });
       
+      // 🆕 Update delivery info from response
+      if (response.data.otpSent) {
+        setOtpDeliveryInfo(prev => ({
+          ...prev,
+          email: response.data.otpSent.email || false,
+          sms: response.data.otpSent.sms || false
+        }));
+      }
+      
       setResendCountdown(60);
       
-      // Show specific phone number in toast
-      const phoneDisplay = response.data?.maskedPhone || maskPhoneNumber(response.data?.user?.phone) || userPhone || 'your phone';
-      addToast(`Reset code sent again to ${phoneDisplay}`, {
+      // 🆕 Dynamic success message
+      let successMessage = 'Reset code sent again';
+      if (response.data.otpSent?.email && response.data.otpSent?.sms) {
+        successMessage += ' to your email and phone!';
+      } else if (response.data.otpSent?.email) {
+        successMessage += ' to your email!';
+      } else if (response.data.otpSent?.sms) {
+        const phoneDisplay = response.data.maskedPhone || maskPhoneNumber(response.data.user?.phone) || otpDeliveryInfo.userPhone || 'your phone';
+        successMessage += ` to ${phoneDisplay}!`;
+      } else {
+        // Fallback
+        const phoneDisplay = response.data.maskedPhone || maskPhoneNumber(response.data.user?.phone) || otpDeliveryInfo.userPhone || 'your registered contact';
+        successMessage += ` to ${phoneDisplay}!`;
+      }
+      
+      addToast(successMessage, {
         appearance: 'success',
         autoDismiss: true,
       });
@@ -201,7 +264,13 @@ function ForgotPassword() {
     setPassword('');
     setConfirmPassword('');
     setErrors({});
-    setUserPhone(''); // Clear stored phone
+    setOtpDeliveryInfo({
+      email: false,
+      sms: false,
+      method: 'sms',
+      userEmail: '',
+      userPhone: ''
+    });
   };
 
   return (
@@ -259,8 +328,8 @@ function ForgotPassword() {
                   >
                     {loading ? (
                       <>
-                        <span uk-spinner="ratio: 0.8" className="uk-margin-small-right"></span>
-                        Sending Code...
+                        <span uk-spinner="ratio: 0.7" className="uk-margin-small-right"></span>
+                        Sending code...
                       </>
                     ) : (
                       'Send Reset Code'
@@ -279,47 +348,116 @@ function ForgotPassword() {
                   </div>
                 )}
 
-                {/* Improved phone number display */}
-                <div className="uk-alert-primary uk-margin-bottom">
-                  <p className="uk-margin-remove-bottom uk-text-small">
+                {/* 🆕 Dynamic delivery info display */}
+                <div className="uk-text-center uk-margin-bottom">
+                  <p className="uk-text-muted uk-margin-small-bottom">
                     We've sent a 6-digit code to:
                   </p>
-                  <div className="uk-text-center uk-margin-small-top">
-                    <span className="uk-text-emphasis" style={{ 
-                      fontSize: '16px', 
-                      fontWeight: 'bold',
-                      backgroundColor: 'rgba(255,255,255,0.8)',
-                      padding: '6px 12px',
-                      borderRadius: '15px',
-                      display: 'inline-block'
-                    }}>
-                      📱 {maskPhoneNumber(userPhone) || 'your phone'}
-                    </span>
+                  
+                  <div className="uk-margin-small-top">
+                    {otpDeliveryInfo.email && otpDeliveryInfo.sms && (
+                      <div className="uk-margin-small-bottom">
+                        <div className="uk-text-emphasis" style={{ 
+                          fontSize: '14px', 
+                          fontWeight: 'bold',
+                          backgroundColor: '#f8f9fa',
+                          color: '#333',
+                          padding: '6px 12px',
+                          borderRadius: '15px',
+                          border: '1px solid #e9ecef',
+                          marginBottom: '6px',
+                          display: 'inline-block'
+                        }}>
+                          📧 {maskEmail(otpDeliveryInfo.userEmail)}
+                        </div>
+                        <div style={{ margin: '6px 0', color: '#999', fontSize: '12px' }}>and</div>
+                        <div className="uk-text-emphasis" style={{ 
+                          fontSize: '14px', 
+                          fontWeight: 'bold',
+                          backgroundColor: '#f8f9fa',
+                          color: '#333',
+                          padding: '6px 12px',
+                          borderRadius: '15px',
+                          border: '1px solid #e9ecef',
+                          display: 'inline-block'
+                        }}>
+                          📱 {maskPhoneNumber(otpDeliveryInfo.userPhone)}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {otpDeliveryInfo.email && !otpDeliveryInfo.sms && (
+                      <span className="uk-text-emphasis" style={{ 
+                        fontSize: '16px', 
+                        fontWeight: 'bold',
+                        backgroundColor: '#f8f9fa',
+                        color: '#333',
+                        padding: '8px 16px',
+                        borderRadius: '20px',
+                        border: '1px solid #e9ecef'
+                      }}>
+                        📧 {maskEmail(otpDeliveryInfo.userEmail)}
+                      </span>
+                    )}
+                    
+                    {!otpDeliveryInfo.email && otpDeliveryInfo.sms && (
+                      <span className="uk-text-emphasis" style={{ 
+                        fontSize: '16px', 
+                        fontWeight: 'bold',
+                        backgroundColor: '#f8f9fa',
+                        color: '#333',
+                        padding: '8px 16px',
+                        borderRadius: '20px',
+                        border: '1px solid #e9ecef'
+                      }}>
+                        📱 {maskPhoneNumber(otpDeliveryInfo.userPhone)}
+                      </span>
+                    )}
+
+                    {/* Fallback display for backward compatibility */}
+                    {!otpDeliveryInfo.email && !otpDeliveryInfo.sms && otpDeliveryInfo.userPhone && (
+                      <span className="uk-text-emphasis" style={{ 
+                        fontSize: '16px', 
+                        fontWeight: 'bold',
+                        backgroundColor: '#f8f9fa',
+                        color: '#333',
+                        padding: '8px 16px',
+                        borderRadius: '20px',
+                        border: '1px solid #e9ecef'
+                      }}>
+                        📱 {maskPhoneNumber(otpDeliveryInfo.userPhone)}
+                      </span>
+                    )}
                   </div>
-                  <p className="uk-margin-remove-top uk-text-small uk-margin-small-top">
-                    Enter the code to continue. If this isn't your current number, contact your administrator.
-                  </p>
                 </div>
 
+                {/* Verification Code Input */}
                 <div className="uk-margin-bottom">
                   <input
                     className={`uk-input uk-border-pill uk-text-center ${errors.code ? 'uk-form-danger' : ''}`}
-                    placeholder="6-Digit Code"
+                    placeholder="Enter 6-digit code"
                     type="text"
-                    maxLength="6"
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                     value={code}
+                    maxLength={6}
+                    style={{ 
+                      fontSize: '20px', 
+                      letterSpacing: '2px', 
+                      fontWeight: 'bold'
+                    }}
                     disabled={loading}
-                    autoFocus
-                    style={{ letterSpacing: '3px', fontSize: '18px' }}
+                    autoComplete="one-time-code"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                   />
                   {errors.code && (
-                    <div className="uk-text-danger uk-text-small uk-margin-small-top">
+                    <div className="uk-text-danger uk-text-small uk-margin-small-top uk-text-center">
                       {errors.code}
                     </div>
                   )}
                 </div>
 
+                {/* New Password Input */}
                 <div className="uk-margin-bottom">
                   <input
                     className={`uk-input uk-border-pill ${errors.password ? 'uk-form-danger' : ''}`}
@@ -336,6 +474,7 @@ function ForgotPassword() {
                   )}
                 </div>
 
+                {/* Confirm Password Input */}
                 <div className="uk-margin-bottom">
                   <input
                     className={`uk-input uk-border-pill ${errors.confirmPassword ? 'uk-form-danger' : ''}`}
@@ -352,16 +491,17 @@ function ForgotPassword() {
                   )}
                 </div>
 
+                {/* Submit Button */}
                 <div className="uk-margin-bottom">
-                  <button
-                    type="submit"
+                  <button 
+                    type="submit" 
                     className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
-                    disabled={loading || code.length !== 6 || !password || !confirmPassword}
+                    disabled={loading || !code.trim() || !password || !confirmPassword}
                   >
                     {loading ? (
                       <>
-                        <span uk-spinner="ratio: 0.8" className="uk-margin-small-right"></span>
-                        Resetting Password...
+                        <span uk-spinner="ratio: 0.7" className="uk-margin-small-right"></span>
+                        Resetting password...
                       </>
                     ) : (
                       'Reset Password'
@@ -395,7 +535,6 @@ function ForgotPassword() {
                 </div>
 
                 {/* Back to Email Step */}
-                {/*
                 <div className="uk-text-center">
                   <button
                     type="button"
@@ -406,7 +545,6 @@ function ForgotPassword() {
                     ← Use different email
                   </button>
                 </div>
-                */}
               </form>
             )}
 
@@ -417,12 +555,17 @@ function ForgotPassword() {
               </Link>
             </div>
 
-            {/* Credits Footer (Updated for SMS) */}
+            {/* 🆕 Updated Credits Footer */}
             <form className="toggle-credits uk-text-center uk-margin-top">
               <p className="uk-text-small uk-text-muted">
                 Reset codes expire after 15 minutes for security.
                 <br />
-                If you don't receive an SMS, please try again or contact support.
+                {otpDeliveryInfo.email && otpDeliveryInfo.sms ? 
+                  'Check both your email and phone for the code.' :
+                  otpDeliveryInfo.email ? 
+                    'Check your email for the code.' :
+                    'Check your phone for the SMS code.'
+                }
               </p>
             </form>
 
