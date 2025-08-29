@@ -230,8 +230,6 @@ function ActivateAccount() {
     </div>
   );
 
-  const renderOtpStep = () => (
-    <div>// Helper function to mask phone number for security
 const maskPhoneNumber = (phoneNumber) => {
   if (!phoneNumber) return 'your phone';
   
@@ -281,9 +279,11 @@ const renderOtpStep = () => (
           📱 {maskPhoneNumber(user?.phone)}
         </span>
       </div>
+      {/*
       <p className="uk-text-small uk-text-muted uk-margin-small-top">
         If this isn't your current number, contact your administrator
       </p>
+      */}
     </div>
 
     <form onSubmit={handleOtpSubmit}>

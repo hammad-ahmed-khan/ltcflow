@@ -84,6 +84,7 @@ function GroupList() {
               {group.people ? `${group.people.length} member${group.people.length !== 1 ? 's' : ''}` : '0 members'}
             </div>
           </div>        
+          {canCreateGroups &&
           <div className="controls">
             <div 
               className="button"
@@ -94,6 +95,7 @@ function GroupList() {
               <FiSettings />
             </div>
           </div>
+          }
         </div>
       ))}
     </>
