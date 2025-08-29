@@ -58,7 +58,7 @@ function ForgotPassword() {
   const [otpDeliveryInfo, setOtpDeliveryInfo] = useState({
     email: false,
     sms: false,
-    method: 'sms', // default
+    method: 'email', // default
     userEmail: '',
     userPhone: ''
   });
@@ -97,7 +97,7 @@ function ForgotPassword() {
           setOtpDeliveryInfo({
             email: response.data.otpSent.email || false,
             sms: response.data.otpSent.sms || false,
-            method: response.data.otpSent.method || 'sms',
+            method: response.data.otpSent.method || 'email',
             userEmail: response.data.user?.email || email.trim().toLowerCase(),
             userPhone: response.data.user?.phone || ''
           });
@@ -267,7 +267,7 @@ function ForgotPassword() {
     setOtpDeliveryInfo({
       email: false,
       sms: false,
-      method: 'sms',
+      method: 'email',
       userEmail: '',
       userPhone: ''
     });

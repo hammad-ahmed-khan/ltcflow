@@ -1,10 +1,10 @@
-// backend/src/routes/auth/forgot-password.js (Updated to send SMS OTP)
+// backend/src/routes/auth/forgot-password.js (Updated for configurable OTP)
 const router = require("express").Router();
 const AuthCode = require("../../models/AuthCode");
 const Email = require("../../models/Email");
 const User = require("../../models/User");
 const Company = require("../../models/Company");
-const config = require("../../../config");
+const Config = require("../../../config");
 const randomstring = require("randomstring");
 const moment = require("moment");
 const isEmpty = require("../../utils/isEmpty");
@@ -52,6 +52,16 @@ router.post("*", async (req, res) => {
       });
     }
 
+    // Find company using companyObjectId (not companyId)
+    const company = await Company.findById(companyId);
+    if (!company) {
+      return res.status(404).json({
+        status: "error",
+        error: "COMPANY_NOT_FOUND",
+        message: "Company not found",
+      });
+    }
+
     // Find user by email and companyId (multi-tenant)
     const user = await User.findOne({
       email: email.toLowerCase(),
@@ -59,7 +69,7 @@ router.post("*", async (req, res) => {
     });
 
     // Always return success for security (don't reveal if email exists)
-    // But only send SMS if user actually exists
+    // But only send OTP if user actually exists
     if (user) {
       // Check user status
       if (user.status !== "active") {
@@ -80,23 +90,52 @@ router.post("*", async (req, res) => {
         });
       }
 
-      // Check if user has phone number
-      if (!user.phone) {
-        return res.status(400).json({
-          status: "error",
-          error: "NO_PHONE_NUMBER",
-          message:
-            "Your account doesn't have a phone number. Please contact your administrator to add a phone number for password reset.",
-        });
+      // 🆕 Validate OTP capability based on global config
+      const otpMethod = Config.otp?.method || "sms"; // Add fallback
+      const fallbackEnabled = Config.otp?.fallbackEnabled !== false; // Default to true
+      const issues = [];
+
+      console.log(
+        `🔧 Password reset OTP method: ${otpMethod}, fallback: ${fallbackEnabled}`
+      );
+
+      if (otpMethod === "email" || otpMethod === "both") {
+        if (!Config.nodemailerEnabled) {
+          issues.push("Email service is not configured");
+        }
       }
 
-      // Get company info for SMS message
-      const company = await Company.findById(companyObjectId);
-      if (!company) {
-        return res.status(404).json({
+      if (otpMethod === "sms" || otpMethod === "both") {
+        if (!Config.smsEnabled) {
+          issues.push("SMS service is not configured");
+        }
+        if (!Config.twilio?.accountSid || !Config.twilio?.authToken) {
+          issues.push("Twilio credentials are not configured");
+        }
+        if (!Config.twilio?.fromNumber) {
+          issues.push("Twilio from number is not configured");
+        }
+        if (!user.phone) {
+          issues.push("User has no phone number configured");
+        }
+      }
+
+      // If fallback is enabled and one method is available, it's still valid
+      const emailAvailable = Config.nodemailerEnabled && user.email;
+      const smsAvailable =
+        Config.smsEnabled && user.phone && Config.twilio?.accountSid;
+
+      if (
+        issues.length > 0 &&
+        (!fallbackEnabled || (!emailAvailable && !smsAvailable))
+      ) {
+        return res.status(400).json({
           status: "error",
-          error: "COMPANY_NOT_FOUND",
-          message: "Company not found",
+          error: "OTP_NOT_AVAILABLE",
+          message: `Cannot send password reset code: ${issues.join(
+            ", "
+          )}. Please contact your administrator.`,
+          issues: issues,
         });
       }
 
@@ -124,115 +163,228 @@ router.post("*", async (req, res) => {
 
       await authCode.save();
 
-      // Initialize Twilio client
-      const twilioClient = Twilio(
-        config.twilio.accountSid,
-        config.twilio.authToken
-      );
+      // 🆕 OTP Sending Logic based on Config
+      let emailSent = false;
+      let smsSent = false;
 
-      const message = `Hello ${user.firstName}! Your ${company.name} password reset code is: ${resetCode}. This code expires in 15 minutes. Do not share this code with anyone.`;
+      console.log(`🔧 Starting OTP send process - Method: ${otpMethod}`);
 
-      // Send SMS
-      await twilioClient.messages.create({
-        body: message,
-        from: config.twilio.fromNumber, // Twilio phone number
-        to: user.phone, // User's phone number
-      });
-
-      console.log(
-        `🔐 Password reset code sent via SMS to user: ${user.phone} (Company: ${companyId})`
-      );
-
-      // Queue password reset email (commented out - now using SMS)
-      /*
-      const resetEmail = new Email({
-        companyId: companyObjectId,
-        from: config.nodemailer.from,
-        to: user.email,
-        subject: `${
-          config.appTitle || config.appName || "LTC Flow"
-        } - Password Reset Code`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #1976d2; margin: 0;">${
-                config.appTitle || config.appName || "LTC Flow"
-              }</h1>
-              <h2 style="color: #333; margin: 10px 0;">Password Reset Request</h2>
-            </div>
-            
-            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <p style="color: #333; margin: 0 0 15px 0;">Hello ${
-                user.firstName
-              },</p>
-              <p style="color: #666; line-height: 1.6;">
-                We received a request to reset your password.
-                Use the verification code below to reset your password:
-              </p>
-              
-              <div style="text-align: center; margin: 25px 0;">
-                <div style="display: inline-block; background-color: #1976d2; color: white; padding: 15px 30px; font-size: 24px; font-weight: bold; border-radius: 8px; letter-spacing: 3px;">
-                  ${resetCode}
+      // Send via Email
+      if (otpMethod === "email" || otpMethod === "both") {
+        try {
+          const resetEmail = new Email({
+            companyId: companyObjectId,
+            from: Config.nodemailer.from,
+            to: user.email,
+            subject: `${
+              Config.appTitle || Config.appName || "LTC Flow"
+            } - Password Reset Code`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                  <h1 style="color: #1976d2; margin: 0;">${
+                    Config.appTitle || Config.appName || "LTC Flow"
+                  }</h1>
+                  <h2 style="color: #333; margin: 10px 0;">Password Reset Request</h2>
                 </div>
-              </div>
-              
-              <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 6px; margin: 20px 0;">
-                <p style="margin: 0; color: #856404; font-weight: 500;">
-                  ⏰ This code will expire in 15 minutes
+                
+                <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                  <p style="color: #333; margin: 0 0 15px 0;">Hello ${
+                    user.firstName
+                  },</p>
+                  <p style="color: #666; line-height: 1.6;">
+                    We received a request to reset your password. Use the verification code below to reset your password:
+                  </p>
+                  
+                  <div style="text-align: center; margin: 25px 0;">
+                    <div style="display: inline-block; background-color: #1976d2; color: white; padding: 15px 30px; font-size: 24px; font-weight: bold; border-radius: 8px; letter-spacing: 3px;">
+                      ${resetCode}
+                    </div>
+                  </div>
+                  
+                  <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                    <p style="margin: 0; color: #856404; font-weight: 500;">
+                      ⏰ This code will expire in 15 minutes
+                    </p>
+                  </div>
+                </div>
+                
+                <div style="background-color: #fff; border: 1px solid #dee2e6; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                  <p style="margin: 0 0 10px 0; color: #333; font-weight: 500;">Security Notice:</p>
+                  <ul style="color: #666; line-height: 1.6; margin: 0; padding-left: 20px;">
+                    <li>If you didn't request this password reset, please ignore this email</li>
+                    <li>Never share this verification code with anyone</li>
+                    <li>Our team will never ask for your verification code</li>
+                  </ul>
+                </div>
+                
+                <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+                
+                <p style="color: #999; font-size: 12px; text-align: center;">
+                  Request made at: ${moment().format(
+                    "MMMM Do YYYY, h:mm:ss a"
+                  )}<br>
+                  This is an automated message from ${
+                    Config.appTitle || Config.appName || "LTC Flow"
+                  }
                 </p>
               </div>
-            </div>
-            
-            <div style="background-color: #fff; border: 1px solid #dee2e6; padding: 15px; border-radius: 6px; margin: 20px 0;">
-              <p style="margin: 0 0 10px 0; color: #333; font-weight: 500;">Security Notice:</p>
-              <ul style="color: #666; line-height: 1.6; margin: 0; padding-left: 20px;">
-                <li>If you didn't request this password reset, please ignore this email</li>
-                <li>Never share this verification code with anyone</li>
-                <li>Our team will never ask for your verification code</li>
-              </ul>
-            </div>
-            
-            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-            
-            <p style="color: #999; font-size: 12px; text-align: center;">
-              Request made at: ${moment().format("MMMM Do YYYY, h:mm:ss a")}<br>
-              This is an automated message from ${
-                config.appTitle || config.appName || "LTC Flow"
-              }
-            </p>
-          </div>
-        `,
-      });
+            `,
+          });
 
-      await resetEmail.save();
+          await resetEmail.save();
+          emailSent = true;
+          console.log(
+            `📧 Password reset code sent via email to user: ${user.email} (Company: ${companyId})`
+          );
+        } catch (emailError) {
+          console.error(
+            `❌ Email password reset failed for ${user.email}:`,
+            emailError.message
+          );
+          if (otpMethod === "email" && !fallbackEnabled) {
+            throw emailError;
+          }
+        }
+      }
+
+      // Send via SMS
+      if (
+        otpMethod === "sms" ||
+        otpMethod === "both" ||
+        (fallbackEnabled && !emailSent && otpMethod === "email")
+      ) {
+        try {
+          if (!user.phone) {
+            throw new Error("User has no phone number configured");
+          }
+
+          // Initialize Twilio client
+          const twilioClient = Twilio(
+            Config.twilio.accountSid,
+            Config.twilio.authToken
+          );
+          const message = `Hello ${user.firstName}! Your ${company.name} password reset code is: ${resetCode}. This code expires in 15 minutes. Do not share this code with anyone.`;
+
+          // Send SMS
+          await twilioClient.messages.create({
+            body: message,
+            from: Config.twilio.fromNumber,
+            to: user.phone,
+          });
+
+          smsSent = true;
+          console.log(
+            `📱 Password reset code sent via SMS to user: ${user.phone} (Company: ${companyId})`
+          );
+        } catch (smsError) {
+          console.error(
+            `❌ SMS password reset failed for ${user.phone}:`,
+            smsError.message
+          );
+          if (otpMethod === "sms" && !fallbackEnabled) {
+            throw smsError;
+          }
+        }
+      }
+
+      // Try email fallback if SMS failed
+      if (fallbackEnabled && !emailSent && !smsSent && otpMethod === "sms") {
+        try {
+          const resetEmail = new Email({
+            companyId: companyObjectId,
+            from: Config.nodemailer.from,
+            to: user.email,
+            subject: `${
+              Config.appTitle || Config.appName || "LTC Flow"
+            } - Password Reset Code`,
+            html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <h1 style="color: #1976d2;">${
+                Config.appTitle || Config.appName || "LTC Flow"
+              }</h1>
+              <h2>Password Reset Request</h2>
+              <p>Hello ${user.firstName},</p>
+              <p>Your password reset code is: <strong style="font-size: 24px; color: #1976d2;">${resetCode}</strong></p>
+              <p>This code expires in 15 minutes.</p>
+              </div>`,
+          });
+          await resetEmail.save();
+          emailSent = true;
+          console.log(
+            `📧 Password reset code sent via email (fallback) to user: ${user.email}`
+          );
+        } catch (fallbackError) {
+          console.error(`❌ Email fallback failed:`, fallbackError.message);
+        }
+      }
+
+      // Check if at least one method succeeded
+      if (!emailSent && !smsSent) {
+        throw new Error(
+          "Failed to send password reset code via any available method"
+        );
+      }
 
       console.log(
-        `🔐 Password reset code generated for user: ${user.email} (Company: ${companyId})`
+        `🔑 Password reset OTP sent (Method: ${otpMethod}) to user: ${user.email} (Company: ${companyId})`
       );
-      */
-    } else {
-      return res.status(404).json({
-        status: "error",
-        error: "EMAIL_NOT_FOUND",
+
+      // Create masked phone for security
+      const maskPhone = (phone) => {
+        if (!phone) return null;
+        if (phone.startsWith("+")) {
+          const countryCode = phone.slice(0, phone.length - 10);
+          const lastFour = phone.slice(-4);
+          const maskedMiddle = "*".repeat(
+            phone.length - countryCode.length - 4
+          );
+          return `${countryCode}${maskedMiddle}${lastFour}`;
+        }
+        if (phone.length >= 7) {
+          const first = phone.slice(0, 3);
+          const last = phone.slice(-4);
+          const maskedMiddle = "*".repeat(phone.length - 7);
+          return `${first}${maskedMiddle}${last}`;
+        }
+        return phone.slice(0, 2) + "*".repeat(phone.length - 2);
+      };
+
+      const response = {
+        status: "success",
         message:
-          "No account found with this email address. Please check your email or contact your administrator.",
-      });
+          "If an account with that email exists, we've sent a password reset code.",
+        user: {
+          email: user.email,
+          firstName: user.firstName,
+          phone: user.phone,
+        },
+        maskedPhone: maskPhone(user.phone),
+      };
+
+      // Add OTP delivery info if OTP was actually sent
+      if (emailSent || smsSent) {
+        response.otpSent = {
+          email: emailSent,
+          sms: smsSent,
+          method: otpMethod,
+        };
+      }
+
+      return res.status(200).json(response);
     }
 
-    // Always return success response for security
+    // For non-existent users, return generic success
     res.status(200).json({
       status: "success",
-      user: user,
       message:
-        "If an account with that email exists and has a phone number, we've sent a password reset code to your phone number.",
+        "If an account with that email exists, we've sent a password reset code.",
     });
   } catch (error) {
     console.error("❌ Forgot password error:", error);
     res.status(500).json({
       status: "error",
       error: "INTERNAL_SERVER_ERROR",
-      message:
-        "An error occurred while processing your request. Please try again later.",
+      message: error.message,
     });
   }
 });
