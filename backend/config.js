@@ -99,4 +99,11 @@ module.exports = {
     fallbackEnabled:
       (process.env.OTP_FALLBACK_ENABLED || "true").toString() === "true",
   },
+
+  outseta: {
+    apiKey: process.env.OUTSETA_API_KEY || "",
+    secretKey: process.env.OUTSETA_SECRET_KEY || "",
+    webhookSecret: process.env.OUTSETA_WEBHOOK_SECRET || "",
+    apiUrl: process.env.OUTSETA_API_URL || "https://api.outseta.com/v1",
+  },
 };

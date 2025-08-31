@@ -23,6 +23,12 @@ const UserSchema = new Schema(
       default: "pending",
     },
 
+    // Store Outseta Person UID for reference
+    outsetaPersonId: {
+      type: String,
+      sparse: true, // Allows null values while maintaining uniqueness when present
+    },
+
     activationToken: { type: String, default: null },
     tokenExpiry: { type: Date, default: null },
 

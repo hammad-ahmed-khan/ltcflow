@@ -1,3 +1,4 @@
+const express = require("express"); // Ensure express is imported
 const router = require("express").Router();
 const passport = require("passport");
 const jwt = require("express-jwt");
@@ -208,5 +209,8 @@ router.post(
   passport.authenticate("jwt", { session: false }, null),
   require("./group-update-info")
 );
+
+// Webhook route
+//router.post("/webhook/outseta", require("./outseta-webhook"));
 
 module.exports = router;
