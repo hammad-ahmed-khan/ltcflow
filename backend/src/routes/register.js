@@ -7,6 +7,7 @@ const xss = require("xss");
 const crypto = require("crypto");
 const Config = require("../../config");
 const bcrypt = require("bcryptjs");
+const outsetaApi = require("../services/outsetaApi");
 
 let twilioClient = null;
 if (Config.smsEnabled && Config.sms.provider === "twilio") {
@@ -108,7 +109,7 @@ module.exports = async (req, res, next) => {
     const activationTokenHashed = await bcrypt.hash(activationTokenRaw, 10);
     const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    // Create user
+    // Create user in local database first
     const newUser = new User({
       username: xss(username),
       email: xss(email),
@@ -124,6 +125,41 @@ module.exports = async (req, res, next) => {
     });
 
     const savedUser = await newUser.save();
+
+    // Create person in Outseta
+    let outsetaResult = null;
+    if (outsetaApi.isConfigured()) {
+      try {
+        outsetaResult = await outsetaApi.createPerson(
+          {
+            email: savedUser.email,
+            firstName: savedUser.firstName,
+            lastName: savedUser.lastName,
+            phone: savedUser.phone,
+          },
+          {
+            outsetaAccountId: company.outsetaAccountId,
+          }
+        );
+
+        // If successful, store Outseta Person ID
+        if (outsetaResult?.success && outsetaResult.personId) {
+          await User.findByIdAndUpdate(savedUser._id, {
+            outsetaPersonId: outsetaResult.personId,
+          });
+
+          console.log(
+            `✅ User synced with Outseta: ${savedUser.email} [${outsetaResult.personId}]`
+          );
+        }
+      } catch (outsetaError) {
+        console.error(
+          "❌ Outseta sync failed for user creation:",
+          outsetaError
+        );
+        // Continue with user creation even if Outseta fails
+      }
+    }
 
     // Activation link
     const activationLink = `https://${company.subdomain}.${Config.domain}/activate/${activationTokenRaw}`;
@@ -223,7 +259,11 @@ module.exports = async (req, res, next) => {
         await twilioClient.messages.create({
           from: Config.twilio.fromNumber,
           to: phone,
-          body: `Hello ${firstName}, you’ve been invited to join ${company.name} on ${appName}. Activate your account here: ${activationLink}`,
+          body: `Hello ${firstName}, you've been invited to join ${
+            company.name
+          } on ${
+            Config.appTitle || Config.appName
+          }. Activate your account here: ${activationLink}`,
         });
       } catch (smsErr) {
         console.error("SMS send failed:", smsErr.message);
@@ -242,6 +282,13 @@ module.exports = async (req, res, next) => {
       companyUrl: `https://${company.subdomain}.${Config.domain}`,
       expiresIn: "7 days",
       activationLink: activationLink,
+      outseta: outsetaResult
+        ? {
+            synced: outsetaResult.success,
+            personId: outsetaResult.personId || null,
+            error: outsetaResult.error || null,
+          }
+        : { synced: false, reason: "not_configured" },
     });
   } catch (err) {
     console.error("Error creating user:", err);

@@ -1,3 +1,4 @@
+const express = require("express");
 const store = require("./store");
 const events = require("./events");
 const socketioJwt = require("socketio-jwt");
@@ -107,7 +108,7 @@ module.exports = () => {
     });
 
   store.app.use(cors());
-  store.app.use(formidableMiddleware());
+  //store.app.use(formidableMiddleware());
   store.app.use(passport.initialize());
   passport.use(
     "jwt",
@@ -126,7 +127,21 @@ module.exports = () => {
       }
     )
   );
-  store.app.use("/api", router);
+  //store.app.use("/api", router);
+  // Apply formidable to all normal routes under /api
+  store.app.use("/api", formidableMiddleware(), router);
+
+  store.app.post(
+    "/webhook/outseta",
+    express.json({
+      type: "*/*", // parse JSON for all content types
+      verify: (req, res, buf) => {
+        // Store raw body as string for signature verification
+        req.rawBody = buf.toString("utf-8");
+      },
+    }),
+    require("./routes/outseta-webhook")
+  );
 
   const mongooseConnect = () => {
     let connecting = setTimeout(

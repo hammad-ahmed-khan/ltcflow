@@ -3,6 +3,7 @@ const argon2 = require("argon2");
 const validator = require("validator");
 const xss = require("xss");
 const { isEmpty } = require("validator");
+const outsetaApi = require("../services/outsetaApi");
 
 module.exports = async (req, res, next) => {
   let username = xss(req.fields.username);
@@ -137,10 +138,67 @@ module.exports = async (req, res, next) => {
       return res.status(404).json({ error: "User not found in your company." });
     }
 
+    // Sync with Outseta if user info changed
+    let outsetaResult = null;
+    if (outsetaApi.isConfigured() && updatedUser.outsetaPersonId) {
+      try {
+        // Check if any Outseta-relevant fields changed
+        const outsetaFieldsChanged =
+          updatedUser.email !== targetUser.email ||
+          updatedUser.firstName !== targetUser.firstName ||
+          updatedUser.lastName !== targetUser.lastName ||
+          updatedUser.phone !== targetUser.phone;
+
+        if (outsetaFieldsChanged) {
+          console.log(
+            `🔄 Syncing user changes to Outseta: ${updatedUser.email}`
+          );
+
+          outsetaResult = await outsetaApi.updatePerson(
+            updatedUser.outsetaPersonId,
+            {
+              email: updatedUser.email,
+              firstName: updatedUser.firstName,
+              lastName: updatedUser.lastName,
+              phone: updatedUser.phone,
+            }
+          );
+
+          if (outsetaResult?.success) {
+            console.log(`✅ User updated in Outseta: ${updatedUser.email}`);
+          }
+        } else {
+          console.log(
+            `ℹ️ No Outseta-relevant changes for user: ${updatedUser.email}`
+          );
+          outsetaResult = { success: true, message: "No sync needed" };
+        }
+      } catch (outsetaError) {
+        console.error("❌ Outseta sync failed for user update:", outsetaError);
+        outsetaResult = { success: false, error: outsetaError.message };
+        // Continue with local update even if Outseta fails
+      }
+    }
+
     res.status(200).json({
       status: "success",
       message: "User updated successfully.",
       user: updatedUser,
+      outseta: outsetaResult
+        ? {
+            synced: outsetaResult.success,
+            action:
+              outsetaResult.message === "No sync needed"
+                ? "no_changes"
+                : "updated",
+            error: outsetaResult.error || null,
+          }
+        : {
+            synced: false,
+            reason: updatedUser.outsetaPersonId
+              ? "not_configured"
+              : "no_outseta_id",
+          },
     });
   } catch (err) {
     console.error(err);

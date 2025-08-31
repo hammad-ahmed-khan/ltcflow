@@ -25,6 +25,8 @@ app.use("/admin", express.static(`${__dirname}/../frontend/dist`));
 app.use("/room/*", express.static(`${__dirname}/../frontend/dist`));
 app.use("/meeting/*", express.static(`${__dirname}/../frontend/dist`));
 app.use("/activate/*", express.static(`${__dirname}/../frontend/dist`));
+app.use("/onboarding", express.static(`${__dirname}/../frontend/dist`));
+app.use("/onboarding/*", express.static(`${__dirname}/../frontend/dist`));
 
 const server = http.createServer(app);
 store.app = app;

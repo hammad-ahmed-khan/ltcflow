@@ -1,4 +1,6 @@
 ﻿const User = require("../models/User");
+const Company = require("../models/Company");
+const outsetaApi = require("../services/outsetaApi");
 
 module.exports = async (req, res, next) => {
   const { userId, newStatus } = req.fields;
@@ -41,6 +43,8 @@ module.exports = async (req, res, next) => {
       });
     }
 
+    const oldStatus = user.status;
+
     // Update user status
     const updateData = { status: newStatus };
 
@@ -56,10 +60,116 @@ module.exports = async (req, res, next) => {
       new: true,
     }).select("-password -activationToken");
 
+    // Sync with Outseta based on status change
+    let outsetaResult = null;
+    if (outsetaApi.isConfigured()) {
+      try {
+        // Get company info for Outseta account ID
+        const company = await Company.findById(companyId);
+
+        if (company && company.outsetaAccountId) {
+          // Handle deactivation - delete from Outseta
+          if (newStatus === "deactivated" && user.outsetaPersonId) {
+            console.log(
+              `🔄 Deactivating user - deleting from Outseta: ${user.email}`
+            );
+            outsetaResult = await outsetaApi.deletePerson(user.outsetaPersonId);
+
+            if (outsetaResult?.success) {
+              // Clear outsetaPersonId since person was deleted
+              await User.findByIdAndUpdate(userId, {
+                $unset: { outsetaPersonId: 1 },
+              });
+              console.log(`✅ User deleted from Outseta: ${user.email}`);
+            }
+          }
+
+          // Handle reactivation - add back to Outseta if not already there
+          else if (
+            (newStatus === "active" || newStatus === "pending") &&
+            (oldStatus === "deactivated" || oldStatus === "expired")
+          ) {
+            console.log(
+              `🔄 Reactivating user - checking Outseta status: ${user.email}`
+            );
+
+            // Check if person exists in Outseta
+            let personExists = false;
+            if (user.outsetaPersonId) {
+              // Try to get person by ID to see if still exists
+              try {
+                const lookupResult = await outsetaApi.getPersonByEmail(
+                  user.email
+                );
+                personExists = lookupResult?.success && lookupResult.person;
+              } catch (lookupError) {
+                console.log("Person lookup failed, will create new one");
+              }
+            }
+
+            if (!personExists) {
+              // Create person in Outseta
+              console.log(
+                `🔄 Creating reactivated user in Outseta: ${user.email}`
+              );
+              outsetaResult = await outsetaApi.createPerson(
+                {
+                  email: user.email,
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  phone: user.phone,
+                },
+                {
+                  outsetaAccountId: company.outsetaAccountId,
+                }
+              );
+
+              // Store new Outseta Person ID
+              if (outsetaResult?.success && outsetaResult.personId) {
+                await User.findByIdAndUpdate(userId, {
+                  outsetaPersonId: outsetaResult.personId,
+                });
+                console.log(
+                  `✅ Reactivated user created in Outseta: ${user.email} [${outsetaResult.personId}]`
+                );
+              }
+            } else {
+              console.log(`✅ User already exists in Outseta: ${user.email}`);
+              outsetaResult = {
+                success: true,
+                message: "Person already exists",
+              };
+            }
+          }
+        }
+      } catch (outsetaError) {
+        console.error(
+          "❌ Outseta sync failed for status change:",
+          outsetaError
+        );
+        outsetaResult = { success: false, error: outsetaError.message };
+        // Continue with local status update even if Outseta fails
+      }
+    }
+
     res.status(200).json({
       status: "success",
       message: `User status updated to ${newStatus} successfully.`,
       user: updatedUser,
+      outseta: outsetaResult
+        ? {
+            synced: outsetaResult.success,
+            action:
+              newStatus === "deactivated"
+                ? "deleted"
+                : (newStatus === "active" || newStatus === "pending") &&
+                  (oldStatus === "deactivated" || oldStatus === "expired")
+                ? "created"
+                : "none",
+            personId: outsetaResult.personId || null,
+            error: outsetaResult.error || null,
+          }
+        : { synced: false, reason: "not_configured" },
     });
   } catch (err) {
     console.error(err);
