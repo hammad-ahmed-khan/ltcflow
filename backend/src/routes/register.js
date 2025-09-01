@@ -130,7 +130,9 @@ module.exports = async (req, res, next) => {
     let outsetaResult = null;
     if (outsetaApi.isConfigured()) {
       try {
-        outsetaResult = await outsetaApi.createPerson(
+        console.log(`🔄 Creating person in Outseta: ${savedUser.email}`);
+
+        outsetaResult = await outsetaApi.createPersonWithAccount(
           {
             email: savedUser.email,
             firstName: savedUser.firstName,
@@ -142,14 +144,74 @@ module.exports = async (req, res, next) => {
           }
         );
 
-        // If successful, store Outseta Person ID
+        // If successful, store Outseta Person ID and sync custom properties
         if (outsetaResult?.success && outsetaResult.personId) {
           await User.findByIdAndUpdate(savedUser._id, {
             outsetaPersonId: outsetaResult.personId,
           });
 
           console.log(
-            `✅ User synced with Outseta: ${savedUser.email} [${outsetaResult.personId}]`
+            `✅ User created in Outseta: ${savedUser.email} [${outsetaResult.personId}]`
+          );
+
+          // 🆕 SYNC CUSTOM PROPERTIES TO OUTSETA PERSON
+          try {
+            console.log(
+              `🔄 Syncing custom properties to Outseta person: ${savedUser.email}`
+            );
+
+            const instanceUrl = `https://${company.subdomain}.${Config.domain}`;
+
+            const personUpdateData = {
+              // These should match the System Names in your Outseta custom properties
+              MongoUserId: savedUser._id.toString(), // MongoDB User ID
+              MongoCompanyId: company._id.toString(), // MongoDB Company ID
+              UserRole:
+                level === "standard"
+                  ? "Standard User"
+                  : level === "admin"
+                  ? "Admin"
+                  : level === "manager"
+                  ? "Group Manager"
+                  : "User", // Role in your platform
+              ActivationStatus: "pending", // Current activation status
+              InstanceUrl: instanceUrl, // Direct link to their instance
+              Subdomain: company.subdomain,
+              CreatedVia: "admin_invitation",
+              InvitedBy: req.user ? req.user.email : "system",
+              InvitedAt: new Date().toISOString(),
+            };
+
+            const updateResult = await outsetaApi.updatePerson(
+              outsetaResult.personId,
+              personUpdateData
+            );
+
+            if (updateResult?.success) {
+              console.log(
+                `✅ Custom properties synced to Outseta: ${savedUser.email}`
+              );
+              outsetaResult.customPropertiesSynced = true;
+            } else {
+              console.warn(
+                `⚠️ Custom properties sync failed:`,
+                updateResult?.error
+              );
+              outsetaResult.customPropertiesSynced = false;
+              outsetaResult.customPropertiesError = updateResult?.error;
+            }
+          } catch (customPropsError) {
+            console.error(
+              `❌ Failed to sync custom properties:`,
+              customPropsError
+            );
+            outsetaResult.customPropertiesSynced = false;
+            outsetaResult.customPropertiesError = customPropsError.message;
+          }
+        } else {
+          console.warn(
+            `⚠️ Outseta person creation failed:`,
+            outsetaResult?.error
           );
         }
       } catch (outsetaError) {
@@ -157,8 +219,20 @@ module.exports = async (req, res, next) => {
           "❌ Outseta sync failed for user creation:",
           outsetaError
         );
+        outsetaResult = {
+          success: false,
+          error: outsetaError.message,
+          customPropertiesSynced: false,
+        };
         // Continue with user creation even if Outseta fails
       }
+    } else {
+      console.log("Outseta not configured - skipping person creation");
+      outsetaResult = {
+        success: false,
+        reason: "not_configured",
+        customPropertiesSynced: false,
+      };
     }
 
     // Activation link

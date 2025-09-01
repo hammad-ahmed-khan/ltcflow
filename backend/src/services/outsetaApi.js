@@ -4,19 +4,18 @@ const Config = require("../../config");
 
 class OutsetaApiService {
   constructor() {
-    this.baseURL = Config.outseta?.apiUrl || "https://api.outseta.com/v1";
+    this.baseURL =
+      Config.outseta?.apiUrl || "https://ltcflow.outseta.com/api/v1";
     this.apiKey = Config.outseta?.apiKey;
     this.secretKey = Config.outseta?.secretKey;
 
-    // Create axios instance with auth
+    // Create axios instance with Outseta's custom auth format
     this.client = axios.create({
       baseURL: this.baseURL,
-      auth: {
-        username: this.apiKey,
-        password: this.secretKey,
-      },
       headers: {
         "Content-Type": "application/json",
+        // Use Outseta's custom authorization format
+        Authorization: `Outseta ${this.apiKey}:${this.secretKey}`,
       },
     });
   }
@@ -24,6 +23,242 @@ class OutsetaApiService {
   // Check if Outseta is configured
   isConfigured() {
     return !!(this.apiKey && this.secretKey);
+  }
+
+  // Update an account in Outseta
+  async updateAccount(outsetaAccountId, accountData) {
+    if (!this.isConfigured() || !outsetaAccountId) {
+      console.warn(
+        "Outseta not configured or no account ID - skipping account update"
+      );
+      return null;
+    }
+
+    try {
+      console.log(`🔄 Updating account in Outseta: ${outsetaAccountId}`);
+
+      const response = await this.client.put(
+        `/crm/accounts/${outsetaAccountId}`,
+        accountData
+      );
+
+      console.log(`✅ Account updated in Outseta: ${outsetaAccountId}`);
+
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error(
+        "❌ Failed to update account in Outseta:",
+        error.response?.data || error.message
+      );
+
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message,
+      };
+    }
+  }
+  // Add these methods to your outsetaApi.js service:
+
+  // Replace your createPersonAccount method with these corrected approaches:
+
+  // Method 1: Create person with PersonAccount relationship from the start
+  async createPersonWithAccount(userData, companyData) {
+    if (!this.isConfigured()) {
+      console.warn("Outseta not configured - skipping person creation");
+      return null;
+    }
+
+    try {
+      // Create person with PersonAccount relationship included
+      const personData = {
+        Email: userData.email,
+        FirstName: userData.firstName,
+        LastName: userData.lastName,
+        Phone: userData.phone || null,
+        // Include PersonAccount during creation
+        PersonAccount: companyData.outsetaAccountId
+          ? [
+              {
+                Account: {
+                  Uid: companyData.outsetaAccountId,
+                },
+                IsPrimary: false,
+              },
+            ]
+          : [],
+      };
+
+      console.log(
+        `🔄 Creating person with account association: ${userData.email}`
+      );
+
+      const response = await this.client.post("/crm/people", personData);
+
+      console.log(
+        `✅ Person created with account association: ${userData.email} [${response.data.Uid}]`
+      );
+
+      return {
+        success: true,
+        personId: response.data.Uid,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error(
+        "❌ Failed to create person with account:",
+        error.response?.data || error.message
+      );
+
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message,
+      };
+    }
+  }
+
+  // Method 2: Link existing person to account by updating the person
+  async linkPersonToAccount(
+    outsetaPersonId,
+    outsetaAccountId,
+    isPrimary = false
+  ) {
+    if (!this.isConfigured() || !outsetaPersonId || !outsetaAccountId) {
+      console.warn(
+        "Outseta not configured or missing IDs - skipping person-account link"
+      );
+      return null;
+    }
+
+    try {
+      console.log(
+        `🔄 Linking person to account: ${outsetaPersonId} -> ${outsetaAccountId}`
+      );
+
+      // First, get the current person data
+      const currentPersonResponse = await this.client.get(
+        `/crm/people/${outsetaPersonId}`
+      );
+      const currentPerson = currentPersonResponse.data;
+
+      // Prepare the update with PersonAccount relationship
+      const updateData = {
+        Email: currentPerson.Email,
+        FirstName: currentPerson.FirstName,
+        LastName: currentPerson.LastName,
+        Phone: currentPerson.Phone,
+        // Add or update PersonAccount relationships
+        PersonAccount: [
+          {
+            Account: {
+              Uid: outsetaAccountId,
+            },
+            IsPrimary: isPrimary,
+          },
+        ],
+      };
+
+      const response = await this.client.put(
+        `/crm/people/${outsetaPersonId}`,
+        updateData
+      );
+
+      console.log(
+        `✅ Person linked to account: ${outsetaPersonId} -> ${outsetaAccountId}`
+      );
+
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error(
+        "❌ Failed to link person to account:",
+        error.response?.data || error.message
+      );
+
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message,
+      };
+    }
+  }
+
+  // Method 3: Alternative approach - update account to include person
+  async addPersonToAccountTeam(outsetaPersonId, outsetaAccountId) {
+    if (!this.isConfigured() || !outsetaPersonId || !outsetaAccountId) {
+      console.warn("Outseta not configured or missing IDs");
+      return null;
+    }
+
+    try {
+      console.log(
+        `🔄 Adding person to account team: ${outsetaPersonId} -> ${outsetaAccountId}`
+      );
+
+      // Get current account data with PersonAccount relationships
+      const accountResponse = await this.client.get(
+        `/crm/accounts/${outsetaAccountId}?fields=*,PersonAccount.*,PersonAccount.Person.*`
+      );
+      const currentAccount = accountResponse.data;
+
+      // Add new person to existing PersonAccount array
+      const existingPersonAccounts = currentAccount.PersonAccount || [];
+      const personExists = existingPersonAccounts.some(
+        (pa) => pa.Person.Uid === outsetaPersonId
+      );
+
+      if (personExists) {
+        console.log(
+          `Person ${outsetaPersonId} already associated with account ${outsetaAccountId}`
+        );
+        return {
+          success: true,
+          message: "Person already associated with account",
+        };
+      }
+
+      // Add new PersonAccount relationship
+      const updatedPersonAccounts = [
+        ...existingPersonAccounts,
+        {
+          Person: { Uid: outsetaPersonId },
+          Account: { Uid: outsetaAccountId },
+          IsPrimary: existingPersonAccounts.length === 0, // First person is primary
+        },
+      ];
+
+      const updateData = {
+        Name: currentAccount.Name,
+        PersonAccount: updatedPersonAccounts,
+      };
+
+      const response = await this.client.put(
+        `/crm/accounts/${outsetaAccountId}`,
+        updateData
+      );
+
+      console.log(
+        `✅ Person added to account team: ${outsetaPersonId} -> ${outsetaAccountId}`
+      );
+
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error(
+        "❌ Failed to add person to account team:",
+        error.response?.data || error.message
+      );
+
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message,
+      };
+    }
   }
 
   // Create a person in Outseta
@@ -49,7 +284,7 @@ class OutsetaApiService {
 
       console.log(`🔄 Creating person in Outseta: ${userData.email}`);
 
-      const response = await this.client.post("/people", personData);
+      const response = await this.client.post("/crm/people", personData);
 
       console.log(
         `✅ Person created in Outseta: ${userData.email} [${response.data.Uid}]`
@@ -75,7 +310,7 @@ class OutsetaApiService {
   }
 
   // Update a person in Outseta
-  async updatePerson(outsetaPersonId, userData) {
+  async updatePerson(outsetaPersonId, personData) {
     if (!this.isConfigured() || !outsetaPersonId) {
       console.warn(
         "Outseta not configured or no person ID - skipping person update"
@@ -84,17 +319,10 @@ class OutsetaApiService {
     }
 
     try {
-      const personData = {
-        Email: userData.email,
-        FirstName: userData.firstName,
-        LastName: userData.lastName,
-        Phone: userData.phone || null,
-      };
-
       console.log(`🔄 Updating person in Outseta: ${outsetaPersonId}`);
 
       const response = await this.client.put(
-        `/people/${outsetaPersonId}`,
+        `/crm/people/${outsetaPersonId}`,
         personData
       );
 
@@ -129,7 +357,7 @@ class OutsetaApiService {
     try {
       console.log(`🔄 Deleting person from Outseta: ${outsetaPersonId}`);
 
-      await this.client.delete(`/people/${outsetaPersonId}`);
+      await this.client.delete(`/crm/people/${outsetaPersonId}`);
 
       console.log(`✅ Person deleted from Outseta: ${outsetaPersonId}`);
 
@@ -160,7 +388,7 @@ class OutsetaApiService {
     try {
       console.log(`🔍 Looking up person in Outseta: ${email}`);
 
-      const response = await this.client.get(`/people`, {
+      const response = await this.client.get(`/crm/people`, {
         params: {
           Email: email,
         },
@@ -212,7 +440,7 @@ class OutsetaApiService {
       );
 
       // Update person to link to account
-      const response = await this.client.put(`/people/${outsetaPersonId}`, {
+      const response = await this.client.put(`/crm/people/${outsetaPersonId}`, {
         Account: {
           Uid: outsetaAccountId,
         },

@@ -6,6 +6,7 @@ const argon2 = require("argon2");
 const moment = require("moment");
 const isEmpty = require("../utils/isEmpty");
 const mongoose = require("mongoose");
+const outsetaApi = require("../services/outsetaApi");
 
 module.exports = async (req, res) => {
   try {
@@ -130,6 +131,48 @@ module.exports = async (req, res) => {
     user.updatedAt = new Date();
 
     await user.save();
+
+    if (outsetaApi.isConfigured() && user.outsetaPersonId) {
+      try {
+        console.log(
+          `🔄 Syncing activation completion to Outseta: ${user.email}`
+        );
+
+        const personUpdateData = {
+          ActivationStatus: "active",
+          ActivationDate: new Date().toISOString(),
+        };
+
+        const updateResult = await outsetaApi.updatePerson(
+          user.outsetaPersonId,
+          personUpdateData
+        );
+
+        if (updateResult?.success) {
+          console.log(
+            `✅ Activation status synced to Outseta: ${user.email} -> active`
+          );
+          outsetaSync = { success: true, data: updateResult.data };
+        } else {
+          console.warn(
+            `⚠️ Outseta activation sync failed:`,
+            updateResult?.error
+          );
+          outsetaSync = { success: false, error: updateResult?.error };
+        }
+      } catch (syncError) {
+        console.error(
+          `❌ Failed to sync activation status to Outseta:`,
+          syncError
+        );
+        outsetaSync = { success: false, error: syncError.message };
+      }
+    } else {
+      console.warn(
+        `Outseta not configured or no person ID for user: ${user.email}`
+      );
+      outsetaSync = { success: false, reason: "not_configured" };
+    }
 
     // Clean up any remaining auth codes for this user
     await AuthCode.updateMany({ user: user._id }, { $set: { valid: false } });

@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const validator = require("validator");
 const isEmpty = require("../utils/isEmpty");
 const xss = require("xss");
+const outsetaApi = require("../services/outsetaApi"); // Add this import
 
 module.exports = async (req, res, next) => {
   try {
@@ -69,11 +70,42 @@ module.exports = async (req, res, next) => {
       });
     }
 
+    // Store Outseta Person ID before deletion
+    const outsetaPersonId = userToDelete.outsetaPersonId;
+
     // Actually delete the user
     const deletedUser = await User.findOneAndDelete({
       _id: userToDelete._id,
       companyId,
     });
+
+    // 🆕 SYNC USER DELETION TO OUTSETA
+    let outsetaSync = { success: false, reason: "not_configured" };
+
+    if (outsetaApi.isConfigured() && outsetaPersonId) {
+      try {
+        console.log(`🔄 Deleting user from Outseta: ${deletedUser.email}`);
+
+        const deleteResult = await outsetaApi.deletePerson(outsetaPersonId);
+
+        if (deleteResult?.success) {
+          console.log(`✅ User deleted from Outseta: ${deletedUser.email}`);
+          outsetaSync = { success: true, action: "deleted" };
+        } else {
+          console.warn(`⚠️ Outseta user deletion failed:`, deleteResult?.error);
+          outsetaSync = { success: false, error: deleteResult?.error };
+        }
+      } catch (syncError) {
+        console.error(`❌ Failed to delete user from Outseta:`, syncError);
+        outsetaSync = { success: false, error: syncError.message };
+      }
+    } else {
+      const reason = !outsetaApi.isConfigured()
+        ? "not_configured"
+        : "no_outseta_id";
+      console.log(`Outseta sync skipped for ${deletedUser.email}: ${reason}`);
+      outsetaSync = { success: false, reason };
+    }
 
     // Notify the deleted user if they're online
     store.io.to(deletedUser._id.toString()).emit("user-deleted", {
@@ -91,6 +123,7 @@ module.exports = async (req, res, next) => {
         name: `${deletedUser.firstName} ${deletedUser.lastName}`,
         deletedAt: new Date(),
       },
+      outseta: outsetaSync,
     });
   } catch (err) {
     console.error("User deletion error:", err);
