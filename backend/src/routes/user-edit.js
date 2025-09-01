@@ -55,6 +55,7 @@ module.exports = async (req, res, next) => {
   !validator.isEmail(email) && (errors.email = "Invalid email.");
 
   // Add phone validation
+  /*
   if (phone !== undefined && !isEmpty(phone)) {
     // Validate phone format - use international format validation
     const phoneRegex = /^\+[1-9]\d{1,14}$/;
@@ -63,6 +64,7 @@ module.exports = async (req, res, next) => {
         "Invalid phone number. Use international format like +1234567890";
     }
   }
+    */
 
   // Validate user level if provided
   if (level !== undefined && level !== null && level !== "") {
@@ -142,36 +144,37 @@ module.exports = async (req, res, next) => {
     let outsetaResult = null;
     if (outsetaApi.isConfigured() && updatedUser.outsetaPersonId) {
       try {
-        // Check if any Outseta-relevant fields changed
-        const outsetaFieldsChanged =
-          updatedUser.email !== targetUser.email ||
-          updatedUser.firstName !== targetUser.firstName ||
-          updatedUser.lastName !== targetUser.lastName ||
-          updatedUser.phone !== targetUser.phone;
+        console.log(`🔄 Syncing user changes to Outseta: ${updatedUser.email}`);
 
-        if (outsetaFieldsChanged) {
-          console.log(
-            `🔄 Syncing user changes to Outseta: ${updatedUser.email}`
-          );
+        // Enhanced Outseta sync with custom properties
+        const personUpdateData = {
+          // Standard Outseta fields
+          Email: updatedUser.email,
+          FirstName: updatedUser.firstName,
+          LastName: updatedUser.lastName,
+          Phone: updatedUser.phone || null,
 
-          outsetaResult = await outsetaApi.updatePerson(
-            updatedUser.outsetaPersonId,
-            {
-              email: updatedUser.email,
-              firstName: updatedUser.firstName,
-              lastName: updatedUser.lastName,
-              phone: updatedUser.phone,
-            }
-          );
+          // Custom properties we've been using
+          UserRole:
+            updatedUser.level === "standard"
+              ? "Standard User"
+              : updatedUser.level === "admin"
+              ? "Admin"
+              : updatedUser.level === "manager"
+              ? "Group Manager"
+              : "User",
+          ProfileUpdatedAt: new Date().toISOString(),
+        };
 
-          if (outsetaResult?.success) {
-            console.log(`✅ User updated in Outseta: ${updatedUser.email}`);
-          }
+        outsetaResult = await outsetaApi.updatePerson(
+          updatedUser.outsetaPersonId,
+          personUpdateData
+        );
+
+        if (outsetaResult?.success) {
+          console.log(`✅ User updated in Outseta: ${updatedUser.email}`);
         } else {
-          console.log(
-            `ℹ️ No Outseta-relevant changes for user: ${updatedUser.email}`
-          );
-          outsetaResult = { success: true, message: "No sync needed" };
+          console.warn(`⚠️ Outseta user sync failed:`, outsetaResult?.error);
         }
       } catch (outsetaError) {
         console.error("❌ Outseta sync failed for user update:", outsetaError);

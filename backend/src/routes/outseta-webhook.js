@@ -5,6 +5,7 @@ const Company = require("../models/Company");
 const User = require("../models/User");
 const Email = require("../models/Email");
 const Config = require("../../config");
+const outsetaApi = require("../services/outsetaApi");
 
 const generateSubdomain = (companyName, maxLength = 30) => {
   if (!companyName) return "";
@@ -88,33 +89,42 @@ const verifyOutsetaSignature = (req, res, next) => {
   }
 };
 
-// Main webhook handler that works with formidable
+// Main webhook handler - Fixed to prevent duplicates
 const handleWebhook = async (req, res) => {
   try {
-    // With formidable middleware, JSON data is in req.fields, not req.body
     const payload = req.body || {};
 
     console.log("Received webhook payload:", JSON.stringify(payload, null, 2));
 
     // Handle direct Account object payload
     if (payload.Uid && payload.Name && payload._objectType === "Account") {
-      // Check if company already exists
+      // Check if company already exists FIRST - this prevents duplicates
       const existing = await Company.findOne({ outsetaAccountId: payload.Uid });
       if (existing) {
         console.log(`Company already exists: ${payload.Uid}`);
+        // IMMEDIATELY respond to Outseta to prevent retries
         return res.status(200).json({
           status: "success",
           message: "Company already exists",
+          company: {
+            name: existing.name,
+            subdomain: existing.subdomain,
+            id: existing._id.toString(),
+          },
         });
       }
 
-      // Parse PersonAccount if it's a string (formidable sometimes stringifies nested objects)
+      // Parse PersonAccount if it's a string
       let personAccountArray = payload.PersonAccount;
       if (typeof personAccountArray === "string") {
         try {
           personAccountArray = JSON.parse(personAccountArray);
         } catch (e) {
           console.error("Failed to parse PersonAccount:", e);
+          return res.status(400).json({
+            error: "Invalid PersonAccount format",
+            message: "Failed to parse PersonAccount data",
+          });
         }
       }
 
@@ -123,16 +133,15 @@ const handleWebhook = async (req, res) => {
         (pa) => pa.IsPrimary
       );
       if (!primaryPersonAccount?.Person?.Email) {
-        return res
-          .status(400)
-          .json({ error: "Primary person not found in payload" });
+        return res.status(400).json({
+          error: "Primary person not found in payload",
+        });
       }
 
       const person = primaryPersonAccount.Person;
 
       // Generate unique subdomain
       let subdomain = generateSubdomain(payload.Name);
-
       if (!subdomain) subdomain = "company";
 
       // Check for subdomain conflicts
@@ -158,22 +167,23 @@ const handleWebhook = async (req, res) => {
       await company.save();
       console.log(`Company created: ${company.name} (${finalSubdomain})`);
 
+      // Generate activation token
+      const activationTokenRaw = crypto.randomBytes(32).toString("hex");
+      const activationTokenHashed = await bcrypt.hash(activationTokenRaw, 10);
+      const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      const activationLink = `https://${company.subdomain}.${Config.domain}/activate/${activationTokenRaw}`;
+      const instanceUrl = `https://${company.subdomain}.${Config.domain}`;
+
       // Create admin user
       const baseUsername = `${person.FirstName || "Admin"}${
         person.LastName || "User"
       }`;
-
-      // Convert to lowercase, remove non-alphanumeric, and truncate to 15 chars
       const username =
         baseUsername
           .toLowerCase()
           .replace(/[^a-z0-9]/g, "")
           .substring(0, 30) || "admin";
-
-      // Generate activation token
-      const activationTokenRaw = crypto.randomBytes(32).toString("hex");
-      const activationTokenHashed = await bcrypt.hash(activationTokenRaw, 10);
-      const tokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
       const user = new User({
         username,
@@ -192,211 +202,289 @@ const handleWebhook = async (req, res) => {
       await user.save();
       console.log(`Admin user created: ${user.email}`);
 
-      // Create welcome email
-      const activationLink = `https://${company.subdomain}.${Config.domain}/activate/${activationTokenRaw}`;
-      const instanceUrl = `https://${company.subdomain}.${Config.domain}`;
-
+      // Create welcome email FIRST (most important operation)
       const welcomeEmail = new Email({
         companyId: company._id,
         from: Config.nodemailer.from,
         to: user.email,
         subject: `Welcome to ${
           Config.appTitle || Config.appName
-        } - Your Team Communication Platform is Ready`,
+        } — Activate & Connect Your LTC Team`,
         html: `
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Welcome to ${Config.appTitle || Config.appName}</title>
-          </head>
-          <body style="margin: 0; padding: 0; background-color: #f4f4f4; font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;">
-            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f4f4f4; min-height: 100vh;">
-              <tr>
-                <td align="center" style="padding: 40px 20px;">
-                  <table cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                    
-                    <!-- Header -->
-                    <tr>
-                      <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center; border-radius: 8px 8px 0 0;">
-                        <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 600;">${
-                          Config.appTitle || Config.appName
-                        }</h1>
-                        <p style="color: #ffffff; margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Professional Team Communication Platform</p>
-                      </td>
-                    </tr>
-                    
-                    <!-- Main Content -->
-                    <tr>
-                      <td style="padding: 40px 30px;">
-                        <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 24px; font-weight: 600;">Welcome to ${
-                          Config.appTitle || Config.appName
-                        }, ${user.firstName}!</h2>
-                        
-                        <p style="color: #555555; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                          Congratulations! Your team communication platform for <strong>${
-                            company.name
-                          }</strong> has been successfully set up and is ready to use.
-                        </p>
+<!DOCTYPE html>
+<html>
 
-                        <p style="color: #555555; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
-                          As the administrator, you now have access to a complete suite of collaboration tools designed to enhance your team's productivity and communication.
-                        </p>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to ${Config.appTitle || Config.appName}</title>
+</head>
 
-                        <!-- Instance URL Section -->
-                        <div style="background-color: #f8f9ff; border: 2px solid #667eea; border-radius: 8px; padding: 25px; margin: 30px 0;">
-                          <h3 style="color: #667eea; margin: 0 0 15px 0; font-size: 18px; font-weight: 600;">Your Private Instance</h3>
-                          <p style="color: #555555; font-size: 16px; margin: 0 0 15px 0;">Access your team's dedicated communication hub:</p>
-                          <div style="background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 4px; padding: 15px; text-align: center;">
-                            <a href="${instanceUrl}" style="color: #667eea; text-decoration: none; font-size: 18px; font-weight: 500; display: block;">${instanceUrl}</a>
-                          </div>
-                          <p style="color: #777777; font-size: 14px; margin: 15px 0 0 0;">Bookmark this link for quick access to your team workspace.</p>
-                        </div>
+<body style="margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f4f4" style="min-height:100vh;">
+    <tr>
+      <td align="center" style="padding:40px 20px;">
+        <table width="600"
+          style="max-width:600px; background:#fff; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
 
-                        <!-- Activation Section -->
-                        <div style="background-color: #fff8e1; border: 2px solid #ffa726; border-radius: 8px; padding: 25px; margin: 30px 0;">
-                          <h3 style="color: #e65100; margin: 0 0 15px 0; font-size: 18px; font-weight: 600;">Activate Your Administrator Account</h3>
-                          <p style="color: #555555; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-                            To get started, please activate your administrator account by clicking the button below. This will allow you to set your password and access all administrative features.
-                          </p>
-                          
-                          <div style="text-align: center; margin: 25px 0;">
-                            <a href="${activationLink}" 
-                               style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                                      color: #ffffff; 
-                                      text-decoration: none; 
-                                      padding: 15px 40px; 
-                                      border-radius: 6px; 
-                                      font-size: 16px; 
-                                      font-weight: 600; 
-                                      display: inline-block;
-                                      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-                                      transition: all 0.3s ease;">
-                              Activate Administrator Account
-                            </a>
-                          </div>
+          <!-- Header with Logo -->
+          <tr>
+            <td style="background:#2f3e46; padding:40px 30px; text-align:center; border-radius:8px 8px 0 0;">
+              <img src="https://ltcflow.com/wp-content/uploads/2025/08/flowlogob300.png"
+                alt="LTC Flow Logo" width="180" style="display:block; margin:0 auto 20px auto;" />
+              <h1 style="color:#ffffff; margin:0; font-size:28px;">${
+                Config.appTitle || Config.appName
+              }</h1>
+              <p style="color:#ffffff; margin:8px 0 0; font-size:16px; opacity:0.9;">
+                Instant Communication Built for Long-Term Care
+              </p>
+            </td>
+          </tr>
 
-                          <div style="background-color: #ffffff; border-left: 4px solid #ffa726; padding: 15px; margin: 20px 0;">
-                            <p style="color: #e65100; font-size: 14px; margin: 0; font-weight: 500;">Important Security Notice:</p>
-                            <p style="color: #555555; font-size: 14px; margin: 5px 0 0 0;">This activation link expires in 7 days for security purposes. If you need a new link, please contact support.</p>
-                          </div>
-                        </div>
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px 30px;">
+              <h2 style="color:#333333; font-size:24px; margin:0 0 20px 0;">Welcome, ${
+                user.firstName
+              }!</h2>
+              <p style="color:#555555; font-size:16px; line-height:1.6; margin:0 0 20px;">
+                Your LTC Flow platform is set up, and you're ready to transform communication in your care team.
+              </p>
+              <p style="color:#555555; font-size:16px; line-height:1.6; margin:0 0 30px;">
+                Activate your admin account below to get started with real-time messaging, group chats, and seamless coordination—no email delays, no missed messages.
+              </p>
 
-                        <!-- Features Overview -->
-                        <div style="margin: 30px 0;">
-                          <h3 style="color: #333333; margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">What You Can Do Next</h3>
-                          <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                            <tr>
-                              <td style="padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
-                                <strong style="color: #333333;">1. Complete Account Setup</strong><br>
-                                <span style="color: #666666; font-size: 14px;">Activate your account and set up your admin profile</span>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td style="padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
-                                <strong style="color: #333333;">2. Invite Your Team</strong><br>
-                                <span style="color: #666666; font-size: 14px;">Add team members and assign appropriate roles and permissions</span>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td style="padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
-                                <strong style="color: #333333;">3. Create Communication Channels</strong><br>
-                                <span style="color: #666666; font-size: 14px;">Set up group chats, project channels, and meeting rooms</span>
-                              </td>
-                            </tr>
-                            <tr>
-                              <td style="padding: 12px 0;">
-                                <strong style="color: #333333;">4. Explore Features</strong><br>
-                                <span style="color: #666666; font-size: 14px;">Discover video conferencing, screen sharing, and collaboration tools</span>
-                              </td>
-                            </tr>
-                          </table>
-                        </div>
+              <!-- Activation CTA -->
+              <div style="text-align:center; margin:30px 0;">
+                <a href="${activationLink}"
+                  style="background:#52796f; color:#ffffff; text-decoration:none; padding:15px 40px; border-radius:6px; font-size:16px; font-weight:600; display:inline-block; box-shadow:0 4px 12px rgba(82,121,111,0.3);">
+                  Activate Your Administrator Account
+                </a>
+              </div>
 
-                        <!-- Support Section -->
-                        <div style="background-color: #f8f9fa; border-radius: 6px; padding: 20px; margin: 30px 0;">
-                          <h3 style="color: #333333; margin: 0 0 15px 0; font-size: 16px; font-weight: 600;">Need Assistance?</h3>
-                          <p style="color: #666666; font-size: 14px; line-height: 1.5; margin: 0;">
-                            Our support team is here to help you get the most out of ${
-                              Config.appTitle || Config.appName
-                            }. 
-                            If you have questions about setup, user management, or any features, don't hesitate to reach out.
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                    
-                    <!-- Footer -->
-                    <tr>
-                      <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-radius: 0 0 8px 8px;">
-                        <p style="color: #999999; font-size: 12px; margin: 0 0 10px 0;">
-                          This email was sent because you registered for ${
-                            Config.appTitle || Config.appName
-                          }
-                        </p>
-                        <p style="color: #999999; font-size: 12px; margin: 0;">
-                          © ${new Date().getFullYear()} ${
+              <div style="background:#fff; border-left:4px solid #ffa726; padding:15px; margin:20px 0;">
+                <p style="color:#e65100; font-size:14px; font-weight:500; margin:0;">Security Notice:</p>
+                <p style="color:#555555; font-size:14px; margin:5px 0 0;">
+                  This link expires in 7 days. Contact support if you need a new one.
+                </p>
+              </div>
+
+              <!-- Instance Info -->
+              <div
+                style="background:#f8f9ff; border:1px solid #e0e0e0; border-radius:6px; padding:20px; margin:30px 0;">
+                <h3 style="color:#2f3e46; font-size:16px; margin:0 0 10px;">Your Workspace URL</h3>
+                <p style="color:#555555; font-size:14px; margin:0 0 10px;">
+                  After activation, you'll be auto-redirected here. Bookmark for quick access:
+                </p>
+                <a href="${instanceUrl}"
+                  style="color:#2f3e46; text-decoration:none; font-size:16px; font-weight:500; display:block; text-align:center;">
+                  ${instanceUrl}
+                </a>
+              </div>
+
+              <!-- Next Steps -->
+              <div style="margin:30px 0;">
+                <h3 style="color:#333333; margin:0 0 20px 0; font-size:18px; font-weight:600;">What’s Next? Work Smarter, Together</h3>
+                <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                  <tr>
+                    <td style="padding:12px 0; border-bottom:1px solid #f0f0f0;">
+                      <strong style="color:#333333;">🔑 Activate Your Account</strong><br>
+                      <span style="color:#666666; font-size:14px;">Set up your admin profile to get started securely.</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:12px 0; border-bottom:1px solid #f0f0f0;">
+                      <strong style="color:#333333;">👥 Invite Your Team</strong><br>
+                      <span style="color:#666666; font-size:14px;">Add care givers, operational staff, and partners with appropriate roles.</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:12px 0; border-bottom:1px solid #f0f0f0;">
+                      <strong style="color:#333333;">💬 Use FlowChat & Groups</strong><br>
+                      <span style="color:#666666; font-size:14px;">Replace emails with secure messaging, instant work groups, and searchable chat history.</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:12px 0; border-bottom:1px solid #f0f0f0;">
+                      <strong style="color:#333333;">🎥 Start FlowMeet Sessions</strong><br>
+                      <span style="color:#666666; font-size:14px;">Launch instant video meetings for team coordination without extra tools.</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:12px 0;">
+                      <strong style="color:#333333;">🤖 Explore FlowAssist</strong><br>
+                      <span style="color:#666666; font-size:14px;">Get LTC-specific guidance on regulations, billing, and compliance.</span>
+                    </td>
+                  </tr>
+                </table>
+                <p style="color:#666666; font-size:14px; margin:15px 0 0 0;">Coming soon: FlowBridge for partners, FlowCast for broadcasts, and FlowCare for family communication.</p>
+              </div>
+
+              <!-- Support Section -->
+              <div style="background-color:#f8f9fa; border-radius:6px; padding:20px; margin:30px 0;">
+                <h3 style="color:#333333; margin:0 0 15px 0; font-size:16px; font-weight:600;">We’re Here to Help!</h3>
+                <p style="color:#666666; font-size:14px; line-height:1.5; margin:0;">
+                  Our support team is ready to assist with setup, features, or your 30-day free trial. Contact us at <a
+                    href="mailto:support@ltcflow.com" style="color:#2f3e46; text-decoration:none;">support@ltcflow.com</a> or visit our <a
+                    href="https://ltcflow.com/contact/" style="color:#2f3e46; text-decoration:none;">Contact Page</a>.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f8f9fa; padding:30px; text-align:center; border-radius:0 0 8px 8px;">
+              <p style="color:#999999; font-size:12px; margin:0 0 10px 0;">
+                You received this because you signed up for ${
+                  Config.appTitle || Config.appName
+                }.
+              </p>
+              <p style="color:#999999; font-size:12px; margin:0;">
+                © ${new Date().getFullYear()} ${
           Config.appTitle || Config.appName
         }. All rights reserved.
-                        </p>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
-          </body>
-          </html>
-        `,
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+
+</html>
+`,
         text: `
 Welcome to ${Config.appTitle || Config.appName}, ${user.firstName}!
 
-Congratulations! Your team communication platform for ${
-          company.name
-        } has been successfully set up and is ready to use.
+Your workspace for ${company.name} has been created.
 
-Your Private Instance: ${instanceUrl}
-
-To get started, please activate your administrator account:
+To get started, activate your administrator account:
 ${activationLink}
 
-This activation link expires in 7 days for security purposes.
+This link expires in 7 days.
 
-What You Can Do Next:
-1. Complete Account Setup - Activate your account and set up your admin profile
-2. Invite Your Team - Add team members and assign appropriate roles and permissions  
-3. Create Communication Channels - Set up group chats, project channels, and meeting rooms
-4. Explore Features - Discover video conferencing, screen sharing, and collaboration tools
+After activation, you’ll be redirected to your private instance:
+${instanceUrl}
+(Bookmark this link for quick access later.)
 
-Need assistance? Our support team is here to help you get the most out of ${
-          Config.appTitle || Config.appName
-        }.
+Next steps:
+- Invite your team and assign roles
+- Create channels for projects and discussions
+- Explore video conferencing, file sharing, and more
+
+Need help? Our support team is ready to assist.
 
 © ${new Date().getFullYear()} ${
           Config.appTitle || Config.appName
         }. All rights reserved.
-        `,
+  `,
       });
 
       await welcomeEmail.save();
       console.log(`Welcome email queued for: ${user.email}`);
 
-      return res.status(200).json({
+      // RESPOND TO OUTSETA IMMEDIATELY - This is critical to prevent retries
+      const successResponse = {
         status: "success",
         message: "Company and admin user created successfully",
         company: {
           name: company.name,
           subdomain: company.subdomain,
+          id: company._id.toString(),
         },
         user: {
           email: user.email,
           name: `${user.firstName} ${user.lastName}`,
+          id: user._id.toString(),
         },
+      };
+
+      // Send response first
+      res.status(200).json(successResponse);
+
+      // BACKGROUND OPERATIONS - Don't await these, let them run after response
+      setImmediate(async () => {
+        // Sync account data to Outseta in background
+        if (outsetaApi.isConfigured()) {
+          try {
+            console.log(
+              `🔄 Background sync: Updating account in Outseta: ${payload.Uid}`
+            );
+
+            const accountUpdateData = {
+              Subdomain: company.subdomain,
+              InstanceUrl: instanceUrl,
+              MongoCompanyId: company._id.toString(),
+              SetupCompletedAt: new Date().toISOString(),
+              AdminEmail: person.Email,
+            };
+
+            const updateResult = await outsetaApi.updateAccount(
+              payload.Uid,
+              accountUpdateData
+            );
+            if (updateResult?.success) {
+              console.log(`✅ Background sync: Account updated in Outseta`);
+            } else {
+              console.warn(
+                `⚠️ Background sync: Account update failed:`,
+                updateResult?.error
+              );
+            }
+          } catch (syncError) {
+            console.error(
+              `❌ Background sync: Account update error:`,
+              syncError
+            );
+          }
+
+          // Sync person data to Outseta in background
+          try {
+            console.log(
+              `🔄 Background sync: Updating person in Outseta: ${user.email}`
+            );
+
+            const personUpdateData = {
+              MongoUserId: user._id.toString(),
+              MongoCompanyId: company._id.toString(),
+              UserRole: "Root",
+              ActivationStatus: "pending",
+              InstanceUrl: instanceUrl,
+              Subdomain: company.subdomain,
+            };
+
+            const personUpdateResult = await outsetaApi.updatePerson(
+              user.outsetaPersonId,
+              personUpdateData
+            );
+            if (personUpdateResult?.success) {
+              console.log(`✅ Background sync: Person updated in Outseta`);
+            } else {
+              console.warn(
+                `⚠️ Background sync: Person update failed:`,
+                personUpdateResult?.error
+              );
+            }
+          } catch (personSyncError) {
+            console.error(
+              `❌ Background sync: Person update error:`,
+              personSyncError
+            );
+          }
+        }
       });
+
+      // Response already sent above
+      return;
     } else {
       console.log("Unrecognized payload format");
-      return res.status(400).json({ error: "Unrecognized payload format" });
+      return res.status(400).json({
+        error: "Unrecognized payload format",
+        receivedObjectType: payload._objectType || "unknown",
+      });
     }
   } catch (error) {
     console.error("Webhook error:", error);
