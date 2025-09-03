@@ -1,10 +1,11 @@
-﻿// frontend/src/pages/ActivateAccount/index.jsx (Updated for configurable OTP)
-import React, { useState, useEffect } from 'react';
+﻿// frontend/src/pages/ActivateAccount/index.js (Updated for root user activation with Admin Username - No Div100vh)
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGlobal } from 'reactn';
 import { useToasts } from 'react-toast-notifications';
-import Div100vh from 'react-div-100vh';
+import { FiX, FiUpload, FiEdit2 } from 'react-icons/fi';
 import apiClient from '../../api/apiClient';
+import uploadActivationImage from '../../actions/uploadActivationImage';
 import getInfo from '../../actions/getInfo';
 import Credits from '../Login/components/Credits';
 import Logo from '../Login/components/Logo';
@@ -15,6 +16,7 @@ function ActivateAccount() {
   const navigate = useNavigate();
   const { addToast } = useToasts();
   const setEntryPath = useGlobal('entryPath')[1];
+  const fileInputRef = useRef(null);
 
   // States for different steps
   const [step, setStep] = useState('validating'); // 'validating', 'otp', 'password', 'success', 'error'
@@ -23,7 +25,10 @@ function ActivateAccount() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // 🆕 OTP delivery method tracking
+  // Check if this is root user activation
+  const [isRootActivation, setIsRootActivation] = useState(false);
+
+  // OTP delivery method tracking
   const [otpDeliveryInfo, setOtpDeliveryInfo] = useState({
     email: false,
     sms: false,
@@ -40,7 +45,13 @@ function ActivateAccount() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // 🆕 Helper function to mask email
+  // Root user specific states
+  const [companyName, setCompanyName] = useState('');
+  const [companyLogo, setCompanyLogo] = useState(null);
+  const [adminUsername, setAdminUsername] = useState('');
+  const [logoUploading, setLogoUploading] = useState(false);
+
+  // Helper function to mask email
   const maskEmail = (email) => {
     if (!email) return 'your email';
     const [localPart, domain] = email.split('@');
@@ -49,11 +60,133 @@ function ActivateAccount() {
     return `${maskedLocal}@${domain}`;
   };
 
-  // 🆕 Helper function to mask phone number
+  // Helper function to mask phone number
   const maskPhoneNumber = (phone) => {
     if (!phone) return 'your phone';
     if (phone.length <= 4) return phone;
     return phone.slice(0, -4).replace(/\d/g, '*') + phone.slice(-4);
+  };
+
+  // Handle company logo upload
+  const handleLogoUpload = async (file) => {
+    if (!file) return;
+    
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setErrors(prev => ({ ...prev, companyLogo: 'Logo file size must be less than 5MB' }));
+      return;
+    }
+    
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setErrors(prev => ({ ...prev, companyLogo: 'Logo must be a valid image file (JPG, PNG, GIF, WebP)' }));
+      return;
+    }
+    
+    setLogoUploading(true);
+    setErrors(prev => ({ ...prev, companyLogo: '' }));
+    
+    try {
+      // 🆕 Use activation-specific upload that doesn't require authentication
+      const result = await uploadActivationImage(file, token, () => {}, 'square');
+      const previewUrl = URL.createObjectURL(file);
+      setCompanyLogo({ 
+        file, 
+        preview: previewUrl,
+        imageId: result.data.image._id,
+        imageData: result.data.image
+      });
+      addToast('Company logo uploaded successfully', {
+        appearance: 'success',
+        autoDismiss: true,
+      });
+    } catch (error) {
+      console.error('Logo upload error:', error);
+      let errorMessage = 'Failed to upload logo. Please try again.';
+      
+      // Handle specific error cases
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Invalid activation token. Please refresh the page and try again.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'Only root users can upload company logos.';
+      }
+      
+      setErrors(prev => ({ ...prev, companyLogo: errorMessage }));
+      addToast(errorMessage, {
+        appearance: 'error',
+        autoDismiss: true,
+      });
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  // Logo preview component (following the existing circle pattern)
+  const LogoPreview = () => {
+    if (!companyLogo) {
+      return (
+        <div 
+          className="uk-flex uk-flex-middle uk-flex-center uk-border uk-border-dashed uk-background-muted"
+          style={{
+            width: '80px',
+            height: '80px',
+            borderRadius: '50%',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <div className="uk-text-center">
+            <FiUpload 
+              className="uk-margin-auto uk-display-block uk-text-muted" 
+              style={{ height: '24px', width: '24px' }} 
+            />
+            <p className="uk-text-small uk-text-muted uk-margin-remove">Logo</p>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="uk-position-relative" style={{ width: '80px', height: '80px' }}>
+        <img
+          src={companyLogo.preview}
+          alt="Company Logo"
+          className="uk-border-rounded"
+          style={{
+            width: '80px',
+            height: '80px',
+            objectFit: 'cover',
+            borderRadius: '50%',
+            border: '2px solid #e0e0e0',
+            cursor: 'pointer'
+          }}
+          onClick={() => fileInputRef.current?.click()}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            setCompanyLogo(null);
+            setErrors(prev => ({ ...prev, companyLogo: '' }));
+          }}
+          className="uk-position-absolute uk-border-circle uk-background-danger uk-padding-small uk-button uk-button-small"
+          style={{ 
+            top: '-5px', 
+            right: '-5px',
+            width: '24px',
+            height: '24px',
+            padding: '0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <FiX size={12} className="uk-text-white" />
+        </button>
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -71,150 +204,91 @@ function ActivateAccount() {
     return () => clearTimeout(timer);
   }, [resendCountdown]);
 
-  // Validate token and send OTP on component mount
+  // Initial validation when component loads
   useEffect(() => {
     if (token) {
-      validateTokenAndSendOTP();
+      validateToken();
     }
   }, [token]);
 
-  const validateTokenAndSendOTP = async () => {
+  const validateToken = async () => {
+    setLoading(true);
     try {
-      setStep('validating');
       const response = await apiClient.get(`/api/activate/${token}`);
-
+      
       if (response.data.status === 'success') {
         setUser(response.data.user);
+        setIsRootActivation(response.data.user.level === 'root');
         
-        // 🆕 Handle OTP delivery info from backend
-        if (response.data.otpSent) {
-          setOtpDeliveryInfo({
-            email: response.data.otpSent.email || false,
-            sms: response.data.otpSent.sms || false,
-            method: response.data.otpSent.method || 'sms'
-          });
-        }
-        
-        if (response.data.nextStep === 'verify_otp') {
-          setStep('otp');
-          setResendCountdown(60);
-          
-          // 🆕 Dynamic toast message based on delivery method
-          let toastMessage = 'Verification code sent';
-          if (response.data.otpSent?.email && response.data.otpSent?.sms) {
-            toastMessage += ' to your email and phone!';
-          } else if (response.data.otpSent?.email) {
-            toastMessage += ' to your email address!';
-          } else if (response.data.otpSent?.sms) {
-            toastMessage += ' to your phone number!';
-          } else {
-            toastMessage += '!';
+        // Pre-populate company name and admin username from database for root users
+        if (response.data.user.level === 'root') {
+          if (response.data.company?.name) {
+            setCompanyName(response.data.company.name);
           }
-          /*
-          addToast(toastMessage, {
-            appearance: 'success',
-            autoDismiss: true,
-          });
-          */
-        } else {
-          setStep('password');
+          if (response.data.user?.username) {
+            setAdminUsername(response.data.user.username);
+          }
         }
+        
+        setOtpDeliveryInfo(response.data.otpDelivery);
+        setStep('otp');
       }
     } catch (error) {
       console.error('Token validation error:', error);
       setStep('error');
-      
       if (error.response?.data?.message) {
         addToast(error.response.data.message, {
           appearance: 'error',
           autoDismiss: true,
         });
-      } else {
-        addToast('Invalid or expired activation link.', {
-          appearance: 'error',
-          autoDismiss: true,
-        });
       }
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleOtpSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Validation
-    const newErrors = {};
-    if (!otp.trim()) newErrors.otp = 'Verification code is required';
-    if (!/^\d{6}$/.test(otp.trim())) newErrors.otp = 'Code must be 6 digits';
-    
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
-
+  const verifyOtp = async () => {
     setOtpLoading(true);
+    setErrors({});
     
     try {
       const response = await apiClient.post('/api/verify-activation-otp', {
         token,
         otp: otp.trim()
       });
-
+      
       if (response.data.status === 'success') {
         setStep('password');
-        addToast('Code verified! Now set your password.', {
+        addToast('OTP verified successfully', {
           appearance: 'success',
           autoDismiss: true,
         });
       }
     } catch (error) {
       console.error('OTP verification error:', error);
-      
-      if (error.response?.data?.errors) {
-        setErrors(error.response.data.errors);
-      } else if (error.response?.data?.message) {
+      if (error.response?.data?.message) {
         setErrors({ otp: error.response.data.message });
       } else {
-        setErrors({ otp: 'Failed to verify code. Please try again.' });
+        setErrors({ otp: 'Invalid OTP. Please try again.' });
       }
     } finally {
       setOtpLoading(false);
     }
   };
 
-  const handleResendOtp = async () => {
-    if (resendCountdown > 0) return;
-    
+  const resendOtp = async () => {
     setResendLoading(true);
+    
     try {
-      const response = await apiClient.post('/api/resend-activation-otp', { token });
-      
-      // 🆕 Update delivery info from response
-      if (response.data.otpSent) {
-        setOtpDeliveryInfo(prev => ({
-          ...prev,
-          email: response.data.otpSent.email || false,
-          sms: response.data.otpSent.sms || false
-        }));
-      }
-      
-      setResendCountdown(60);
-      
-      // 🆕 Dynamic success message
-      let successMessage = 'New verification code sent';
-      if (response.data.otpSent?.email && response.data.otpSent?.sms) {
-        successMessage += ' to your email and phone!';
-      } else if (response.data.otpSent?.email) {
-        successMessage += ' to your email!';
-      } else if (response.data.otpSent?.sms) {
-        successMessage += ' to your phone!';
-      } else {
-        successMessage = response.data.message || 'New verification code sent!';
-      }
-      
-      addToast(successMessage, {
+      await apiClient.post('/api/resend-activation-otp', { token });
+      addToast('New OTP sent successfully', {
         appearance: 'success',
         autoDismiss: true,
       });
+      setResendCountdown(60);
     } catch (error) {
-      addToast('Failed to resend code. Please try again.', {
+      console.error('Resend OTP error:', error);
+      addToast('Failed to resend OTP. Please try again.', {
         appearance: 'error',
         autoDismiss: true,
       });
@@ -223,39 +297,65 @@ function ActivateAccount() {
     }
   };
 
-  const handlePasswordSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Validation
+  const completeActivation = async () => {
+    setLoading(true);
+    setErrors({});
+
+    // Client-side validation
     const newErrors = {};
     if (!password) newErrors.password = 'Password is required';
-    if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
     if (!confirmPassword) newErrors.confirmPassword = 'Please confirm your password';
-    if (password !== confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
-    
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) return;
+    if (password !== confirmPassword) {
+      newErrors.password = 'Passwords do not match';
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+    if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters long';
+    }
 
-    setLoading(true);
-    
+    // Root user specific validation
+    if (isRootActivation) {
+      if (!companyName.trim()) {
+        newErrors.companyName = 'Company name is required';
+      }
+      if (!adminUsername.trim()) {
+        newErrors.adminUsername = 'Admin username is required';
+      }
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      setLoading(false);
+      return;
+    }
+
     try {
-      const response = await apiClient.post('/api/complete-activation', {
+      const requestData = {
         token,
         password,
         confirmPassword
-      });
+      };
+
+      // Add root user specific data
+      if (isRootActivation) {
+        requestData.companyName = companyName.trim();
+        requestData.adminUsername = adminUsername.trim();
+        if (companyLogo && companyLogo.imageId) {
+          requestData.companyLogo = companyLogo.imageId;
+        }
+      }
+
+      const response = await apiClient.post('/api/complete-activation', requestData);
 
       if (response.data.status === 'success') {
         setStep('success');
-        addToast('Account activated successfully!', {
+        addToast('Account activated successfully! You can now log in.', {
           appearance: 'success',
           autoDismiss: true,
         });
         
-        // Clear entryPath before redirecting to login
         setEntryPath(null);
         
-        // Redirect to login after 3 seconds
         setTimeout(() => {
           navigate('/login', { replace: true });
         }, 3000);
@@ -292,211 +392,258 @@ function ActivateAccount() {
       <div className="uk-text-center uk-margin-bottom">
         <h2 className="uk-margin-remove-bottom">
           {otpDeliveryInfo.email && otpDeliveryInfo.sms ? 'Verify Your Code' : 
-           otpDeliveryInfo.email ? 'Verify Your Email' : 'Verify Your Phone Number'}
+           otpDeliveryInfo.email ? 'Check Your Email' : 'Check Your Phone'}
         </h2>
         <p className="uk-text-muted uk-margin-small-top">
-          We've sent a 6-digit verification code to:
+          {otpDeliveryInfo.email && otpDeliveryInfo.sms ? (
+            <>We've sent verification codes to {maskEmail(user?.email)} and {maskPhoneNumber(user?.phone)}</>
+          ) : otpDeliveryInfo.email ? (
+            <>We've sent a verification code to {maskEmail(user?.email)}</>
+          ) : (
+            <>We've sent a verification code to {maskPhoneNumber(user?.phone)}</>
+          )}
         </p>
-        
-        {/* 🆕 Dynamic delivery info display */}
-        <div className="uk-margin-small-top">
-          {otpDeliveryInfo.email && otpDeliveryInfo.sms && (
-            <div className="uk-margin-small-bottom">
-              <div className="uk-text-emphasis" style={{ 
-                fontSize: '16px', 
-                fontWeight: 'bold',
-                backgroundColor: '#f8f9fa',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                border: '1px solid #e9ecef',
-                marginBottom: '8px',
-                display: 'inline-block'
-              }}>
-                📧 {maskEmail(user?.email)}
-              </div>
-              <div style={{ margin: '8px 0', color: '#666' }}>and</div>
-              <div className="uk-text-emphasis" style={{ 
-                fontSize: '16px', 
-                fontWeight: 'bold',
-                backgroundColor: '#f8f9fa',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                border: '1px solid #e9ecef',
-                display: 'inline-block'
-              }}>
-                📱 {maskPhoneNumber(user?.phone)}
-              </div>
-            </div>
-          )}
-          
-          {otpDeliveryInfo.email && !otpDeliveryInfo.sms && (
-            <span className="uk-text-emphasis" style={{ 
-              fontSize: '18px', 
-              fontWeight: 'bold',
-              backgroundColor: '#f8f9fa',
-              padding: '8px 16px',
-              borderRadius: '20px',
-              border: '1px solid #e9ecef'
-            }}>
-              📧 {maskEmail(user?.email)}
-            </span>
-          )}
-          
-          {!otpDeliveryInfo.email && otpDeliveryInfo.sms && (
-            <span className="uk-text-emphasis" style={{ 
-              fontSize: '18px', 
-              fontWeight: 'bold',
-              backgroundColor: '#f8f9fa',
-              padding: '8px 16px',
-              borderRadius: '20px',
-              border: '1px solid #e9ecef'
-            }}>
-              📱 {maskPhoneNumber(user?.phone)}
-            </span>
-          )}
-        </div>
       </div>
 
-      <form onSubmit={handleOtpSubmit}>
-        {errors.general && (
-          <div className="uk-alert-danger uk-margin-bottom" uk-alert="true">
-            <p className="uk-margin-remove">{errors.general}</p>
-          </div>
+      <div className="uk-margin-bottom">
+        <input
+          type="text"
+          className={`uk-input uk-text-center ${errors.otp ? 'uk-form-danger' : ''}`}
+          placeholder="Enter verification code"
+          value={otp}
+          onChange={(e) => {
+            setOtp(e.target.value);
+            if (errors.otp) setErrors(prev => ({ ...prev, otp: '' }));
+          }}
+          maxLength="6"
+          style={{ letterSpacing: '2px', fontSize: '18px' }}
+        />
+        {errors.otp && (
+          <div className="uk-text-danger uk-text-small uk-margin-small-top">{errors.otp}</div>
         )}
+      </div>
 
-        <div className="uk-margin-bottom">
-          <input
-            className={`uk-input uk-border-pill uk-text-center ${
-              errors.otp ? 'uk-form-danger' : ''
-            }`}
-            type="text"
-            placeholder="Enter 6-digit code"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            maxLength={6}
-            style={{ 
-              fontSize: '24px', 
-              letterSpacing: '2px', 
-              fontWeight: 'bold',
-              padding: '12px 16px',
-            }}
-            autoComplete="one-time-code"
-            inputMode="numeric"
-            pattern="[0-9]*"
-          />
-          {errors.otp && (
-            <div className="uk-text-danger uk-text-small uk-margin-small-top uk-text-center">
-              {errors.otp}
-            </div>
+      <div className="uk-margin-bottom">
+        <button
+          className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
+          onClick={verifyOtp}
+          disabled={otpLoading || !otp.trim()}
+        >
+          {otpLoading ? (
+            <>
+              <div data-uk-spinner="ratio: 0.8" className="uk-margin-small-right" />
+              VERIFYING...
+            </>
+          ) : (
+            'VERIFY CODE'
           )}
-        </div>
+        </button>
+      </div>
 
-        <div className="uk-margin-bottom">
-          <button
-            type="submit"
-            className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
-            disabled={otpLoading || otp.length !== 6}
-          >
-            {otpLoading ? (
-              <>
-                <span data-uk-spinner="ratio: 0.7" className="uk-margin-small-right"></span>
-                Verifying...
-              </>
-            ) : (
-              otpDeliveryInfo.email && otpDeliveryInfo.sms ? 'Verify Code' : 
-              otpDeliveryInfo.email ? 'Verify Email Code' : 'Verify Phone Code'
-            )}
-          </button>
-        </div>
-
-        <div className="uk-text-center">
-          <p className="uk-text-small uk-margin-remove-bottom uk-text-muted">
-            Didn't receive the code?
-          </p>
-          <button
-            type="button"
-            className="uk-button uk-button-text uk-text-primary"
-            onClick={handleResendOtp}
-            disabled={resendLoading || resendCountdown > 0}
-            style={{ fontSize: '14px', textDecoration: 'underline' }}
-          >
-            {resendLoading ? (
-              <>
-                <span data-uk-spinner="ratio: 0.5" className="uk-margin-small-right"></span>
-                Sending...
-              </>
-            ) : resendCountdown > 0 ? (
-              `Resend in ${resendCountdown}s`
-            ) : (
-              'Resend Code'
-            )}
-          </button>
-        </div>
-      </form>
+      <div className="uk-text-center">
+        <p className="uk-text-small uk-text-muted">
+          Didn't receive the code?
+        </p>
+        <button
+          type="button"
+          className="uk-button uk-button-text uk-text-small"
+          onClick={resendOtp}
+          disabled={resendLoading || resendCountdown > 0}
+        >
+          {resendLoading ? (
+            'Sending...'
+          ) : resendCountdown > 0 ? (
+            `Resend in ${resendCountdown}s`
+          ) : (
+            'Resend Code'
+          )}
+        </button>
+      </div>
     </div>
   );
 
   const renderPasswordStep = () => (
     <div>
       <div className="uk-text-center uk-margin-bottom">
-        <h2 className="uk-heading-small uk-margin-remove-bottom">
-          Set Your Password
+        <h2 className="uk-margin-remove-bottom">
+          {isRootActivation ? 'Complete Company Setup' : 'Set Your Password'}
         </h2>
         <p className="uk-text-muted uk-margin-small-top">
-          Create a secure password for your account
+          {isRootActivation ? 
+            'Set your password and configure your company details' :
+            'Create a secure password for your account'
+          }
         </p>
       </div>
 
-      <form onSubmit={handlePasswordSubmit}>
+      {/* Root user specific fields - Grouped by category */}
+      {isRootActivation && (
+        <>
+          {/* Company Information Section */}
+          <div className="uk-margin-bottom">
+            <h3 className="uk-text-bold uk-margin-small-bottom" style={{ color: '#333', fontSize: '16px', borderBottom: '2px solid #e5e5e5', paddingBottom: '8px' }}>
+              Company Information
+            </h3>
+            
+            <div className="uk-margin-bottom">
+              <label className="uk-form-label uk-text-bold">Company Name *</label>
+              <input
+                type="text"
+                className={`uk-input ${errors.companyName ? 'uk-form-danger' : ''}`}
+                placeholder="Enter your company name"
+                value={companyName}
+                onChange={(e) => {
+                  setCompanyName(e.target.value);
+                  if (errors.companyName) setErrors(prev => ({ ...prev, companyName: '' }));
+                }}
+              />
+              {errors.companyName && (
+                <div className="uk-text-danger uk-text-small uk-margin-small-top">{errors.companyName}</div>
+              )}
+            </div>
+
+            <div className="uk-margin-bottom">
+              <label className="uk-form-label uk-text-bold">Company Logo</label>
+              <div className="uk-flex uk-flex-middle" style={{ gap: '16px' }}>
+                <LogoPreview />
+                <div className="uk-flex-1">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="uk-button uk-button-default uk-button-small"
+                    disabled={logoUploading}
+                  >
+                    {logoUploading ? (
+                      <>
+                        <div data-uk-spinner="ratio: 0.6" className="uk-margin-small-right" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <FiEdit2 className="uk-margin-small-right" />
+                        {companyLogo ? 'Change Logo' : 'Upload Logo'}
+                      </>
+                    )}
+                  </button>
+                  <p className="uk-text-small uk-text-muted uk-margin-small-top">
+                    Upload a company logo (optional). Max 5MB, JPG/PNG/GIF/WebP formats.
+                  </p>
+                </div>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="uk-hidden"
+                onChange={(e) => handleLogoUpload(e.target.files[0])}
+              />
+              {errors.companyLogo && (
+                <div className="uk-text-danger uk-text-small uk-margin-small-top">{errors.companyLogo}</div>
+              )}
+            </div>
+          </div>
+
+          {/* Administrator Account Section */}
+          <div className="uk-margin-bottom">
+            <h3 className="uk-text-bold uk-margin-small-bottom" style={{ color: '#333', fontSize: '16px', borderBottom: '2px solid #e5e5e5', paddingBottom: '8px' }}>
+              Administrator Account
+            </h3>
+            
+            <div className="uk-margin-bottom">
+              <label className="uk-form-label uk-text-bold">Admin Username *</label>
+              <input
+                type="text"
+                className={`uk-input ${errors.adminUsername ? 'uk-form-danger' : ''}`}
+                placeholder="Enter admin username"
+                value={adminUsername}
+                onChange={(e) => {
+                  setAdminUsername(e.target.value);
+                  if (errors.adminUsername) setErrors(prev => ({ ...prev, adminUsername: '' }));
+                }}
+              />
+              {errors.adminUsername && (
+                <div className="uk-text-danger uk-text-small uk-margin-small-top">{errors.adminUsername}</div>
+              )}
+              <p className="uk-text-small uk-text-muted uk-margin-small-top">
+                This will be your username for logging into the system.
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Password fields - Grouped separately */}
+      <div className="uk-margin-bottom">
+        <h3 className="uk-text-bold uk-margin-small-bottom" style={{ color: '#333', fontSize: '16px', borderBottom: '2px solid #e5e5e5', paddingBottom: '8px' }}>
+          {isRootActivation ? 'Account Security' : 'Set Your Password'}
+        </h3>
+        
         <div className="uk-margin-bottom">
+          <label className="uk-form-label uk-text-bold">Password *</label>
           <input
-            className={`uk-input uk-border-pill ${errors.password ? 'uk-form-danger' : ''}`}
             type="password"
+            className={`uk-input ${errors.password ? 'uk-form-danger' : ''}`}
             placeholder="Enter your password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ padding: '12px 16px' }}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              if (errors.password) setErrors(prev => ({ ...prev, password: '' }));
+            }}
           />
           {errors.password && (
-            <div className="uk-text-danger uk-text-small uk-margin-small-top">
-              {errors.password}
-            </div>
+            <div className="uk-text-danger uk-text-small uk-margin-small-top">{errors.password}</div>
           )}
         </div>
 
         <div className="uk-margin-bottom">
+          <label className="uk-form-label uk-text-bold">Confirm Password *</label>
           <input
-            className={`uk-input uk-border-pill ${errors.confirmPassword ? 'uk-form-danger' : ''}`}
             type="password"
+            className={`uk-input ${errors.confirmPassword ? 'uk-form-danger' : ''}`}
             placeholder="Confirm your password"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            style={{ padding: '12px 16px' }}
+            onChange={(e) => {
+              setConfirmPassword(e.target.value);
+              if (errors.confirmPassword) setErrors(prev => ({ ...prev, confirmPassword: '' }));
+            }}
           />
           {errors.confirmPassword && (
-            <div className="uk-text-danger uk-text-small uk-margin-small-top">
-              {errors.confirmPassword}
-            </div>
+            <div className="uk-text-danger uk-text-small uk-margin-small-top">{errors.confirmPassword}</div>
           )}
         </div>
-
-        <div className="uk-margin-bottom">
-          <button
-            type="submit"
-            className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
-            disabled={loading || !password || !confirmPassword}
-          >
-            {loading ? (
-              <>
-                <span data-uk-spinner="ratio: 0.7" className="uk-margin-small-right"></span>
-                Activating Account...
-              </>
-            ) : (
-              'Activate Account'
-            )}
-          </button>
+        
+        <div className="uk-text-center">
+          <p className="uk-text-small uk-text-muted">
+            Password must be at least 6 characters long
+          </p>
         </div>
-      </form>
+      </div>
+
+      <div className="uk-margin-bottom">
+        <button
+          className="uk-button uk-button-primary uk-border-pill uk-width-1-1"
+          onClick={completeActivation}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <div data-uk-spinner="ratio: 0.8" className="uk-margin-small-right" />
+              {isRootActivation ? 'SETTING UP COMPANY...' : 'ACTIVATING...'}
+            </>
+          ) : (
+            isRootActivation ? 'COMPLETE SETUP' : 'ACTIVATE ACCOUNT'
+          )}
+        </button>
+      </div>
+
+      <div className="uk-text-center">
+        <p className="uk-text-small uk-text-muted">
+          {isRootActivation ? 
+            'Complete the setup to activate your company account and administrator privileges.' :
+            'By activating your account, you agree to our terms of service.'
+          }
+        </p>
+      </div>
     </div>
   );
 
@@ -506,10 +653,13 @@ function ActivateAccount() {
         <span className="uk-text-success" style={{ fontSize: '48px' }}>✓</span>
       </div>
       <h2 className="uk-heading-small uk-margin-remove-bottom uk-text-success">
-        Account Activated!
+        {isRootActivation ? 'Company Setup Complete!' : 'Account Activated!'}
       </h2>
       <p className="uk-text-muted uk-margin-small-top">
-        Your account has been successfully activated.
+        {isRootActivation ? 
+          'Your company has been set up successfully. You can now log in and start using the platform.' :
+          'Your account has been activated successfully. You can now log in.'
+        }
       </p>
       <p className="uk-text-small uk-text-muted">
         Redirecting to login page in a few seconds...
@@ -557,14 +707,14 @@ function ActivateAccount() {
   };
 
   return (
-    <Div100vh>
-      <div className="uk-height-1-1 uk-flex uk-flex-middle uk-flex-center uk-background-muted">
+    <div className="uk-background-muted" style={{ minHeight: '100vh', padding: '20px 0' }}>
+      <div className="uk-flex uk-flex-middle uk-flex-center">
         <div className="uk-width-1-1 uk-width-medium@s">
           <div className="">
             <div className="uk-text-center uk-margin-bottom">
               <Logo info={info} />
               <h1 className="uk-heading-small uk-margin-remove-top">
-                Account Activation
+                {isRootActivation ? 'Company Setup' : 'Account Activation'}
               </h1>
             </div>
 
@@ -576,7 +726,7 @@ function ActivateAccount() {
           </div>
         </div>
       </div>
-    </Div100vh>
+    </div>
   );
 }
 

@@ -12,14 +12,12 @@ const companySchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
-    // Additional company information
-    industry: {
-      type: String,
-      trim: true,
-    },
-    expectedUsers: {
-      type: Number,
-      min: 1,
+    // 🆕 Company logo field
+    logo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "images",
+      required: false,
+      default: null,
     },
     // Store Outseta Account UID for reliable lookups
     outsetaAccountId: {
