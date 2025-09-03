@@ -359,8 +359,7 @@ const customStyles = {
       name: 'User Info',
       selector: (row) => row.firstName,
       sortable: true,
-      width: '200px',
-      cell: (row) => (
+       cell: (row) => (
         <div className="uk-flex uk-flex-column">
           <div style={{ fontWeight: '500', fontSize: '14px' }}>
             {row.firstName} {row.lastName}
@@ -378,15 +377,13 @@ const customStyles = {
       name: 'Invitation Status',
       selector: (row) => row.status, // FIXED: Changed from row.isActive to row.status
       sortable: true,
-      width: '120px',
-      cell: (row) => getDetailedStatusBadge(row),
+       cell: (row) => getDetailedStatusBadge(row),
     },
     {
       name: 'Role',
       selector: (row) => row.level,
       sortable: true,
-      width: '130px',
-      cell: (row) => {
+       cell: (row) => {
         const roleInfo = formatUserRole(row.level);
         return (
           <span 
@@ -410,8 +407,7 @@ const customStyles = {
     {
       name: 'Invitation Details',
       sortable: false,
-      width: '160px',
-      cell: (row) => (
+       cell: (row) => (
         <div className="uk-flex uk-flex-column uk-text-small">
           <div style={{ fontSize: '11px', color: '#666' }}>
             <strong>Created:</strong> {formatDate(row.createdAt)}
@@ -432,8 +428,7 @@ const customStyles = {
     {
       name: 'Quick Actions',
       sortable: false,
-      width: '200px',
-      cell: (row) => {
+       cell: (row) => {
         // FIXED: Show resend and cancel buttons for pending AND expired status
         const canResendActivation = ['pending', 'expired'].includes(row.status);
         
@@ -441,13 +436,13 @@ const customStyles = {
           switch (row.status) {
             case 'active':
               return {
-                text: 'Deactivate User',
+                text: 'Deactivate',
                 className: 'uk-button-danger',
                 title: 'Deactivate this user account'
               };
             case 'deactivated':
               return {
-                text: 'Reactivate User',
+                text: 'Reactivate',
                 className: 'uk-button-success',
                 title: 'Reactivate this user account'
               };
@@ -487,7 +482,7 @@ const customStyles = {
                     )}
                   </button>
                   <button
-                    className="uk-button uk-button-small uk-button-danger"
+                    className="uk-button uk-button-small uk-button-danger hidden"
                     style={{ 
                       fontSize: '10px', 
                       padding: '4px 8px',
@@ -548,8 +543,7 @@ const customStyles = {
     {
       name: 'Manage',
       sortable: false,
-      width: '100px',
-      cell: (row) => (
+       cell: (row) => (
         <div className="uk-flex uk-flex-column" style={{ gap: '4px' }}>
           <a
             className="uk-link-text uk-text-small"
@@ -566,7 +560,8 @@ const customStyles = {
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               padding: '2px 4px',
-              borderRadius: '4px'
+              borderRadius: '4px',
+              minHeight: '22px',
             }}
             title="Edit this user's profile and permissions"
             onMouseEnter={(e) => {
@@ -588,7 +583,8 @@ const customStyles = {
               cursor: 'pointer',
               transition: 'all 0.2s ease',
               padding: '2px 4px',
-              borderRadius: '4px'
+              borderRadius: '4px',
+              minHeight: '22px',
             }}
             title="Permanently delete this user and all associated data"
             onMouseEnter={(e) => {
@@ -730,7 +726,7 @@ const customStyles = {
                 backgroundColor: statusFilter === 'all' ? '#1976d2' : '#eeeeee',
                 color: statusFilter === 'all' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
-                padding: '8px 16px',
+                padding: '4px 8px',
                 borderRadius: '20px'
               }}
               onMouseEnter={(e) => {
@@ -772,7 +768,7 @@ const customStyles = {
                 backgroundColor: statusFilter === 'active' ? '#2e7d32' : '#eeeeee',
                 color: statusFilter === 'active' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
-                padding: '8px 16px',
+                padding: '4px 8px',
                 borderRadius: '20px'
               }}
               onMouseEnter={(e) => {
@@ -814,7 +810,7 @@ const customStyles = {
                 backgroundColor: statusFilter === 'pending' ? '#f57c00' : '#eeeeee',
                 color: statusFilter === 'pending' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
-                padding: '8px 16px',
+                padding: '4px 8px',
                 borderRadius: '20px'
               }}
               onMouseEnter={(e) => {
@@ -856,7 +852,7 @@ const customStyles = {
                 backgroundColor: statusFilter === 'expired' ? '#c62828' : '#eeeeee',
                 color: statusFilter === 'expired' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
-                padding: '8px 16px',
+                padding: '4px 8px',
                 borderRadius: '20px'
               }}
               onMouseEnter={(e) => {
@@ -898,7 +894,7 @@ const customStyles = {
                 backgroundColor: statusFilter === 'deactivated' ? '#666' : '#eeeeee',
                 color: statusFilter === 'deactivated' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
-                padding: '8px 16px',
+                padding: '4px 8px',
                 borderRadius: '20px'
               }}
               onMouseEnter={(e) => {

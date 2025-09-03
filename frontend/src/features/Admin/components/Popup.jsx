@@ -257,22 +257,13 @@ function AddPeers({ onClose, type, user }) {
     }
   };
 
-// Updated phone validation for USA format (10-digit numbers)
+// USA phone validation (10-digit numbers only)
 const isValidPhone = (number) => {
   // Remove all non-digits
   const digitsOnly = number.replace(/\D/g, '');
   
   // Check if it's exactly 10 digits (USA format)
-  if (digitsOnly.length === 10) {
-    return true;
-  }
-  
-  // Also accept 11 digits if it starts with 1 (USA country code)
-  if (digitsOnly.length === 11 && digitsOnly.startsWith('1')) {
-    return true;
-  }
-  
-  return false;
+  return digitsOnly.length === 10;
 };
 
   const createUser = async (e) => {
@@ -286,12 +277,7 @@ const isValidPhone = (number) => {
     }
 
     // Format phone number - ensure it has USA country code prefix for backend
-    let formattedPhone = phone.replace(/\D/g, ''); // Remove non-digits
-    if (formattedPhone.length === 10) {
-      formattedPhone = '+1' + formattedPhone; // Add USA country code
-    } else if (formattedPhone.length === 11 && formattedPhone.startsWith('1')) {
-      formattedPhone = '+' + formattedPhone; // Add + prefix
-    }
+    let formattedPhone = phone.replace(/\D/g, '');
 
     try {
       const response = await postCreate({

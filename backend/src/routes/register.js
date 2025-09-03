@@ -86,6 +86,8 @@ module.exports = async (req, res, next) => {
       });
     }
 
+    const isDemo = company.subdomain === "demo";
+
     // Conflict checks
     const usernameExists = await User.findOne({
       username: new RegExp(`^${username}$`, "i"),
@@ -128,7 +130,7 @@ module.exports = async (req, res, next) => {
 
     // Create person in Outseta
     let outsetaResult = null;
-    if (outsetaApi.isConfigured()) {
+    if (!isDemo && outsetaApi.isConfigured()) {
       try {
         console.log(`🔄 Creating person in Outseta: ${savedUser.email}`);
 

@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const Company = require("../models/Company");
 const argon2 = require("argon2");
 const validator = require("validator");
 const xss = require("xss");
@@ -23,6 +24,9 @@ module.exports = async (req, res, next) => {
   if (!companyId) {
     return res.status(400).json({ error: "Company ID required." });
   }
+
+  const company = await Company.findById(companyId);
+  const isDemo = company && company.subdomain === "demo";
 
   // Add this before any user modification logic:
   const targetUser = await User.findOne({
@@ -55,16 +59,14 @@ module.exports = async (req, res, next) => {
   !validator.isEmail(email) && (errors.email = "Invalid email.");
 
   // Add phone validation
-  /*
   if (phone !== undefined && !isEmpty(phone)) {
-    // Validate phone format - use international format validation
-    const phoneRegex = /^\+[1-9]\d{1,14}$/;
-    if (!phoneRegex.test(phone)) {
+    // USA phone validation - 10 digits only
+    const digitsOnly = phone.replace(/\D/g, "");
+    if (digitsOnly.length !== 10) {
       errors.phone =
-        "Invalid phone number. Use international format like +1234567890";
+        "Invalid phone number. Please enter a 10-digit USA phone number (e.g., 2345678901)";
     }
   }
-    */
 
   // Validate user level if provided
   if (level !== undefined && level !== null && level !== "") {
@@ -142,7 +144,7 @@ module.exports = async (req, res, next) => {
 
     // Sync with Outseta if user info changed
     let outsetaResult = null;
-    if (outsetaApi.isConfigured() && updatedUser.outsetaPersonId) {
+    if (!isDemo && outsetaApi.isConfigured() && updatedUser.outsetaPersonId) {
       try {
         console.log(`🔄 Syncing user changes to Outseta: ${updatedUser.email}`);
 

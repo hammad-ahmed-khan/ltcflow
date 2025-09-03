@@ -16,8 +16,8 @@ function BottomBar() {
           {version}
           {' '}
           -
-          <a href="https://www.honeyside.it" target="_blank" rel="noreferrer">
-            {Config.brand}
+          <a href="mailto:support@ltcflow.com" target="_blank" rel="noreferrer">
+            Contact Support
           </a>
         </div>
       </div>

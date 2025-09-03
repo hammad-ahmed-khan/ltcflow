@@ -10,6 +10,7 @@ import './GroupList.sass';
 function GroupList() {
   const rooms = useSelector((state) => state.io.rooms);
   const [user] = useGlobal('user');
+  const setPanel = useGlobal('panel')[1]; // ADDED: Get setPanel function
   const navigate = useNavigate();
 
   // Filter only groups the user belongs to
@@ -29,6 +30,11 @@ function GroupList() {
     navigate(`/room/${groupId}/manage`);
   };
 
+  // FIXED: Use panel system instead of broken route navigation
+  const handleCreateFirstGroup = () => {
+    setPanel('createGroup'); // This matches the working top menu approach
+  };
+
   if (userGroups.length === 0) {
     return (
       <div className="groups-notice" style={{ 
@@ -44,7 +50,7 @@ function GroupList() {
             <p style={{ marginBottom: '20px' }}>You're not a member of any groups yet.</p>
             <button
               className="uk-button uk-button-primary"
-              onClick={() => navigate('/create-group')}
+              onClick={handleCreateFirstGroup} // FIXED: Use panel system
               style={{ marginTop: '12px' }}
             >
               Create Your First Group
@@ -84,18 +90,18 @@ function GroupList() {
               {group.people ? `${group.people.length} member${group.people.length !== 1 ? 's' : ''}` : '0 members'}
             </div>
           </div>        
-          {canCreateGroups &&
-          <div className="controls">
-            <div 
-              className="button"
-              onClick={(e) => handleGroupSettings(e, group._id)}
-              style={{ marginLeft: '4px' }}
-              title="Manage group"
-            >
-              <FiSettings />
+          {canCreateGroups && (
+            <div className="controls">
+              <div 
+                className="button"
+                onClick={(e) => handleGroupSettings(e, group._id)}
+                style={{ marginLeft: '4px' }}
+                title="Manage group"
+              >
+                <FiSettings />
+              </div>
             </div>
-          </div>
-          }
+          )}
         </div>
       ))}
     </>
