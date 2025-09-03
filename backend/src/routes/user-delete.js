@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const Company = require("../models/Company");
 const store = require("../store");
 const jwt = require("jsonwebtoken");
 const validator = require("validator");
@@ -31,6 +32,9 @@ module.exports = async (req, res, next) => {
     if (Object.keys(errors).length > 0) {
       return res.status(400).json({ errors });
     }
+
+    const company = await Company.findById(companyId);
+    const isDemo = company && company.subdomain === "demo";
 
     // Company access validation
     if (req.user.companyId.toString() !== companyId) {
@@ -82,7 +86,7 @@ module.exports = async (req, res, next) => {
     // 🆕 SYNC USER DELETION TO OUTSETA
     let outsetaSync = { success: false, reason: "not_configured" };
 
-    if (outsetaApi.isConfigured() && outsetaPersonId) {
+    if (!isDemo && outsetaApi.isConfigured() && outsetaPersonId) {
       try {
         console.log(`🔄 Deleting user from Outseta: ${deletedUser.email}`);
 

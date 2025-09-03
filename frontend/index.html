@@ -4,27 +4,325 @@
     <base href="./" />
     <meta charset="utf-8" />
     
-    <!-- Favicon using your WebP files -->
+    <!-- Enhanced viewport for mobile devices -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, user-scalable=yes, viewport-fit=cover" />
+    
+    <!-- iOS Status Bar Configuration -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="LTC Flow" />
+    
+    <!-- Android/Chrome Mobile Configuration -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#1e2e3b" />
+    <meta name="msapplication-TileColor" content="#1e2e3b" />
+    <meta name="msapplication-navbutton-color" content="#1e2e3b" />
+    
+    <!-- Enhanced Meta Tags for Mobile -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="format-detection" content="date=no" />
+    <meta name="format-detection" content="address=no" />
+    <meta name="format-detection" content="email=no" />
+    
+    <!-- Preconnect for Performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+    
+    <!-- Favicon Configuration -->
     <link rel="icon" href="/flowicon 32.webp" type="image/webp" sizes="32x32" />
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
     
-    <!-- Apple Touch Icons using your WebP files -->
-    <link rel="apple-touch-icon" href="/flowicon 192.webp" type="image/webp" sizes="192x192" />
+    <!-- Apple Touch Icons - Progressive Enhancement -->
     <link rel="apple-touch-icon" href="/flowicon 180.webp" type="image/webp" sizes="180x180" />
+    <link rel="apple-touch-icon" href="/flowicon 192.webp" type="image/webp" sizes="192x192" />
     <link rel="apple-touch-icon" href="/flowicon 144.webp" type="image/webp" sizes="144x144" />
     
     <!-- Fallback PNG for older devices -->
     <link rel="apple-touch-icon" href="/logo192.png" type="image/png" sizes="192x192" />
     
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#1e2e3b" />
-    <meta name="description" content="LTC Flow" />
+    <!-- Android Icon Configuration -->
+    <link rel="shortcut icon" sizes="196x196" href="/ " />
+    
+    <!-- iOS Splash Screens for different devices -->
+    <!-- iPhone X, XS, 11 Pro -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" 
+          href="/splash-1125x2436.png" />
+    
+    <!-- iPhone XR, 11 -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" 
+          href="/splash-828x1792.png" />
+    
+    <!-- iPhone XS Max, 11 Pro Max -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" 
+          href="/splash-1242x2688.png" />
+    
+    <!-- iPhone 12, 13, 14 -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" 
+          href="/splash-1170x2532.png" />
+    
+    <!-- iPhone 12 Pro Max, 13 Pro Max, 14 Plus -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" 
+          href="/splash-1284x2778.png" />
+    
+    <!-- iPhone 8, SE 2020/2022 -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" 
+          href="/splash-750x1334.png" />
+    
+    <!-- iPhone 8 Plus -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)" 
+          href="/splash-1242x2208.png" />
+    
+    <!-- iPad -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" 
+          href="/splash-1536x2048.png" />
+    
+    <!-- iPad Pro 11" -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" 
+          href="/splash-1668x2388.png" />
+    
+    <!-- iPad Pro 12.9" -->
+    <link rel="apple-touch-startup-image" 
+          media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" 
+          href="/splash-2048x2732.png" />
+    
+    <!-- Manifest for PWA -->
     <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Enhanced meta description for mobile -->
+    <meta name="description" content="LTC Flow - Secure real-time messaging and video conferencing platform designed for long-term care facilities. Connect your care team instantly." />
+    <meta name="keywords" content="healthcare communication, long-term care, secure messaging, video conferencing, care team collaboration" />
+    
+    <!-- Open Graph for social sharing -->
+    <meta property="og:title" content="LTC Flow" />
+    <meta property="og:description" content="Secure communication platform for long-term care facilities" />
+    <meta property="og:image" content="/flowicon 512.webp" />
+    <meta property="og:type" content="website" />
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LTC Flow" />
+    <meta name="twitter:description" content="Secure communication platform for long-term care facilities" />
+    <meta name="twitter:image" content="/flowicon 512.webp" />
+    
     <title>LTC Flow</title>
+    
+    <!-- Critical CSS for mobile performance -->
+    <style>
+      /* Critical mobile styles */
+      * {
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+      }
+      
+      input, textarea, [contenteditable] {
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
+      }
+      
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background-color: #f2f2f2;
+        overflow-x: hidden;
+        position: fixed;
+        width: 100%;
+        height: 100%;
+      }
+      
+      #root {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+      }
+      
+      /* Loading spinner */
+      .loading-spinner {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+      }
+      
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #1e2e3b;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Safe area handling for iPhone X and newer */
+      @supports (padding: max(0px)) {
+        body {
+          padding-left: max(0px, env(safe-area-inset-left));
+          padding-right: max(0px, env(safe-area-inset-right));
+          padding-top: max(0px, env(safe-area-inset-top));
+          padding-bottom: max(0px, env(safe-area-inset-bottom));
+        }
+      }
+      
+      /* Prevent zoom on input focus */
+      @media screen and (max-width: 768px) {
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="number"],
+        input[type="tel"],
+        input[type="url"],
+        input[type="search"],
+        textarea,
+        select {
+          font-size: 16px !important;
+        }
+      }
+      
+      /* Enhanced touch targets */
+      button, 
+      .button, 
+      [role="button"],
+      a {
+        min-height: 44px;
+        min-width: 44px;
+        touch-action: manipulation;
+      }
+      
+      /* Smooth scrolling */
+      html {
+        scroll-behavior: smooth;
+      }
+      
+      /* Hide scrollbars on mobile while maintaining functionality */
+      ::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+      }
+      
+      /* Focus states for accessibility */
+      button:focus,
+      input:focus,
+      textarea:focus,
+      select:focus {
+        outline: 2px solid #1e2e3b;
+        outline-offset: 2px;
+      }
+    </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>
+      <div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">
+        <h2>JavaScript Required</h2>
+        <p>You need to enable JavaScript to run this app.</p>
+        <p>Please enable JavaScript in your browser settings and reload the page.</p>
+      </div>
+    </noscript>
+    
+    <!-- Loading spinner -->
+    <div id="loading-spinner" class="loading-spinner">
+      <div class="spinner"></div>
+    </div>
+    
     <div id="root"></div>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      // Hide loading spinner once app starts
+      window.addEventListener('load', function() {
+        const spinner = document.getElementById('loading-spinner');
+        if (spinner) {
+          spinner.style.display = 'none';
+        }
+      });
+      
+      // Enhanced error handling for mobile
+      window.addEventListener('error', function(e) {
+        console.error('Application error:', e.error);
+        // Could send to error tracking service here
+      });
+      
+      // Handle viewport changes (orientation, keyboard)
+      let viewportHeight = window.innerHeight;
+      window.addEventListener('resize', function() {
+        // Only trigger if height change is significant (keyboard show/hide)
+        if (Math.abs(window.innerHeight - viewportHeight) > 150) {
+          viewportHeight = window.innerHeight;
+          document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
+        }
+      });
+      
+      // Set initial viewport height
+      document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
+      
+      // Prevent double-tap zoom
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', function (event) {
+        const now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) {
+          event.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, false);
+      
+      // Performance optimization for mobile
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => {
+          // Register service worker when idle
+          if ('serviceWorker' in navigator && location.protocol === 'https:') {
+            navigator.serviceWorker.register('/service-worker.js')
+              .then(registration => {
+                console.log('SW registered: ', registration);
+              })
+              .catch(registrationError => {
+                console.log('SW registration failed: ', registrationError);
+              });
+          }
+        });
+      }
+      
+      // PWA install prompt handling
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        // Prevent Chrome 67 and earlier from automatically showing the prompt
+        e.preventDefault();
+        // Stash the event so it can be triggered later
+        deferredPrompt = e;
+        // Update UI to notify user they can add to home screen
+        window.dispatchEvent(new CustomEvent('pwacanuseinstall', { detail: e }));
+      });
+      
+      // Handle successful PWA installation
+      window.addEventListener('appinstalled', (evt) => {
+        console.log('LTC Flow PWA was installed');
+        window.dispatchEvent(new CustomEvent('pwainstalled'));
+      });
+    </script>
+    
+    <!-- Main application script -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -1,9 +1,11 @@
 const argon2 = require("argon2");
 const isEmpty = require("../utils/isEmpty");
 const User = require("../models/User");
+const Company = require("../models/Company");
 const validator = require("validator");
 const xss = require("xss");
 const mongoose = require("mongoose");
+const outsetaApi = require("../services/outsetaApi");
 
 module.exports = async (req, res) => {
   const { firstName, lastName, email, phone, password, currentPassword } =
@@ -58,6 +60,10 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Get company info for demo account detection
+    const company = await Company.findById(companyId);
+    const isDemo = company && company.subdomain === "demo";
+
     // Validate input fields
     if (firstName !== undefined) {
       if (isEmpty(firstName)) {
@@ -99,12 +105,11 @@ module.exports = async (req, res) => {
     }
 
     if (phone !== undefined && !isEmpty(phone)) {
-      // Basic phone validation - adjust regex based on your requirements
-      const phoneRegex = /^[\+]?[\d\s\-\(\)]+$/;
-      if (!phoneRegex.test(phone)) {
-        errors.phone = "Invalid phone number format.";
-      } else if (phone.length < 7 || phone.length > 20) {
-        errors.phone = "Phone number must be between 7 and 20 characters.";
+      // USA phone validation - 10 digits only
+      const digitsOnly = phone.replace(/\D/g, "");
+      if (digitsOnly.length !== 10) {
+        errors.phone =
+          "Invalid phone number. Please enter a 10-digit USA phone number (e.g., 2345678901)";
       }
     }
 
@@ -185,6 +190,54 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Sync with Outseta if user info changed (same pattern as user-edit.js)
+    let outsetaResult = null;
+    if (!isDemo && outsetaApi.isConfigured() && updatedUser.outsetaPersonId) {
+      try {
+        console.log(
+          `🔄 Syncing profile changes to Outseta: ${updatedUser.email}`
+        );
+
+        // Enhanced Outseta sync with custom properties
+        const personUpdateData = {
+          // Standard Outseta fields
+          Email: updatedUser.email,
+          FirstName: updatedUser.firstName,
+          LastName: updatedUser.lastName,
+          Phone: updatedUser.phone || null,
+
+          // Custom properties we've been using
+          UserRole:
+            updatedUser.level === "standard"
+              ? "Standard User"
+              : updatedUser.level === "admin"
+              ? "Admin"
+              : updatedUser.level === "manager"
+              ? "Group Manager"
+              : "User",
+          ProfileUpdatedAt: new Date().toISOString(),
+        };
+
+        outsetaResult = await outsetaApi.updatePerson(
+          updatedUser.outsetaPersonId,
+          personUpdateData
+        );
+
+        if (outsetaResult?.success) {
+          console.log(`✅ Profile updated in Outseta: ${updatedUser.email}`);
+        } else {
+          console.warn(`⚠️ Outseta profile sync failed:`, outsetaResult?.error);
+        }
+      } catch (outsetaError) {
+        console.error(
+          "❌ Outseta sync failed for profile update:",
+          outsetaError
+        );
+        outsetaResult = { success: false, error: outsetaError.message };
+        // Continue with local update even if Outseta fails
+      }
+    }
+
     // Log the update for audit purposes
     console.log(
       `✅ Profile updated for user: ${updatedUser.email} (Company: ${companyId})`
@@ -195,6 +248,21 @@ module.exports = async (req, res) => {
       status: "success",
       message: "Profile updated successfully.",
       user: updatedUser,
+      outseta: outsetaResult
+        ? {
+            synced: outsetaResult.success,
+            action:
+              outsetaResult.message === "No sync needed"
+                ? "no_changes"
+                : "updated",
+            error: outsetaResult.error || null,
+          }
+        : {
+            synced: false,
+            reason: updatedUser.outsetaPersonId
+              ? "not_configured"
+              : "no_outseta_id",
+          },
     });
   } catch (error) {
     console.error("❌ Edit profile error:", error);

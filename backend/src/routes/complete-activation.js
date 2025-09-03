@@ -6,6 +6,7 @@ const argon2 = require("argon2");
 const moment = require("moment");
 const isEmpty = require("../utils/isEmpty");
 const mongoose = require("mongoose");
+const Company = require("../models/Company");
 const outsetaApi = require("../services/outsetaApi");
 
 module.exports = async (req, res) => {
@@ -132,7 +133,17 @@ module.exports = async (req, res) => {
 
     await user.save();
 
-    if (outsetaApi.isConfigured() && user.outsetaPersonId) {
+    const company = await Company.findById(companyId);
+    if (!company) {
+      return res.status(404).json({
+        status: "error",
+        error: "COMPANY_NOT_FOUND",
+        message: "Company not found",
+      });
+    }
+    const isDemo = company.subdomain === "demo";
+
+    if (!isDemo && outsetaApi.isConfigured() && user.outsetaPersonId) {
       try {
         console.log(
           `🔄 Syncing activation completion to Outseta: ${user.email}`

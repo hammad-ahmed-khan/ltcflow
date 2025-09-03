@@ -141,7 +141,7 @@ const handleWebhook = async (req, res) => {
       const person = primaryPersonAccount.Person;
 
       // Generate unique subdomain
-      let subdomain = generateSubdomain(payload.Name);
+      let subdomain = generateSubdomain(payload.InstanceName);
       if (!subdomain) subdomain = "company";
 
       // Check for subdomain conflicts

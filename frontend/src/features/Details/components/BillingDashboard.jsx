@@ -20,11 +20,14 @@ const BillingDashboard = ({ userStats = {} }) => {
   // Use real data with fallbacks
   const activeUsers = userStats.activeUsers || 0;
   const pendingUsers = userStats.pendingUsers || 0;
+  const expiredUsers = userStats.expiredUsers || 0; // These are billed too!
   const deactivatedUsers = userStats.deactivatedUsers || 0;
-  const expiredUsers = userStats.expiredUsers || 0;
 
-  // Calculate billing metrics
-  const billableUserCount = activeUsers + pendingUsers;
+  // FIXED: Calculate billing metrics correctly
+  // All users except deactivated are billable (active, pending, expired + admin user)
+  const billableUserCount = activeUsers + pendingUsers + expiredUsers + 1; // +1 for current admin
+  const nonBillableUsers = deactivatedUsers; // Only deactivated users are not billed
+  
   const remainingUsers = Math.max(0, baseUserLimit - billableUserCount);
   const additionalUsers = Math.max(0, billableUserCount - baseUserLimit);
   const utilizationPercentage = Math.min(100, (billableUserCount / baseUserLimit) * 100);
@@ -156,20 +159,21 @@ const BillingDashboard = ({ userStats = {} }) => {
     );
   };
 
-  // Chart data
+  // FIXED: Chart data with correct billing logic
   const chartData = [
-    { label: 'Active', value: activeUsers, color: '#4caf50' },
+    { label: 'Active', value: activeUsers + 1, color: '#4caf50' }, // +1 for admin
     { label: 'Pending', value: pendingUsers, color: '#ff9800' },
+    { label: 'Expired (Billed)', value: expiredUsers, color: '#ff5722' }, // Clearly show these are billed
     { label: 'Available', value: Math.max(0, remainingUsers), color: '#e0e0e0' }
   ];
 
   // If over limit, replace available with over limit
   if (additionalUsers > 0) {
-    chartData[2] = { label: 'Over Limit', value: additionalUsers, color: '#f44336' };
+    chartData[3] = { label: 'Over Limit', value: additionalUsers, color: '#f44336' };
   }
 
   // Show loading state if no data provided
-  if (!userStats || (activeUsers === 0 && pendingUsers === 0 && deactivatedUsers === 0)) {
+  if (!userStats || (activeUsers === 0 && pendingUsers === 0 && deactivatedUsers === 0 && expiredUsers === 0)) {
     return (
       <div className="billing-dashboard-container">
         <div className="billing-header">
@@ -261,12 +265,12 @@ const BillingDashboard = ({ userStats = {} }) => {
         }
 
         .billing-content::-webkit-scrollbar-thumb {
-          background: 'c1c1c1';
+          background: #c1c1c1;
           border-radius: 4px;
         }
 
         .billing-content::-webkit-scrollbar-thumb:hover {
-          background: 'a8a8a8';
+          background: #a8a8a8;
         }
 
         .chart-section {
@@ -317,12 +321,12 @@ const BillingDashboard = ({ userStats = {} }) => {
 
         .legend-label {
           flex: 1;
-          color: '#555';
+          color: #555;
         }
 
         .legend-value {
           font-weight: 500;
-          color: '#333';
+          color: #333;
         }
 
         .metrics-grid {
@@ -333,8 +337,8 @@ const BillingDashboard = ({ userStats = {} }) => {
         }
 
         .metric-card {
-          background: '#f8f9fa';
-          border: 1px solid '#e9ecef';
+          background: #f8f9fa;
+          border: 1px solid #e9ecef;
           border-radius: 8px;
           padding: 12px;
           text-align: center;
@@ -349,20 +353,20 @@ const BillingDashboard = ({ userStats = {} }) => {
         .metric-number {
           font-size: 18px;
           font-weight: bold;
-          color: '#333';
+          color: #333;
           line-height: 1;
           margin-bottom: 4px;
         }
 
         .metric-label {
           font-size: 10px;
-          color: '#666';
+          color: #666;
           text-transform: uppercase;
           letter-spacing: 0.3px;
         }
 
         .usage-bar {
-          background: '#e9ecef';
+          background: #e9ecef;
           border-radius: 6px;
           height: 8px;
           overflow: hidden;
@@ -383,7 +387,7 @@ const BillingDashboard = ({ userStats = {} }) => {
           top: 0;
           left: 100%;
           height: 100%;
-          background: '#f44336';
+          background: #f44336;
           border-radius: 0 6px 6px 0;
         }
 
@@ -391,7 +395,7 @@ const BillingDashboard = ({ userStats = {} }) => {
           display: flex;
           justify-content: space-between;
           font-size: 11px;
-          color: '#666';
+          color: #666;
           margin-bottom: 4px;
         }
 
@@ -437,8 +441,8 @@ const BillingDashboard = ({ userStats = {} }) => {
         }
 
         .plan-info {
-          background: '#f8f9fa';
-          border: 1px solid '#dee2e6';
+          background: #f8f9fa;
+          border: 1px solid #dee2e6;
           border-radius: 8px;
           padding: 12px;
         }
@@ -453,18 +457,18 @@ const BillingDashboard = ({ userStats = {} }) => {
         .plan-title {
           font-size: 13px;
           font-weight: 600;
-          color: '#495057';
+          color: #495057;
         }
 
         .plan-details {
           font-size: 11px;
-          color: '#6c757d';
+          color: #6c757d;
           line-height: 1.4;
         }
 
         .plan-rate {
           font-weight: 500;
-          color: '#495057';
+          color: #495057;
         }
 
         .breakdown-list {
@@ -472,7 +476,7 @@ const BillingDashboard = ({ userStats = {} }) => {
           padding: 0;
           margin: 8px 0 0 0;
           font-size: 11px;
-          color: '#6c757d';
+          color: #6c757d;
         }
 
         .breakdown-list li {
@@ -489,9 +493,20 @@ const BillingDashboard = ({ userStats = {} }) => {
           margin-right: 6px;
         }
 
-        .breakdown-active { background: '#4caf50'; }
-        .breakdown-pending { background: '#ff9800'; }
-        .breakdown-deactivated { background: '#9e9e9e'; }
+        .breakdown-active { background: #4caf50; }
+        .breakdown-pending { background: #ff9800; }
+        .breakdown-expired { background: #ff5722; }
+        .breakdown-deactivated { background: #9e9e9e; }
+
+        .billing-note {
+          background: #e8f4fd;
+          border: 1px solid #b3d9ff;
+          border-radius: 6px;
+          padding: 8px;
+          margin-bottom: 12px;
+          font-size: 11px;
+          color: #1565c0;
+        }
 
         @media (max-width: 768px) {
           .billing-dashboard-container {
@@ -533,6 +548,13 @@ const BillingDashboard = ({ userStats = {} }) => {
 
       {/* Content */}
       <div className="billing-content">
+        {/* FIXED: Billing clarification note */}
+        {expiredUsers > 0 && (
+          <div className="billing-note">
+            <strong>Note:</strong> Expired invitations are still billed as they occupy user slots until cancelled or activated.
+          </div>
+        )}
+
         {/* Chart Section */}
         <div className="chart-section">
           <DonutChart data={chartData} size={140} />
@@ -611,22 +633,22 @@ const BillingDashboard = ({ userStats = {} }) => {
           <ul className="breakdown-list">
             <li>
               <span><span className="breakdown-dot breakdown-active"></span>Active users</span>
-              <span>{activeUsers}</span>
+              <span>{activeUsers + 1} (billed)</span>
             </li>
             <li>
               <span><span className="breakdown-dot breakdown-pending"></span>Pending invites</span>
-              <span>{pendingUsers}</span>
+              <span>{pendingUsers} (billed)</span>
             </li>
+            {expiredUsers > 0 && (
+              <li>
+                <span><span className="breakdown-dot breakdown-expired"></span>Expired invites</span>
+                <span>{expiredUsers} (billed)</span>
+              </li>
+            )}
             <li>
               <span><span className="breakdown-dot breakdown-deactivated"></span>Deactivated</span>
               <span>{deactivatedUsers} (not billed)</span>
             </li>
-            {expiredUsers > 0 && (
-              <li>
-                <span><span className="breakdown-dot breakdown-deactivated"></span>Expired invites</span>
-                <span>{expiredUsers} (not billed)</span>
-              </li>
-            )}
           </ul>
         </div>
       </div>

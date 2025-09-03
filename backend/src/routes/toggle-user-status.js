@@ -46,9 +46,19 @@ module.exports = async (req, res, next) => {
       new: true,
     }).select("-password -activationToken");
 
-    // Sync with Outseta
+    const company = await Company.findById(companyId);
+    if (!company) {
+      return res.status(404).json({
+        status: "error",
+        error: "COMPANY_NOT_FOUND",
+        message: "Company not found",
+      });
+    }
 
-    if (outsetaApi.isConfigured() && user.outsetaPersonId) {
+    const isDemo = company.subdomain === "demo";
+
+    // Sync with Outseta
+    if (!isDemo && outsetaApi.isConfigured() && user.outsetaPersonId) {
       try {
         console.log(
           `🔄 Syncing status change to Outseta: ${user.email} -> ${newStatus}`
