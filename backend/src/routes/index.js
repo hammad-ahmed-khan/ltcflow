@@ -186,6 +186,7 @@ router.post("/email-queue-status", require("./email-queue-status"));
 
 // User activation routes
 router.get("/activate/:token", require("./activate-user"));
+router.post("/activation-upload", require("./activation-upload")); // 🆕 NEW: Unauthenticated upload for activation
 router.post("/verify-activation-otp", require("./verify-activation-otp")); // NEW
 router.post("/resend-activation-otp", require("./resend-activation-otp")); // NEW
 router.post("/complete-activation", require("./complete-activation"));

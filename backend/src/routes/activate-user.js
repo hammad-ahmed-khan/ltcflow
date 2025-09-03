@@ -1,4 +1,4 @@
-﻿// backend/src/routes/activate-user.js (Updated to prevent duplicate OTP sending)
+﻿// backend/src/routes/activate-user.js (Minimally enhanced for root user support)
 const User = require("../models/User");
 const AuthCode = require("../models/AuthCode");
 const Company = require("../models/Company");
@@ -349,7 +349,7 @@ module.exports = async (req, res) => {
       smsSent = otpMethod === "sms" || otpMethod === "both";
     }
 
-    // Return user info for the activation form (but don't include the OTP)
+    // 🆕 MINIMAL ENHANCEMENT: Return user info for the activation form with company info
     res.status(200).json({
       status: "success",
       message: otpMessage,
@@ -360,10 +360,17 @@ module.exports = async (req, res) => {
         lastName: user.lastName,
         username: user.username,
         phone: user.phone,
-        level: user.level,
+        level: user.level, // 🆕 Include level for root user detection
+      },
+      // 🆕 Add company info needed by frontend
+      company: {
+        id: company._id,
+        name: company.name,
+        subdomain: company.subdomain,
       },
       nextStep: "verify_otp",
-      otpSent: {
+      // 🆕 Rename otpSent to otpDelivery to match frontend expectations
+      otpDelivery: {
         email: emailSent,
         sms: smsSent,
         method: otpMethod,
