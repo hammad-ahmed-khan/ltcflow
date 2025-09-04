@@ -2,12 +2,13 @@ import { useRef, useState } from 'react';
 import { useGlobal } from 'reactn';
 import './Settings.sass';
 import { useToasts } from 'react-toast-notifications';
-import { FiEdit2 } from 'react-icons/fi';
+import { FiEdit2, FiHome  } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import upload from '../../../actions/uploadImage';
 import Config from '../../../config';
 import changePicture from '../../../actions/changePicture';
 import EditProfilePopup from './EditProfilePopup'; // Import the new component
+import CompanyManagementPopup from './CompanyManagementPopup'; // Import new component
 
 function Settings() {
   const { addToast } = useToasts();
@@ -17,8 +18,11 @@ function Settings() {
   const setToken = useGlobal('token')[1];
   const setPanel = useGlobal('panel')[1];
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [showCompanyManagement, setShowCompanyManagement] = useState(false);
 
   const fileInput = useRef(null);
+  // Check if user is root
+  const isRoot = user?.level === 'root';
 
   const change = async (image) => {
     const picture = await upload(image, null, () => {}, 'square');
@@ -90,7 +94,16 @@ const logout = async () => {
           </div>
         </div>
       </div>
-      
+      {/* Company Management - Only for Root Users */}
+          {isRoot && (
+             <button 
+        className="uk-margin-small-top uk-button uk-button-secondary" 
+        onClick={() => setShowCompanyManagement(true)}
+      >
+       Update Company Info
+      </button>
+             
+          )}
       {/* Updated: Replace Change Password with Edit Profile */}
       <button 
         className="uk-margin-small-top uk-button uk-button-secondary" 
@@ -121,6 +134,11 @@ const logout = async () => {
             setShowEditProfile(false);
           }}
         />
+      )}
+
+       {/* Company Management Popup - Only for Root Users */}
+      {isRoot && showCompanyManagement && (
+        <CompanyManagementPopup onClose={() => setShowCompanyManagement(false)} />
       )}
     </div>
   );

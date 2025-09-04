@@ -165,6 +165,22 @@ router.post(
   require("./users/change-password")
 );
 
+router.get("/company/:id", require("./company"));
+router.get(
+  "/company/subdomain/:subdomain",
+  require("./company").getCompanyBySubdomain
+);
+// 🆕 NEW: Company management routes (authenticated - root users only)
+router.post(
+  "/company/update",
+  passport.authenticate("jwt", { session: false }, null),
+  require("./company-management").updateCompany
+);
+router.post(
+  "/company/logo/remove",
+  passport.authenticate("jwt", { session: false }, null),
+  require("./company-management").removeCompanyLogo
+);
 router.post("/company/create", require("./create-company"));
 
 // User status management

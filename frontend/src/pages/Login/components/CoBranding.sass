@@ -1,0 +1,124 @@
+/* frontend/src/pages/Login/components/CoBranding.sass */
+/* Co-branding styles for professional logo display */
+
+.cobranding-container
+  max-width: 320px
+  margin: 0 auto
+
+.cobranding-main
+  display: flex
+  flex-direction: column
+  align-items: center
+  gap: 8px
+
+.company-logo-section
+  display: flex
+  flex-direction: column
+  align-items: center
+  
+.company-logo
+  max-height: 80px
+  max-width: 200px
+  height: auto
+  width: auto
+  object-fit: contain
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1))
+  border-radius: 8px
+  
+.company-name
+  font-size: 18px
+  font-weight: 600
+  color: #333333
+  letter-spacing: -0.02em
+  max-width: 200px
+  line-height: 1.2
+  text-align: center
+  word-wrap: break-word
+
+.partnership-connector
+  position: relative
+  display: flex
+  align-items: center
+  justify-content: center
+  width: 100%
+  
+  &::before
+    content: ''
+    position: absolute
+    top: 50%
+    left: 0
+    right: 0
+    height: 1px
+    background: linear-gradient(to right, transparent, #e0e0e0 20%, #e0e0e0 80%, transparent)
+    z-index: 1
+
+.partnership-text
+  background: #f2f2f2
+  padding: 4px 16px
+  border-radius: 12px
+  font-size: 12px
+  font-weight: 500
+  text-transform: uppercase
+  letter-spacing: 0.5px
+  color: #888888
+  z-index: 2
+  position: relative
+  border: 1px solid #e8e8e8
+
+.ltc-logo-section
+  
+.ltc-logo
+  max-height: 60px
+  height: auto
+  opacity: 0.9
+  filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.08))
+
+/* Mobile responsive adjustments */
+@media screen and (max-width: 480px)
+  .cobranding-container
+    max-width: 280px
+    
+  .company-logo
+    max-height: 70px
+    max-width: 180px
+    
+  .company-name
+    font-size: 16px
+    max-width: 180px
+    
+  .ltc-logo
+    max-height: 50px
+    
+  .partnership-text
+    font-size: 11px
+    padding: 3px 12px
+
+/* Dark mode support (if needed) */
+@media (prefers-color-scheme: dark)
+  .partnership-text
+    background: #2d2d2d
+    border-color: #404040
+    color: #a0a0a0
+    
+  .partnership-connector::before
+    background: linear-gradient(to right, transparent, #404040 20%, #404040 80%, transparent)
+
+/* High contrast mode support */
+@media (prefers-contrast: high)
+  .company-logo, .ltc-logo
+    filter: contrast(1.2) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))
+    
+  .partnership-connector::before
+    background: linear-gradient(to right, transparent, #666666 20%, #666666 80%, transparent)
+
+/* Animation for smooth loading */
+.cobranding-main
+  animation: fadeInUp 0.6s ease-out forwards
+  
+@keyframes fadeInUp
+  from
+    opacity: 0
+    transform: translateY(20px)
+  to
+    opacity: 1
+    transform: translateY(0)
