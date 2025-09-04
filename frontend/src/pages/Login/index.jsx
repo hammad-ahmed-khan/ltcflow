@@ -9,6 +9,7 @@ import Credits from './components/Credits';
 import Logo from './components/Logo';
 import Input from './components/Input';
 import './Login.sass';
+import './components/CoBranding.sass';
 import Config from '../../config';
 import login from '../../actions/login';
 import setAuthToken from '../../actions/setAuthToken';
@@ -191,13 +192,14 @@ function Login() {
   ) : null;
 
   return (
-    <Div100vh>
+   <Div100vh>
       <div className="login uk-cover-container uk-flex uk-flex-center uk-flex-middle uk-overflow-hidden uk-dark">
         <div className="uk-position-cover" />
         <div className="login-scrollable uk-flex uk-flex-center uk-flex-middle uk-position-z-index">
           <Credits />
           <div className="login-inner uk-width-medium uk-padding-small" data-uk-scrollspy="cls: uk-animation-fade">
-            <Logo />
+            {/* 🆕 CHANGE: Pass info prop to Logo component */}
+            <Logo info={info} />
             <div>
               {/* Login Form */}
               <form className="toggle-class" onSubmit={onLogin} hidden={isActivationMode}>
