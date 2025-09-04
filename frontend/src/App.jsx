@@ -19,6 +19,7 @@ import initIO from './actions/initIO';
 import { setCompanyId, setCompanyError } from './actions/companyActions';
 import { getSubdomain, verifySubdomain } from './utils/domainUtils';
 import apiClient from './api/apiClient';
+import { usePortraitLock, LandscapeWarning } from './hooks/usePortraitLock';
 
 function App() {
   const dispatch = useDispatch();
@@ -28,6 +29,9 @@ function App() {
   const { companyId, error } = useSelector((state) => state.company);
   const token = useGlobal('token')[0];
   const setStartingPoint = useGlobal('entryPath')[1];
+
+  // Portrait lock hook
+  const { showWarning } = usePortraitLock();
 
   if (!['dark', 'light'].includes(Config.theme)) Config.theme = 'light';
  
@@ -233,26 +237,32 @@ function App() {
   }
 
   return (
-    <div className={`theme ${Config.theme}`}>
-      <Router>
-        <Routes>
-          <Route path="/activate/:token" element={<ActivateAccount />} />
-          <Route 
-            path="/forgot-password" 
-            element={token ? <Navigate to="/" /> : <ForgotPassword />} 
-          />
-          <Route 
-            path="/login" 
-            element={token ? <Navigate to="/" /> : <Login />} 
-          />
-          <Route 
-            path="/*" 
-            element={!token ? <Navigate to="/login" /> : <Home />} 
-          />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Router>
-    </div>
+    <>
+      {/* Landscape Warning Overlay */}
+      <LandscapeWarning />
+      
+      {/* Main App Content (Portrait Only) */}
+      <div className={`theme ${Config.theme} portrait-only`}>
+        <Router>
+          <Routes>
+            <Route path="/activate/:token" element={<ActivateAccount />} />
+            <Route 
+              path="/forgot-password" 
+              element={token ? <Navigate to="/" /> : <ForgotPassword />} 
+            />
+            <Route 
+              path="/login" 
+              element={token ? <Navigate to="/" /> : <Login />} 
+            />
+            <Route 
+              path="/*" 
+              element={!token ? <Navigate to="/login" /> : <Home />} 
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Router>
+      </div>
+    </>
   );
 }
 

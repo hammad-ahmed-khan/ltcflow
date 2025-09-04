@@ -7,10 +7,15 @@
     <!-- Enhanced viewport for mobile devices -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, user-scalable=yes, viewport-fit=cover" />
     
+    <!-- Portrait Lock Configuration -->
+    <meta name="screen-orientation" content="portrait" />
+    <meta name="orientation" content="portrait" />
+    
     <!-- iOS Status Bar Configuration -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="LTC Flow" />
+    <meta name="apple-mobile-web-app-orientation" content="portrait" />
     
     <!-- Android/Chrome Mobile Configuration -->
     <meta name="mobile-web-app-capable" content="yes" />
@@ -32,122 +37,14 @@
     <link rel="icon" href="/flowicon 32.webp" type="image/webp" sizes="32x32" />
     <link rel="icon" href="/favicon.ico" type="image/x-icon" />
     
-    <!-- Apple Touch Icons - Progressive Enhancement -->
-    <link rel="apple-touch-icon" href="/flowicon 180.webp" type="image/webp" sizes="180x180" />
-    <link rel="apple-touch-icon" href="/flowicon 192.webp" type="image/webp" sizes="192x192" />
-    <link rel="apple-touch-icon" href="/flowicon 144.webp" type="image/webp" sizes="144x144" />
-    
-    <!-- Fallback PNG for older devices -->
-    <link rel="apple-touch-icon" href="/logo192.png" type="image/png" sizes="192x192" />
-    
-    <!-- Android Icon Configuration -->
-    <link rel="shortcut icon" sizes="196x196" href="/ " />
-    
-    <!-- iOS Splash Screens for different devices -->
-    <!-- iPhone X, XS, 11 Pro -->
-    <link rel="apple-touch-startup-image" 
-          media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" 
-          href="/splash-1125x2436.png" />
-    
-    <!-- iPhone XR, 11 -->
-    <link rel="apple-touch-startup-image" 
-          media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)" 
-          href="/splash-828x1792.png" />
-    
-    <!-- iPhone XS Max, 11 Pro Max -->
-    <link rel="apple-touch-startup-image" 
-          media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)" 
-          href="/splash-1242x2688.png" />
-    
-    <!-- iPhone 12, 13, 14 -->
-    <link rel="apple-touch-startup-image" 
-          media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)" 
-          href="/splash-1170x2532.png" />
-    
-    <!-- iPhone 12 Pro Max, 13 Pro Max, 14 Plus -->
-    <link rel="apple-touch-startup-image" 
-          media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)" 
-          href="/splash-1284x2778.png" />
-    
-    <!-- iPhone 8, SE 2020/2022 -->
-    <link rel="apple-touch-startup-image" 
-          media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)" 
-          href="/splash-750x1334.png" />
-    
-    <!-- iPhone 8 Plus -->
-    <link rel="apple-touch-startup-image" 
-          media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)" 
-          href="/splash-1242x2208.png" />
-    
-    <!-- iPad -->
-    <link rel="apple-touch-startup-image" 
-          media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)" 
-          href="/splash-1536x2048.png" />
-    
-    <!-- iPad Pro 11" -->
-    <link rel="apple-touch-startup-image" 
-          media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" 
-          href="/splash-1668x2388.png" />
-    
-    <!-- iPad Pro 12.9" -->
-    <link rel="apple-touch-startup-image" 
-          media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)" 
-          href="/splash-2048x2732.png" />
-    
-    <!-- Manifest for PWA -->
+    <!-- PWA Manifest with Portrait Lock -->
     <link rel="manifest" href="/manifest.json" />
     
-    <!-- Enhanced meta description for mobile -->
-    <meta name="description" content="LTC Flow - Secure real-time messaging and video conferencing platform designed for long-term care facilities. Connect your care team instantly." />
-    <meta name="keywords" content="healthcare communication, long-term care, secure messaging, video conferencing, care team collaboration" />
+    <title>LTC Flow - Real-Time Messaging & Video Conferencing</title>
     
-    <!-- Open Graph for social sharing -->
-    <meta property="og:title" content="LTC Flow" />
-    <meta property="og:description" content="Secure communication platform for long-term care facilities" />
-    <meta property="og:image" content="/flowicon 512.webp" />
-    <meta property="og:type" content="website" />
-    
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="LTC Flow" />
-    <meta name="twitter:description" content="Secure communication platform for long-term care facilities" />
-    <meta name="twitter:image" content="/flowicon 512.webp" />
-    
-    <title>LTC Flow</title>
-    
-    <!-- Critical CSS for mobile performance -->
     <style>
-      /* Critical mobile styles */
-      * {
-        -webkit-tap-highlight-color: transparent;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-      }
-      
-      input, textarea, [contenteditable] {
-        -webkit-user-select: text;
-        -moz-user-select: text;
-        -ms-user-select: text;
-        user-select: text;
-      }
-      
-      body {
-        margin: 0;
-        padding: 0;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-        background-color: #f2f2f2;
-        overflow-x: hidden;
-        position: fixed;
-        width: 100%;
-        height: 100%;
-      }
-      
-      #root {
+      /* Base styles with safe area support */
+      html, body, #root {
         width: 100%;
         height: 100%;
         position: relative;
@@ -249,8 +146,69 @@
     
     <div id="root"></div>
     
-    <!-- Service Worker Registration -->
+    <!-- Portrait Lock JavaScript -->
     <script>
+      // Portrait Lock Implementation
+      class PortraitLockManager {
+        constructor() {
+          this.init();
+        }
+
+        async init() {
+          // Initial orientation check
+          this.handleOrientationChange();
+
+          // Try to lock screen orientation to portrait
+          if (screen.orientation && screen.orientation.lock) {
+            try {
+              await screen.orientation.lock('portrait');
+              console.log('✅ Screen locked to portrait mode');
+            } catch (error) {
+              console.log('❌ Could not lock screen orientation:', error);
+            }
+          }
+
+          // Event listeners for orientation changes
+          window.addEventListener('orientationchange', () => {
+            setTimeout(() => this.handleOrientationChange(), 100);
+          });
+
+          window.addEventListener('resize', () => {
+            setTimeout(() => this.handleOrientationChange(), 100);
+          });
+        }
+
+        handleOrientationChange() {
+          const isLandscape = window.innerWidth > window.innerHeight;
+          const isMobile = window.innerWidth <= 1024;
+
+          if (isLandscape && isMobile) {
+            this.showLandscapeWarning();
+          } else {
+            this.hideLandscapeWarning();
+            
+            // Re-attempt portrait lock when returning to portrait
+            if (screen.orientation && screen.orientation.lock) {
+              screen.orientation.lock('portrait').catch(console.warn);
+            }
+          }
+        }
+
+        showLandscapeWarning() {
+          // This will be handled by React components
+          document.body.classList.add('landscape-mode');
+          console.log('🔄 Device in landscape mode - showing warning');
+        }
+
+        hideLandscapeWarning() {
+          document.body.classList.remove('landscape-mode');
+          console.log('✅ Device in portrait mode');
+        }
+      }
+
+      // Initialize portrait lock manager
+      new PortraitLockManager();
+
       // Hide loading spinner once app starts
       window.addEventListener('load', function() {
         const spinner = document.getElementById('loading-spinner');
@@ -262,7 +220,6 @@
       // Enhanced error handling for mobile
       window.addEventListener('error', function(e) {
         console.error('Application error:', e.error);
-        // Could send to error tracking service here
       });
       
       // Handle viewport changes (orientation, keyboard)
@@ -287,6 +244,13 @@
         }
         lastTouchEnd = now;
       }, false);
+
+      // Prevent pinch zoom
+      document.addEventListener('touchstart', function(e) {
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
+      });
       
       // Performance optimization for mobile
       if ('requestIdleCallback' in window) {
@@ -307,11 +271,8 @@
       // PWA install prompt handling
       let deferredPrompt;
       window.addEventListener('beforeinstallprompt', (e) => {
-        // Prevent Chrome 67 and earlier from automatically showing the prompt
         e.preventDefault();
-        // Stash the event so it can be triggered later
         deferredPrompt = e;
-        // Update UI to notify user they can add to home screen
         window.dispatchEvent(new CustomEvent('pwacanuseinstall', { detail: e }));
       });
       
