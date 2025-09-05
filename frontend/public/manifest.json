@@ -1,17 +1,23 @@
 {
-  "name": "LTC Flow - Real-Time Messaging & Video Conferencing",
+  "name": "LTC Flow",
   "short_name": "LTC Flow",
-  "description": "Multi-tenant messaging and audio/video conferencing web application",
+  "description": "Instant Communication for LTC Teams",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#1e2e3b",
-  "theme_color": "#1e2e3b",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "scope": "/",
   "lang": "en-US",
   "categories": ["communication", "productivity", "business"],
   "dir": "ltr",
   "icons": [
+    {
+      "src": "/flowlogo login300px.webp",
+      "sizes": "300x300",
+      "type": "image/webp",
+      "purpose": "any"
+    },
     {
       "src": "/flowicon 32.webp",
       "sizes": "32x32",

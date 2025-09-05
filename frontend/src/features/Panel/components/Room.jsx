@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './Room.sass';
 import { useGlobal } from 'reactn';
-import { FiPhone, FiMoreHorizontal } from 'react-icons/fi';
+import { FiPhone, FiMoreHorizontal, FiAlertTriangle } from 'react-icons/fi';
 import moment from 'moment';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useToasts } from 'react-toast-notifications';
@@ -12,12 +12,14 @@ import postCall from '../../../actions/postCall';
 import Actions from '../../../constants/Actions';
 import removeRoom from '../../../actions/removeRoom';
 import getRooms from '../../../actions/getRooms';
+import getRoom from '../../../actions/getRoom';
 
 function Room({ room }) {
   const roomsWithNewMessages = useSelector((state) => state.messages.roomsWithNewMessages);
   const onlineUsers = useSelector((state) => state.io.onlineUsers);
   const currentRoom = useSelector((state) => state.io.room);
   const [hover, setHover] = useState(false);
+  const [isDeleted, setIsDeleted] = useState(false);
   const user = useGlobal('user')[0];
   const setAudio = useGlobal('audio')[1];
   const setVideo = useGlobal('video')[1];
@@ -65,6 +67,10 @@ function Room({ room }) {
   const date = lastMessage ? moment(lastMessage.date).format('MMM D') : '';
   const time = lastMessage ? moment(lastMessage.date).format('h:mm A') : '';
 
+  // Check if this room has unread messages
+  const hasUnreadMessages = roomsWithNewMessages.includes(room._id);
+  const unreadCount = roomsWithNewMessages.filter((r) => room._id === r).length;
+
   const popup = (content, type) => {
     addToast(content, {
       appearance: type,
@@ -88,6 +94,30 @@ function Room({ room }) {
       } catch (e) {
         popup('Error while removing room. Please retry!', 'error');
       }
+    }
+  };
+
+  // NEW: Enhanced click handler with deletion check
+  const handleRoomClick = async () => {
+    // Check if room still exists before navigating
+    try {
+      await getRoom(room._id);
+      const target = `/room/${room._id}`;
+      if (location.pathname !== target) navigate(target, { replace: true });
+    } catch (error) {
+      // Room was deleted
+      setIsDeleted(true);
+      popup('This conversation has been deleted by the other user.', 'warning');
+      
+      // Remove from unread messages if it was there
+      dispatch({ type: Actions.MESSAGES_REMOVE_ROOM_UNREAD, roomID: room._id });
+      
+      // Refresh rooms list to remove deleted room
+      setTimeout(() => {
+        getRooms()
+          .then((res) => dispatch({ type: Actions.SET_ROOMS, rooms: res.data.rooms }))
+          .catch((err) => console.log(err));
+      }, 1000);
     }
   };
 
@@ -138,15 +168,17 @@ function Room({ room }) {
     return null;
   };
 
+  // Don't render if marked as deleted
+  if (isDeleted) {
+    return null;
+  }
+
   return (
     <div
-      className="room uk-flex"
+      className={`room uk-flex${hasUnreadMessages ? ' room-unread' : ''}`}
       onMouseOver={!isMobile ? () => setHover(true) : undefined}
       onMouseOut={!isMobile ? () => setHover(false) : undefined}
-      onClick={() => {
-        const target = `/room/${room._id}`;
-        if (location.pathname !== target) navigate(target, { replace: true });
-      }}
+      onClick={handleRoomClick}
     >
       <div className="uk-flex uk-flex-middle">
         <div className="profile">
@@ -155,14 +187,11 @@ function Room({ room }) {
         {getStatus() && <div className={`dot ${getStatus()}`} />}
       </div>
       <div className="text">
-        <div className={`title${roomsWithNewMessages.includes(room._id) ? ' highlight' : ''}`}>
+        <div className={`title${hasUnreadMessages ? ' highlight' : ''}`}>
           {title.substr(0, 20)}
           {title.length > 20 && '...'}
-          {roomsWithNewMessages.includes(room._id)
-            ? ` (${roomsWithNewMessages.filter((r) => room._id === r).length})`
-            : ''}
         </div>
-        <div className={`message${roomsWithNewMessages.includes(room._id) ? ' highlight' : ''}`}>
+        <div className={`message${hasUnreadMessages ? ' highlight' : ''}`}>
           {text.substr(0, 26)}
           {text.length > 26 && '...'}
         </div>
@@ -175,11 +204,11 @@ function Room({ room }) {
         </div>
       </div>
       <div className="controls" hidden={!hover}>
-        <div className="button" onClick={() => call(other, false)}>
+        <div className="button" onClick={(e) => { e.stopPropagation(); call(other, false); }}>
           <FiPhone />
         </div>
         <div className="uk-inline">
-          <div className="button" type="button">
+          <div className="button" type="button" onClick={(e) => e.stopPropagation()}>
             <FiMoreHorizontal />
           </div>
           <div data-uk-dropdown="mode: click; offset: 5; boundary: .top-bar">

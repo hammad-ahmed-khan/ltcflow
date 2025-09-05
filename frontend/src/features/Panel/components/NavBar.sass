@@ -3,6 +3,7 @@
   padding: 0 9px
   height: 44px
   border-bottom: 1px solid #dadce0
+  
   .item
     display: flex
     flex-direction: column
@@ -11,11 +12,55 @@
     width: 25%
     cursor: pointer
     color: #666
+    
     .icon
       font-size: 18px
       margin-top: -2px
       margin-bottom: -2px
+      
+      // NEW: Container for icons that might have badges
+      &.icon-with-badge
+        position: relative
+        
+        // NEW: Unread message badge for main chat icon
+        .nav-unread-badge
+          position: absolute
+          top: -8px
+          right: -8px
+          background: #ff4444
+          color: white
+          border-radius: 10px
+          min-width: 16px
+          height: 16px
+          font-size: 10px
+          font-weight: bold
+          display: flex
+          align-items: center
+          justify-content: center
+          border: 2px solid #f2f2f2
+          z-index: 10
+          
     .text
       font-size: 9px
+      
   .item:hover
     color: #000
+    
+    // Badge should stay red even on hover
+    .nav-unread-badge
+      background: #ff4444 !important
+
+// Active state styling
+.item.active
+  color: #da7d02 !important
+  
+  // Badge should stay red even when active
+  .nav-unread-badge
+    background: #ff4444 !important
+
+// Dark theme support
+.theme.dark .nav-bar
+  border-bottom-color: rgba(255, 255, 255, 0.1)
+  
+  .nav-unread-badge
+    border-color: #303841 !important

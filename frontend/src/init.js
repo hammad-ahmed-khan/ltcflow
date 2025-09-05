@@ -3,6 +3,7 @@ import jwtDecode from "jwt-decode";
 import setAuthToken from "./actions/setAuthToken";
 import initIO from "./actions/initIO";
 import store from "./store";
+import Actions from "./constants/Actions";
 
 const init = async () => {
   document.addEventListener("gesturestart", (e) => {
@@ -24,11 +25,19 @@ const init = async () => {
     hasUser: !!user,
   });
 
-  // 🔹 FIX: If token exists, set it up immediately (no validation)
+  // If token exists, set it up immediately (no validation)
   if (token) {
     setAuthToken(token); // This sets the Authorization header in axios
     store.dispatch(initIO(token)); // This initializes socket.io
     console.log("✅ Token and socket initialized");
+
+    // FIXED: Restore unread state from localStorage is handled automatically
+    // by the messages reducer initialState, but we can log it here
+    const persistedRooms = localStorage.getItem("unreadRooms");
+    const persistedGroups = localStorage.getItem("unreadGroups");
+    if (persistedRooms || persistedGroups) {
+      console.log("📬 Restoring unread messages from previous session");
+    }
   }
 
   const state = {

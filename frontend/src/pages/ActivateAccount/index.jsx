@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useGlobal } from 'reactn';
 import { useToasts } from 'react-toast-notifications';
 import { FiX, FiUpload, FiEdit2 } from 'react-icons/fi';
+import Div100vh from 'react-div-100vh';
 import apiClient from '../../api/apiClient';
 import uploadActivationImage from '../../actions/uploadActivationImage';
 import getInfo from '../../actions/getInfo';
@@ -382,7 +383,7 @@ function ActivateAccount() {
   const renderValidatingStep = () => (
     <div className="uk-text-center">
       <div data-uk-spinner="ratio: 1.5" className="uk-margin-bottom"></div>
-      <h3 className="uk-heading-small">Validating activation link...</h3>
+      <h3 className="uk-heading">Validating activation link...</h3>
       <p className="uk-text-muted">Please wait while we verify your activation token.</p>
     </div>
   );
@@ -636,7 +637,7 @@ function ActivateAccount() {
         </button>
       </div>
 
-      <div className="uk-text-center">
+      <div className="uk-text-center"  style={{ marginBottom: '50px' }}> >
         <p className="uk-text-small uk-text-muted">
           {isRootActivation ? 
             'Complete the setup to activate your company account and administrator privileges.' :
@@ -652,7 +653,7 @@ function ActivateAccount() {
       <div className="uk-margin-bottom">
         <span className="uk-text-success" style={{ fontSize: '48px' }}>✓</span>
       </div>
-      <h2 className="uk-heading-small uk-margin-remove-bottom uk-text-success">
+      <h2 className="uk-heading uk-margin-remove-bottom uk-text-success">
         {isRootActivation ? 'Company Setup Complete!' : 'Account Activated!'}
       </h2>
       <p className="uk-text-muted uk-margin-small-top">
@@ -672,7 +673,7 @@ function ActivateAccount() {
       <div className="uk-margin-bottom">
         <span className="uk-text-danger" style={{ fontSize: '48px' }}>✗</span>
       </div>
-      <h2 className="uk-heading-small uk-margin-remove-bottom uk-text-danger">
+      <h2 className="uk-heading uk-margin-remove-bottom uk-text-danger">
         Activation Failed
       </h2>
       <p className="uk-text-muted uk-margin-small-top">
@@ -707,26 +708,28 @@ function ActivateAccount() {
   };
 
   return (
-    <div className="uk-background-muted" style={{ minHeight: '100vh', padding: '20px 0' }}>
-      <div className="uk-flex uk-flex-middle uk-flex-center">
-        <div className="uk-width-1-1 uk-width-medium@s">
-          <div className="">
-            <div className="uk-text-center uk-margin-bottom">
-              <Logo info={info} />
-              <h1 className="uk-heading-small uk-margin-remove-top">
-                {isRootActivation ? 'Company Setup' : 'Account Activation'}
-              </h1>
-            </div>
+    <Div100vh style={{overflow: 'auto' }}>
+      <div className="uk-background-muted" >
+        <div className="uk-flex uk-flex-middle uk-flex-center">
+          <div className="uk-width-1-1 uk-width-medium@s">
+            <div className="">
+              <div className="uk-text-center uk-margin-bottom">
+                <Logo info={info} />
+                <h1 className="uk-heading uk-margin-remove-top">
+                  {isRootActivation ? 'Company Setup' : 'Account Activation'}
+                </h1>
+              </div>
 
-            {getCurrentStep()}
+              {getCurrentStep()}
 
-            <div className="uk-margin-top uk-text-center">
-              <Credits />
+              <div className="uk-margin-top uk-text-center">
+                <Credits />
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </Div100vh>
   );
 }
 
