@@ -454,13 +454,13 @@ const customStyles = {
         const actionButton = getActionButton();
         
         return (
-          <div className="uk-flex uk-flex-column uk-flex-center" style={{ gap: '4px' }}>
-            <div className="uk-flex" style={{ gap: '4px' }}>
+          <div className="uk-flex uk-flex-column uk-flex-center uk-width-1-1" style={{ gap: '4px' }}>
+            <div className="uk-flex uk-width-1-1" style={{ gap: '4px' }}>
               {/* FIXED: Show resend and cancel buttons for pending AND expired status */}
               {canResendActivation && (
                 <>
                   <button
-                    className="uk-button uk-button-small uk-button-primary"
+                    className="uk-button uk-button-small uk-button-primary uk-width-1-1"
                     style={{ 
                       fontSize: '10px', 
                       padding: '4px 8px',
@@ -482,7 +482,7 @@ const customStyles = {
                     )}
                   </button>
                   <button
-                    className="uk-button uk-button-small uk-button-danger hidden"
+                    className="uk-button uk-button-small uk-button-danger  uk-hidden"
                     style={{ 
                       fontSize: '10px', 
                       padding: '4px 8px',
@@ -509,7 +509,7 @@ const customStyles = {
               {/* FIXED: Show activate/deactivate button only for active/deactivated users */}
               {actionButton && (
                 <button
-                  className={`uk-button uk-button-small ${actionButton.className}`}
+                  className={`uk-button uk-button-small uk-width-1-1 ${actionButton.className}`}
                   style={{ 
                     fontSize: '10px', 
                     padding: '4px 8px',
@@ -726,7 +726,7 @@ const customStyles = {
                 backgroundColor: statusFilter === 'all' ? '#1976d2' : '#eeeeee',
                 color: statusFilter === 'all' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
-                padding: '4px 8px',
+                padding: '8px 16px',
                 borderRadius: '20px'
               }}
               onMouseEnter={(e) => {
@@ -768,7 +768,7 @@ const customStyles = {
                 backgroundColor: statusFilter === 'active' ? '#2e7d32' : '#eeeeee',
                 color: statusFilter === 'active' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
-                padding: '4px 8px',
+                padding: '8px 16px',
                 borderRadius: '20px'
               }}
               onMouseEnter={(e) => {
@@ -810,7 +810,7 @@ const customStyles = {
                 backgroundColor: statusFilter === 'pending' ? '#f57c00' : '#eeeeee',
                 color: statusFilter === 'pending' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
-                padding: '4px 8px',
+                padding: '8px 16px',
                 borderRadius: '20px'
               }}
               onMouseEnter={(e) => {
@@ -852,7 +852,7 @@ const customStyles = {
                 backgroundColor: statusFilter === 'expired' ? '#c62828' : '#eeeeee',
                 color: statusFilter === 'expired' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
-                padding: '4px 8px',
+                padding: '8px 16px',
                 borderRadius: '20px'
               }}
               onMouseEnter={(e) => {
@@ -894,7 +894,7 @@ const customStyles = {
                 backgroundColor: statusFilter === 'deactivated' ? '#666' : '#eeeeee',
                 color: statusFilter === 'deactivated' ? '#ffffff' : '#666',
                 whiteSpace: 'nowrap',
-                padding: '4px 8px',
+                padding: '8px 16px',
                 borderRadius: '20px'
               }}
               onMouseEnter={(e) => {
