@@ -34,7 +34,15 @@ function Conversation() {
         dispatch({ type: Actions.SET_MESSAGES, messages: res.data.room.messages });
         setLoading(false);
         setError(false);
-        dispatch({ type: Actions.MESSAGES_REMOVE_ROOM_UNREAD, roomID: id });
+        
+        // ENHANCED: Remove unread indicator for both direct messages and groups
+        const isGroup = res.data.room.isGroup;
+        console.log(`🔄 Removing unread indicator for ${isGroup ? 'group' : 'room'}:`, id);
+        dispatch({ 
+          type: Actions.MESSAGES_REMOVE_ROOM_UNREAD, 
+          roomID: id,
+          isGroup: isGroup // NEW: Pass group information
+        });
       })
       .catch((err) => {
         dispatch({ type: Actions.SET_ROOM, room: null });

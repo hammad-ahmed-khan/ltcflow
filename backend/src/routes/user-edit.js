@@ -74,19 +74,6 @@ module.exports = async (req, res, next) => {
     if (!validLevels.includes(level)) {
       errors.level = "Invalid user role.";
     }
-
-    // Check permissions based on current user's level
-    const currentUserLevel = req.user.level;
-
-    if (currentUserLevel === "root") {
-      // Root users can set any level
-    } else if (currentUserLevel === "admin") {
-      // Administrators cannot edit other administrators
-      if (level === "admin") {
-        errors.level =
-          "Administrators cannot edit users to administrator level.";
-      }
-    }
   }
 
   email = email.toLowerCase();

@@ -227,7 +227,13 @@ router.post(
   require("./group-update-info")
 );
 
+router.post(
+  "/group/delete",
+  passport.authenticate("jwt", { session: false }, null),
+  require("./group-delete")
+);
+
 // Webhook route
-//router.post("/webhook/outseta", require("./outseta-webhook"));
+router.post("/webhook/outseta", require("./outseta-webhook"));
 
 module.exports = router;

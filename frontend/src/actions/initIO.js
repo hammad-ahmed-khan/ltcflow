@@ -7,6 +7,9 @@ import getRooms from "./getRooms";
 import messageSound from "../assets/message.mp3";
 import socketPromise from "../lib/socket.io-promise";
 
+// Track played sounds to prevent duplicates
+let playedSounds = new Set();
+
 const initIO = (token) => (dispatch) => {
   const io = IO(`${Config.url || ""}/`);
   io.request = socketPromise(io);
@@ -25,30 +28,123 @@ const initIO = (token) => (dispatch) => {
     const { room, message } = data;
 
     const currentRoom = store.getState().io.room;
+    const currentMessages = store.getState().io.messages || [];
 
-    const audio = document.createElement("audio");
-    audio.style.display = "none";
-    audio.src = messageSound;
-    audio.autoplay = true;
-    audio.onended = () => audio.remove();
-    document.body.appendChild(audio);
+    // Check if message already exists to prevent duplicates
+    const messageExists = currentMessages.some((existingMessage) => {
+      // Check by exact ID match first
+      if (existingMessage._id === message._id) {
+        return true;
+      }
 
-    if (!currentRoom || currentRoom._id !== room._id) {
-      store.dispatch({
-        type: Actions.MESSAGES_ADD_ROOM_UNREAD,
-        roomID: room._id,
-      });
+      // Check for potential duplicates by content, author, and timing
+      if (
+        existingMessage.content === message.content &&
+        existingMessage.author &&
+        message.author &&
+        existingMessage.author._id === message.author._id
+      ) {
+        // Check if messages are within 2 seconds of each other (accounting for potential timing differences)
+        const existingDate = new Date(existingMessage.date);
+        const newDate = new Date(message.date);
+        const timeDiff = Math.abs(existingDate - newDate);
+
+        if (timeDiff < 2000) {
+          // 2 seconds tolerance
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    if (messageExists) {
+      console.log(
+        "Duplicate message detected, skipping:",
+        message._id || "no-id"
+      );
+      return;
     }
 
-    if (!currentRoom) return;
-    if (currentRoom._id === room._id)
-      store.dispatch({ type: Actions.MESSAGE, message });
+    console.log(
+      "Processing new message:",
+      message._id,
+      "for room:",
+      room._id,
+      "isGroup:",
+      room.isGroup
+    );
 
+    // Play sound only once per unique message ID
+    const messageId =
+      message._id || `${message.content}-${message.date}-${message.author._id}`;
+
+    if (!playedSounds.has(messageId)) {
+      playedSounds.add(messageId);
+
+      const audio = document.createElement("audio");
+      audio.style.display = "none";
+      audio.src = messageSound;
+      audio.autoplay = true;
+      audio.onended = () => {
+        audio.remove();
+        // Clean up old sound IDs after 10 seconds to prevent memory buildup
+        setTimeout(() => {
+          playedSounds.delete(messageId);
+        }, 10000);
+      };
+      document.body.appendChild(audio);
+      console.log("🔊 Playing notification sound for message:", messageId);
+    } else {
+      console.log("🔇 Sound already played for message:", messageId);
+    }
+
+    // Update rooms list FIRST to ensure sidebar reflects new message
+    console.log("Updating rooms list to reflect new message...");
     getRooms()
-      .then((res) =>
-        store.dispatch({ type: Actions.SET_ROOMS, rooms: res.data.rooms })
-      )
-      .catch((err) => console.log(err));
+      .then((res) => {
+        console.log("✅ Rooms list updated successfully");
+        store.dispatch({ type: Actions.SET_ROOMS, rooms: res.data.rooms });
+
+        // ENHANCED: Add unread indicator for both direct messages and groups
+        if (!currentRoom || currentRoom._id !== room._id) {
+          console.log(
+            `📬 Adding unread indicator for ${
+              room.isGroup ? "group" : "room"
+            }:`,
+            room._id
+          );
+          store.dispatch({
+            type: Actions.MESSAGES_ADD_ROOM_UNREAD,
+            roomID: room._id,
+            isGroup: room.isGroup, // NEW: Pass group information
+          });
+        } else {
+          console.log(
+            `👀 User is viewing this ${
+              room.isGroup ? "group" : "room"
+            }, not marking as unread:`,
+            room._id
+          );
+        }
+      })
+      .catch((err) => {
+        console.error("❌ Error updating rooms list:", err);
+        // Still add unread indicator even if rooms update fails
+        if (!currentRoom || currentRoom._id !== room._id) {
+          store.dispatch({
+            type: Actions.MESSAGES_ADD_ROOM_UNREAD,
+            roomID: room._id,
+            isGroup: room.isGroup, // NEW: Pass group information
+          });
+        }
+      });
+
+    // Add message to current conversation if user is viewing this room
+    if (currentRoom && currentRoom._id === room._id) {
+      console.log("💬 Adding message to current conversation");
+      store.dispatch({ type: Actions.MESSAGE, message });
+    }
   });
 
   io.on("newProducer", (data) => {
@@ -127,9 +223,6 @@ const initIO = (token) => (dispatch) => {
     });
   });
 
-  // Fix in frontend/src/actions/initIO.js
-  // Replace the existing user-deleted handler with this:
-
   io.on("user-deleted", async (data) => {
     // Only log out the user if THEY were the one deleted
     const currentUser = store.getState().user || getGlobal().user;
@@ -146,11 +239,8 @@ const initIO = (token) => (dispatch) => {
         user: {},
       });
 
-      // Optionally show a message to the deleted user
-      // (though they might not see it if they're redirected immediately)
       console.log("Your account has been deleted by an administrator");
     }
-    // If it's not this user who was deleted, do nothing - stay logged in
   });
 
   io.on("typing", (data) => {

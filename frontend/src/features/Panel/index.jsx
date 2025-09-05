@@ -1,5 +1,4 @@
-// File 6: Update frontend/src/features/Panel/index.jsx
-// Add the GroupList import and replace meetings section:
+// Enhanced Panel/index.jsx - Groups support
 
 import { useEffect } from 'react';
 import { useGlobal } from 'reactn';
@@ -12,7 +11,7 @@ import NavBar from './components/NavBar';
 import MeetingBar from './components/MeetingBar';
 import Room from './components/Room';
 import User from './components/User';
-import GroupList from './components/GroupList'; // ADD THIS IMPORT
+import GroupList from './components/GroupList';
 import getRooms from '../../actions/getRooms';
 import search from '../../actions/search';
 import getFavorites from '../../actions/getFavorites';
@@ -23,6 +22,8 @@ function Panel() {
   const nav = useGlobal('nav')[0];
   const searchText = useGlobal('search')[0];
   const rooms = useSelector((state) => state.io.rooms);
+  const roomsWithNewMessages = useSelector((state) => state.messages.roomsWithNewMessages);
+  const groupsWithNewMessages = useSelector((state) => state.messages.groupsWithNewMessages); // NEW
   const [searchResults, setSearchResults] = useGlobal('searchResults');
   const [favorites, setFavorites] = useGlobal('favorites');
   const [callStatus] = useGlobal('callStatus');
@@ -43,13 +44,24 @@ function Panel() {
       .catch((err) => console.log(err));
   }, [setSearchResults, setFavorites]);
 
-  const roomsList = rooms.filter(room => !room.isGroup).map((room) => <Room key={room._id} room={room} />);
+  // ENHANCED: Force roomsList to re-render when unread messages change
+  const roomsList = rooms
+    .filter(room => !room.isGroup)
+    .map((room) => (
+      <Room 
+        key={`${room._id}-${roomsWithNewMessages.includes(room._id) ? 'unread' : 'read'}`}
+        room={room} 
+      />
+    ));
+    
   const searchResultsList = searchResults.map((user) => <User key={user._id} user={user} />);
   const favoritesList = favorites.map((room) => <Room key={room._id} room={room} />);
 
   function Notice({ text }) {
     return <div className="notice">{text}</div>;
   }
+
+  console.log("Panel re-rendering - Unread rooms:", roomsWithNewMessages, "Unread groups:", groupsWithNewMessages);
 
   return (
     <div className="panel">
@@ -70,7 +82,7 @@ function Panel() {
         {nav === 'favorites' && favorites.length === 0 && (
           <Notice text="No favorites yet. Add a room to your favorites!" />
         )}
-        {/* UPDATED: Replace meetings with groups */}
+        {/* ENHANCED: Groups with unread support - GroupList will handle its own re-rendering */}
         {nav === 'groups' && <GroupList />}
         {nav === 'settings' && <Settings />}
       </div>

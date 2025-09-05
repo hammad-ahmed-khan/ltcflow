@@ -4,7 +4,7 @@ import Div100vh from 'react-div-100vh';
 import {
   Route, Routes, useLocation, useNavigate,
 } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import CreateGroup from '../../features/Group/Create';
 import CreateGroup2 from '../../features/Group/Create2';
 import Panel from '../../features/Panel';
@@ -16,9 +16,11 @@ import Welcome from '../../features/Welcome';
 import NotFound from '../../features/NotFound';
 import Admin from '../../features/Admin';
 import GroupManage from '../../features/Group/Manage';
+import Actions from '../../constants/Actions';
 
 function Home() {
   const location = useLocation();
+  const dispatch = useDispatch();
 
   const [over, setOver] = useGlobal('over');
   const showPanel = useGlobal('showPanel')[0];
@@ -26,6 +28,7 @@ function Home() {
   const panel = useGlobal('panel')[0];
   const callIncrement = useSelector((state) => state.rtc.callIncrement);
   const callData = useSelector((state) => state.rtc.callData);
+  const currentRoom = useSelector((state) => state.io.room);
 
   const navigate = useNavigate();
 
@@ -45,6 +48,18 @@ function Home() {
     console.log(location.pathname);
     if (location.pathname !== '/') setOver(true);
   }, [location]);
+
+  // FIXED: Clear current room when navigating away from conversations
+  useEffect(() => {
+    const isConversationRoute = location.pathname.startsWith('/room/') && !location.pathname.endsWith('/info') && !location.pathname.endsWith('/manage');
+    
+    // If we have a current room set but we're not on a conversation route, clear it
+    if (currentRoom && !isConversationRoute) {
+      console.log('🧹 Clearing current room - navigated away from conversation:', currentRoom._id);
+      dispatch({ type: Actions.SET_ROOM, room: null });
+      dispatch({ type: Actions.SET_MESSAGES, messages: [] });
+    }
+  }, [location.pathname, currentRoom, dispatch]);
 
   const getPanel = () => {
     switch (panel) {

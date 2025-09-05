@@ -80,20 +80,13 @@ function GroupManage() {
     }
   };
 
- 
-
-  // frontend/src/features/Group/Manage/index.jsx
-// Replace the existing permission logic (around line 45-50) with this:
-
-// Updated permission logic - only managers, admins, and root can manage members
-const isGroupMember = group?.people?.some(member => member._id === user.id);
-const isManagerOrAbove = ['manager', 'admin', 'root'].includes(user.level);
-
-// Root can manage globally, managers/admins need to be group members  
-const canManageMembers = user.level === 'root' || (isManagerOrAbove && isGroupMember);
-
-// Note: Users can still leave groups (self-removal) regardless of their level
-// This is handled separately in the UI and backend
+  // Permission logic
+  const isGroupMember = group?.people?.some(member => member._id === user.id);
+  const isManagerOrAbove = ['manager', 'admin', 'root'].includes(user.level);
+  const canManageMembers = user.level === 'root' || (isManagerOrAbove && isGroupMember);
+  
+  // NEW: Delete permission - only root and admins can delete groups
+  const canDeleteGroup = ['root', 'admin'].includes(user.level);
 
   const showToast = (message, type = 'success') => {
     addToast(message, {
@@ -161,527 +154,414 @@ const canManageMembers = user.level === 'root' || (isManagerOrAbove && isGroupMe
     }
   };
 
-const updateGroupTitle = async () => {
-  if (!newTitle.trim()) {
-    showToast('Group name cannot be empty', 'error');
-    return;
-  }
-  
-  setLoading(prev => ({ ...prev, updateTitle: true }));
-  
-  try {
-    await apiClient.post('/api/group/update-info', { 
-      groupId: id, 
-      title: newTitle.trim() 
-    });
+  const updateGroupTitle = async () => {
+    if (!newTitle.trim()) {
+      showToast('Group name cannot be empty', 'error');
+      return;
+    }
     
-    showToast('Group name updated successfully');
-    setEditingTitle(false);
-    await refreshGroup();
-  } catch (err) {
-    const message = err.response?.data?.message || 'Failed to update group name';
-    showToast(message, 'error');
-  } finally {
-    setLoading(prev => ({ ...prev, updateTitle: false }));
-  }
-};
-
-const changeGroupPicture = async (imageFile) => {
-  setLoading(prev => ({ ...prev, changePicture: true }));
-  
-  try {
-    // Upload the image
-    const uploadResult = await upload(imageFile, null, () => {}, 'square');
+    setLoading(prev => ({ ...prev, updateTitle: true }));
     
-    // Update group picture using the unified endpoint
-    await apiClient.post('/api/group/update-info', {
-      groupId: id,
-      picture: uploadResult.data.image._id
-    });
+    try {
+      await apiClient.post('/api/group/update-info', { 
+        groupId: id, 
+        title: newTitle.trim() 
+      });
+      
+      showToast('Group name updated successfully');
+      setEditingTitle(false);
+      await refreshGroup();
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to update group name';
+      showToast(message, 'error');
+    } finally {
+      setLoading(prev => ({ ...prev, updateTitle: false }));
+    }
+  };
+
+  const changeGroupPicture = async (imageFile) => {
+    setLoading(prev => ({ ...prev, changePicture: true }));
     
-    showToast('Group picture updated successfully');
-    await refreshGroup();
-  } catch (err) {
-    const message = err.response?.data?.message || 'Failed to update group picture';
-    showToast(message, 'error');
-  } finally {
-    setLoading(prev => ({ ...prev, changePicture: false }));
-  }
-};
+    try {
+      // Upload the image
+      const uploadResult = await upload(imageFile, null, () => {}, 'square');
+      
+      // Update group picture using the unified endpoint
+      await apiClient.post('/api/group/update-info', {
+        groupId: id,
+        picture: uploadResult.data.image._id
+      });
+      
+      showToast('Group picture updated successfully');
+      await refreshGroup();
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to update group picture';
+      showToast(message, 'error');
+    } finally {
+      setLoading(prev => ({ ...prev, changePicture: false }));
+    }
+  };
 
-const removeGroupPicture = async () => {
-  const confirmed = window.confirm("Are you sure you want to remove the group picture?");
-  if (!confirmed) return;
+  const removeGroupPicture = async () => {
+    const confirmed = window.confirm("Are you sure you want to remove the group picture?");
+    if (!confirmed) return;
 
-  setLoading(prev => ({ ...prev, removePicture: true }));
-  
-  try {
-    await apiClient.post('/api/group/update-info', {
-      groupId: id,
-      picture: null // Set to null to remove picture
-    });
+    setLoading(prev => ({ ...prev, removePicture: true }));
     
-    showToast('Group picture removed successfully');
-    await refreshGroup();
-  } catch (err) {
-    const message = err.response?.data?.message || 'Failed to remove group picture';
-    showToast(message, 'error');
-  } finally {
-    setLoading(prev => ({ ...prev, removePicture: false }));
-  }
-};
+    try {
+      await apiClient.post('/api/group/update-info', {
+        groupId: id,
+        picture: null // Set to null to remove picture
+      });
+      
+      showToast('Group picture removed successfully');
+      await refreshGroup();
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to remove group picture';
+      showToast(message, 'error');
+    } finally {
+      setLoading(prev => ({ ...prev, removePicture: false }));
+    }
+  };
 
-if (!group || !canManageMembers) {
-  const accessDeniedMessage = !group ? 
-    'Group not found' : 
-    user.level === 'user' ? 
-      'Access denied: Only managers and administrators can manage group members' :
-      'Access denied: You must be a member of this group to manage it';
+  // NEW: Delete group functionality
+  const deleteGroup = async () => {
+    const groupTitle = group.title;
+    
+    // Double confirmation for destructive action
+    const firstConfirm = window.confirm(
+      `⚠️ DELETE GROUP: "${groupTitle}"\n\n` +
+      `This will permanently delete:\n` +
+      `• The group and all its messages\n` +
+      `• All conversation history\n` +
+      `• All shared files in this group\n\n` +
+      `This action CANNOT be undone!\n\n` +
+      `Type the group name to confirm deletion.`
+    );
+    
+    if (!firstConfirm) return;
+    
+    // Ask user to type group name for confirmation
+    const typedName = window.prompt(
+      `To confirm deletion, please type the group name exactly:\n"${groupTitle}"`
+    );
+    
+    if (typedName !== groupTitle) {
+      showToast('Group name does not match. Deletion cancelled.', 'warning');
+      return;
+    }
+    
+    setLoading(prev => ({ ...prev, deleteGroup: true }));
+    
+    try {
+      await apiClient.post('/api/group/delete', { 
+        groupId: id 
+      });
+      
+      showToast(`Group "${groupTitle}" has been permanently deleted`, 'success');
+      
+      // Refresh rooms list and navigate away
+      await refreshGroup();
+      navigate('/', { replace: true });
+      
+    } catch (err) {
+      const message = err.response?.data?.message || 'Failed to delete group';
+      showToast(message, 'error');
+    } finally {
+      setLoading(prev => ({ ...prev, deleteGroup: false }));
+    }
+  };
 
-  return (
-    <div style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      height: '100%',
-      flexDirection: 'column',
-      gap: '16px',
-      padding: '20px',
-      textAlign: 'center'
-    }}>
-      <div style={{ fontSize: '16px', color: '#666' }}>
-        {accessDeniedMessage}
-      </div>
-      {user.level === 'user' && group && (
-        <div style={{ fontSize: '14px', color: '#999', maxWidth: '400px' }}>
-          Standard users can participate in groups but cannot add or remove members. 
-          Contact a manager or administrator if you need to modify group membership.
-        </div>
-      )}
-      <button 
-        className="uk-button uk-button-primary"
-        onClick={() => navigate('/')}
-      >
-        <FiArrowLeft style={{ marginRight: '8px' }} />
-        Go Back
-      </button>
-    </div>
-  );
-}
-
-  return (
-    <div className="group-manage uk-flex uk-flex-column" style={{ height: '100%' }}>
-      {/* Hidden file input for group picture */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          const file = e.target.files[0];
-          if (file) {
-            changeGroupPicture(file);
-          }
-        }}
-      />
-
-      {/* Header */}
-      <div className="group-manage-header" style={{ 
-        padding: '16px', 
-        borderBottom: '1px solid #eee',
-        background: '#fff',
-        flexShrink: 0
-      }}>
-        {/* Top row with back button and add members button */}
-        <div className="uk-flex uk-flex-between uk-flex-middle" style={{ marginBottom: '16px' }}>
+  if (!group || !canManageMembers) {
+    const accessDeniedMessage = !group ? 
+      'Group not found' : 
+      user.level === 'user' ?
+        'Only managers and administrators can manage group members.' :
+        'You must be a member of this group to manage it.';
+        
+    return (
+      <div className="group-manage">
+        <div className="group-manage-header uk-flex uk-flex-between uk-flex-middle" style={{ padding: '16px' }}>
           <button 
-            className="uk-button uk-button-small uk-button-default"
+            className="uk-button uk-button-link uk-flex uk-flex-middle" 
             onClick={() => navigate(-1)}
-            style={{ padding: '8px 12px' }}
+            style={{ padding: '0', color: '#666' }}
           >
-            <FiArrowLeft style={{ marginRight: '4px' }} />
+            <FiArrowLeft style={{ marginRight: '8px' }} />
             Back
           </button>
-
-          <button
-            className="uk-button uk-button-small uk-button-primary"
-            onClick={() => setShowAddMembers(!showAddMembers)}
-            style={{ padding: '8px 12px' }}
-          >
-            <FiUserPlus style={{ marginRight: '4px' }} />
-            <span className="uk-visible@s">Add Members</span>
-          </button>
         </div>
+        <div className="uk-flex uk-flex-center uk-flex-middle" style={{ 
+          height: '60vh', 
+          textAlign: 'center',
+          color: '#666',
+          padding: '20px'
+        }}>
+          <div>
+            <h3>Access Denied</h3>
+            <p>{accessDeniedMessage}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-        {/* Group info section with picture and title */}
+  return (
+    <div className="group-manage">
+      {/* Header */}
+      <div className="group-manage-header uk-flex uk-flex-between uk-flex-middle" style={{ padding: '16px', background: '#fff', borderBottom: '1px solid #eee' }}>
+        <button 
+          className="uk-button uk-button-link uk-flex uk-flex-middle" 
+          onClick={() => navigate(-1)}
+          style={{ padding: '0', color: '#666' }}
+        >
+          <FiArrowLeft style={{ marginRight: '8px' }} />
+          Back
+        </button>
+        <h2 style={{ margin: 0, fontSize: '18px' }}>Manage Group</h2>
+        <div style={{ width: '60px' }}></div> {/* Spacer for centering */}
+      </div>
+
+      {/* Group Info Section */}
+      <div style={{ padding: '20px', background: '#fff', borderBottom: '1px solid #eee' }}>
         <div className="uk-flex uk-flex-middle" style={{ gap: '16px' }}>
           {/* Group Picture */}
-          <div className="group-picture-container" style={{ position: 'relative' }}>
+          <div className="group-picture-container">
             <div 
-              className="group-picture"
-              style={{
-                width: '80px',
+              onClick={() => fileInputRef.current?.click()}
+              style={{ 
+                width: '80px', 
                 height: '80px',
                 cursor: 'pointer',
                 position: 'relative',
-                borderRadius: '40px',
-                overflow: 'hidden',
-                border: '2px solid #e0e0e0',
-                transition: 'all 0.2s ease'
+                borderRadius: '50%',
+                overflow: 'hidden'
               }}
-              onClick={() => fileInputRef.current?.click()}
-              onMouseOver={(e) => {
-                const overlay = e.currentTarget.querySelector('.picture-overlay');
-                if (overlay) overlay.style.opacity = '0.8';
-              }}
-              onMouseOut={(e) => {
-                const overlay = e.currentTarget.querySelector('.picture-overlay');
-                if (overlay) overlay.style.opacity = '0';
-              }}
+              className="group-picture"
+              title="Click to change group picture"
             >
-              {/* Picture component scaled appropriately */}
-              <div style={{ width: '76px', height: '76px', transform: 'scale(1.9)' }}>
-                <Picture 
-                  group={true} 
-                  picture={group.picture} 
-                  title={group.title} 
-                />
-              </div>
-              
-              {/* Hover overlay */}
-              <div 
-                className="picture-overlay"
-                style={{
+              <Picture 
+                group={true} 
+                picture={group.picture} 
+                title={group.title}
+                style={{ width: '100%', height: '100%' }}
+              />
+              {loading.changePicture && (
+                <div className="picture-overlay uk-flex uk-flex-center uk-flex-middle" style={{
                   position: 'absolute',
                   top: 0,
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  background: 'rgba(0, 0, 0, 0.6)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: 0,
-                  transition: 'opacity 0.2s ease',
-                  borderRadius: '40px'
-                }}
-              >
-                {loading.changePicture ? (
-                  <div style={{ color: '#fff', fontSize: '12px' }}>Updating...</div>
-                ) : (
-                  <FiCamera style={{ color: '#fff', fontSize: '20px' }} />
-                )}
-              </div>
+                  background: 'rgba(0,0,0,0.7)',
+                  color: 'white',
+                  fontSize: '12px'
+                }}>
+                  Updating...
+                </div>
+              )}
             </div>
-            
-            {/* Picture actions */}
-            {group.picture && (
-              <button
-                className="uk-button uk-button-small uk-button-danger"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  removeGroupPicture();
-                }}
-                disabled={loading.removePicture}
-                style={{
-                  position: 'absolute',
-                  top: '-4px',
-                  right: '-4px',
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '12px',
-                  padding: '0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '10px',
-                  background: '#dc3545',
-                  border: '2px solid #fff'
-                }}
-                title="Remove group picture"
-              >
-                {loading.removePicture ? '...' : <FiX />}
-              </button>
-            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                if (e.target.files?.[0]) {
+                  changeGroupPicture(e.target.files[0]);
+                }
+              }}
+              style={{ display: 'none' }}
+            />
           </div>
 
-          {/* Group Title Section */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Group Title */}
+          <div style={{ flex: 1 }}>
             {editingTitle ? (
               <div className="uk-flex uk-flex-middle" style={{ gap: '8px' }}>
                 <input
-                  type="text"
+                  className="uk-input"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  style={{ 
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    padding: '8px 12px',
-                    fontSize: '18px',
-                    fontWeight: '500',
-                    minWidth: '200px',
-                    flex: 1
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') updateGroupTitle();
-                    if (e.key === 'Escape') {
-                      setEditingTitle(false);
-                      setNewTitle(group.title);
-                    }
-                  }}
+                  onKeyPress={(e) => e.key === 'Enter' && updateGroupTitle()}
+                  placeholder="Group name"
                   autoFocus
+                  style={{ fontSize: '18px', fontWeight: '500' }}
                 />
                 <button
-                  className="uk-button uk-button-small uk-button-primary"
+                  className="uk-button uk-button-primary uk-button-small"
                   onClick={updateGroupTitle}
                   disabled={loading.updateTitle}
-                  style={{ padding: '6px 10px' }}
                 >
-                  {loading.updateTitle ? '...' : <FiSave />}
+                  <FiSave />
                 </button>
                 <button
-                  className="uk-button uk-button-small uk-button-default"
+                  className="uk-button uk-button-default uk-button-small"
                   onClick={() => {
                     setEditingTitle(false);
                     setNewTitle(group.title);
                   }}
-                  style={{ padding: '6px 10px' }}
                 >
                   <FiX />
                 </button>
               </div>
             ) : (
-              <div>
-                <div 
-                  className="uk-flex uk-flex-middle" 
-                  style={{ 
-                    gap: '8px', 
-                    cursor: 'pointer',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    transition: 'background 0.2s',
-                    marginBottom: '4px'
-                  }}
+              <div className="uk-flex uk-flex-middle" style={{ gap: '8px' }}>
+                <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '500' }}>
+                  {group.title}
+                </h1>
+                <button
+                  className="uk-button uk-button-link"
                   onClick={() => setEditingTitle(true)}
-                  onMouseOver={(e) => e.target.closest('div').style.background = '#f8f9fa'}
-                  onMouseOut={(e) => e.target.closest('div').style.background = 'transparent'}
+                  style={{ padding: '4px', color: '#666' }}
+                  title="Edit group name"
                 >
-                  <span style={{ 
-                    fontSize: '20px', 
-                    fontWeight: '600',
-                    color: '#333'
-                  }}>
-                    {group.title}
-                  </span>
-                  <FiEdit2 style={{ fontSize: '14px', color: '#666' }} />
-                </div>
-                <div style={{ 
-                  fontSize: '13px', 
-                  color: '#666',
-                  paddingLeft: '8px'
-                }}>
-                  {group.people.length} member{group.people.length !== 1 ? 's' : ''}
-                </div>
+                  <FiEdit2 size={14} />
+                </button>
               </div>
+            )}
+            <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
+              {group.people.length} member{group.people.length !== 1 ? 's' : ''}
+            </div>
+            {group.picture && (
+              <button
+                className="uk-button uk-button-link"
+                onClick={removeGroupPicture}
+                disabled={loading.removePicture}
+                style={{ 
+                  fontSize: '12px', 
+                  color: '#d61314', 
+                  padding: '2px 0',
+                  marginTop: '4px'
+                }}
+              >
+                {loading.removePicture ? 'Removing...' : 'Remove Picture'}
+              </button>
             )}
           </div>
         </div>
       </div>
 
       {/* Add Members Section */}
-      {showAddMembers && (
-        <div className="add-members-section" style={{ 
-          borderBottom: '1px solid #eee',
-          background: '#f8f9fa',
-          flexShrink: 0
-        }}>
-          {/* Search Bar */}
-          <div style={{ padding: '16px 16px 8px 16px' }}>
-            <div className="search-bar uk-flex uk-flex-center uk-flex-middle" style={{
-              background: '#fff',
-              border: '1px solid #ddd',
-              borderRadius: '25px',
-              padding: '0',
-              height: '40px'
-            }}>
-              <div 
-                className="icon" 
-                onClick={() => searchInputRef.current?.focus()}
-                style={{
-                  padding: '0 12px',
-                  color: '#666',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center'
-                }}
-              >
-                <FiSearch />
-              </div>
-              <input
-                ref={searchInputRef}
-                className="uk-input"
-                placeholder="Search users to add..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  borderRadius: '0',
-                  outline: 'none',
-                  boxShadow: 'none',
-                  flexGrow: 1,
-                  padding: '0 12px 0 0'
-                }}
-              />
-            </div>
-          </div>
+      {canManageMembers && (
+        <div className="add-members-section" style={{ padding: '16px', background: '#f8f9fa', borderBottom: '1px solid #eee' }}>
+          <button
+            className="uk-button uk-button-primary uk-button-small uk-flex uk-flex-middle"
+            onClick={() => setShowAddMembers(!showAddMembers)}
+            style={{ marginBottom: showAddMembers ? '12px' : '0' }}
+          >
+            <FiUserPlus style={{ marginRight: '6px' }} />
+            Add Members
+          </button>
 
-          {/* Search Results */}
-          <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            {filteredSearchResults.length > 0 ? (
-              filteredSearchResults.slice(0, 10).map(searchUser => (
-                <div
-                  key={searchUser._id}
-                  className="uk-flex uk-flex-between uk-flex-middle"
-                  style={{ 
-                    padding: '12px 16px', 
-                    borderBottom: '1px solid #f0f0f0',
-                    background: '#fff',
-                    margin: '0 16px 1px 16px',
-                    borderRadius: '4px'
-                  }}
-                >
-                  <div className="uk-flex uk-flex-middle" style={{ gap: '12px', flex: 1, minWidth: 0 }}>
-                    <div style={{ flexShrink: 0, width: '32px', height: '32px' }}>
-                      <Picture user={searchUser} />
-                    </div>
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ 
-                        fontSize: '14px', 
-                        fontWeight: '500',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
-                        {searchUser.firstName} {searchUser.lastName}
-                      </div>
-                      <div style={{ 
-                        fontSize: '12px', 
-                        color: '#666',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
-                        @{searchUser.username}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <button
-                    className="uk-button uk-button-small uk-button-primary"
-                    onClick={() => addMember(searchUser._id)}
-                    disabled={loading[`add_${searchUser._id}`]}
-                    style={{ 
-                      fontSize: '11px', 
-                      padding: '6px 12px',
-                      flexShrink: 0,
-                      marginLeft: '8px'
-                    }}
-                    title="Add to group"
-                  >
-                    {loading[`add_${searchUser._id}`] ? '...' : <FiUserPlus />}
-                  </button>
-                </div>
-              ))
-            ) : (
-              <div style={{ 
-                padding: '24px 16px', 
-                textAlign: 'center', 
-                color: '#666',
-                fontSize: '14px'
-              }}>
-                {searchQuery.trim() 
-                  ? `No users found for "${searchQuery}"`
-                  : 'Start typing to search for users to add'
-                }
+          {showAddMembers && (
+            <div>
+              <div className="search-bar" style={{ position: 'relative', marginBottom: '12px' }}>
+                <FiSearch className="icon" />
+                <input
+                  ref={searchInputRef}
+                  className="uk-input"
+                  placeholder="Search users to add..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  style={{ paddingLeft: '40px', fontSize: '14px' }}
+                />
               </div>
-            )}
-          </div>
+
+              {searchQuery && (
+                <div style={{ maxHeight: '200px', overflowY: 'auto', background: '#fff', border: '1px solid #ddd', borderRadius: '4px' }}>
+                  {filteredSearchResults.length > 0 ? (
+                    filteredSearchResults.map(searchUser => (
+                      <div
+                        key={searchUser._id}
+                        className="search-result-item uk-flex uk-flex-between uk-flex-middle"
+                        style={{ padding: '8px 12px', borderBottom: '1px solid #eee' }}
+                      >
+                        <div className="uk-flex uk-flex-middle" style={{ gap: '8px' }}>
+                          <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
+                            <Picture user={searchUser} />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '14px', fontWeight: '500' }}>
+                              {searchUser.firstName} {searchUser.lastName}
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#666' }}>
+                              @{searchUser.username}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          className="uk-button uk-button-primary uk-button-small"
+                          onClick={() => addMember(searchUser._id)}
+                          disabled={loading[`add_${searchUser._id}`]}
+                        >
+                          {loading[`add_${searchUser._id}`] ? '...' : <FiUserPlus />}
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: '16px', textAlign: 'center', color: '#666' }}>
+                      No users found matching "{searchQuery}"
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Current Members */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        <div style={{ 
-          padding: '16px 12px', 
-          fontWeight: '500', 
-          borderBottom: '1px solid #eee',
-          background: '#fff',
-          position: 'sticky',
-          top: 0,
-          zIndex: 1
-        }}>
-          Current Members ({group.people.length})
+      {/* Members List */}
+      <div style={{ flex: 1, overflowY: 'auto', background: '#fff' }}>
+        <div style={{ padding: '16px 16px 8px', fontSize: '14px', fontWeight: '500', color: '#666' }}>
+          Members ({group.people.length})
         </div>
-        
-        <div className="members-list">
+        <div>
           {group.people.map(member => (
-            <div 
+            <div
               key={member._id}
               className="member-item uk-flex uk-flex-between uk-flex-middle"
-              style={{ padding: '16px 12px', borderBottom: '1px solid #f0f0f0' }}
+              style={{ padding: '12px 16px', borderBottom: '1px solid #eee' }}
             >
-              <div className="uk-flex uk-flex-middle" style={{ gap: '12px', flex: 1, minWidth: 0 }}>
-                <div style={{ flexShrink: 0, width: '40px', height: '40px' }}>
+              <div className="uk-flex uk-flex-middle" style={{ gap: '12px' }}>
+                <div className="user-avatar" style={{ width: '40px', height: '40px' }}>
                   <Picture user={member} />
                 </div>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ 
-                    fontSize: '14px', 
-                    fontWeight: '500',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: '500' }}>
                     {member.firstName} {member.lastName}
-                    {member._id === user.id && (
-                      <span style={{ color: '#666', fontWeight: 'normal' }}> (You)</span>
-                    )}
+                    {member._id === user.id && <span style={{ color: '#666', fontWeight: 'normal' }}> (You)</span>}
                   </div>
-                  <div style={{ 
-                    fontSize: '12px', 
-                    color: '#666',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}>
+                  <div style={{ fontSize: '12px', color: '#666' }}>
                     @{member.username}
                   </div>
                 </div>
               </div>
-              
-              {member._id !== user.id && (
-                <button
-                  className="uk-button uk-button-small uk-button-danger"
-                  onClick={() => removeMember(member._id)}
-                  disabled={loading[`remove_${member._id}`]}
-                  style={{ 
-                    fontSize: '11px', 
-                    padding: '6px 8px',
-                    flexShrink: 0,
-                    marginLeft: '8px'
-                  }}
-                  title="Remove from group"
-                >
-                  {loading[`remove_${member._id}`] ? '...' : <FiUserMinus />}
-                </button>
-              )}
+              <div>
+                {(canManageMembers || member._id === user.id) && (
+                  <button
+                    className="uk-button uk-button-danger uk-button-small"
+                    onClick={() => {
+                      const isLeaving = member._id === user.id;
+                      const action = isLeaving ? 'leave' : 'remove';
+                      const name = isLeaving ? 'this group' : `${member.firstName} ${member.lastName}`;
+                      
+                      if (window.confirm(`Are you sure you want to ${action} ${name}?`)) {
+                        removeMember(member._id);
+                      }
+                    }}
+                    disabled={loading[`remove_${member._id}`]}
+                    title={member._id === user.id ? "Leave group" : "Remove member"}
+                  >
+                    {loading[`remove_${member._id}`] ? '...' : <FiUserMinus />}
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Group Actions */}
+      {/* Group Actions - ENHANCED with Delete Group */}
       <div style={{ 
         padding: '16px', 
         borderTop: '1px solid #eee',
@@ -692,8 +572,9 @@ if (!group || !canManageMembers) {
           Group Actions
         </div>
         <div className="uk-flex uk-flex-wrap" style={{ gap: '8px' }}>
+          {/* Leave Group Button */}
           <button 
-            className="uk-button uk-button-small uk-button-danger"
+            className="uk-button uk-button-small uk-button-default"
             onClick={() => {
               if (window.confirm(`Leave "${group.title}"? You can be re-added by other members.`)) {
                 removeMember(user.id);
@@ -706,6 +587,42 @@ if (!group || !canManageMembers) {
             <FiUserMinus style={{ marginRight: '4px' }} />
             Leave Group
           </button>
+
+          {/* NEW: Delete Group Button - Only for admins/root */}
+          {canDeleteGroup && (
+            <button 
+              className="uk-button uk-button-small uk-button-danger"
+              onClick={deleteGroup}
+              disabled={loading.deleteGroup}
+              title="Permanently delete this group and all its messages"
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {loading.deleteGroup ? (
+                <>
+                  <div data-uk-spinner="ratio: 0.6" style={{ marginRight: '4px' }}></div>
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <FiTrash2 style={{ marginRight: '4px' }} />
+                  Delete Group
+                </>
+              )}
+            </button>
+          )}
+        </div>
+        
+        {/* Permission Info */}
+        <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+          {canDeleteGroup ? (
+            <>
+              <strong>Admin privileges:</strong> You can delete this group permanently.
+            </>
+          ) : (
+            <>
+              Only administrators can delete groups. Contact an admin if this group needs to be removed.
+            </>
+          )}
         </div>
       </div>
     </div>
