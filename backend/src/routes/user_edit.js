@@ -40,14 +40,28 @@ module.exports = async (req, res, next) => {
     // Check permissions based on current user's level
     const currentUserLevel = req.user.level;
 
+    // REPLACE WITH:
     if (currentUserLevel === "root") {
-      // Root users can set any level
+      // Root users can set any level including other root users
     } else if (currentUserLevel === "admin") {
-      // Administrators cannot create/edit other administrators
-      if (level === "admin") {
-        errors.level =
-          "Administrators cannot edit users to administrator level.";
+      // Admins can assign users, managers, and other admins (but not root users)
+      const adminAllowedLevels = ["user", "manager", "admin"];
+      if (!adminAllowedLevels.includes(level)) {
+        errors.level = "Administrators cannot assign root user level.";
       }
+    }
+
+    if (currentUserLevel === "admin" && level === "root") {
+      errors.level = "Only root users can assign root privileges.";
+    }
+
+    if (
+      currentUserLevel === "admin" &&
+      user.level === "admin" &&
+      level !== "admin" &&
+      req.user.id === user._id
+    ) {
+      errors.level = "You cannot remove your own admin privileges.";
     }
   }
 

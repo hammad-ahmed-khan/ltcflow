@@ -1,289 +1,303 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <base href="./" />
-    <meta charset="utf-8" />
-    
-    <!-- Enhanced viewport for mobile devices -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, user-scalable=yes, viewport-fit=cover" />
-    
-    <!-- Portrait Lock Configuration -->
-    <meta name="screen-orientation" content="portrait" />
-    <meta name="orientation" content="portrait" />
-    
-    <!-- iOS Status Bar Configuration -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="LTC Flow" />
-    <meta name="apple-mobile-web-app-orientation" content="portrait" />
-    
-    <!-- Android/Chrome Mobile Configuration -->
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#1e2e3b" />
-    <meta name="msapplication-TileColor" content="#1e2e3b" />
-    <meta name="msapplication-navbutton-color" content="#1e2e3b" />
-    
-    <!-- Enhanced Meta Tags for Mobile -->
-    <meta name="format-detection" content="telephone=no" />
-    <meta name="format-detection" content="date=no" />
-    <meta name="format-detection" content="address=no" />
-    <meta name="format-detection" content="email=no" />
-    
-    <!-- Preconnect for Performance -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
-    
-    <!-- Favicon Configuration -->
-    <link rel="icon" href="/flowicon 32.webp" type="image/webp" sizes="32x32" />
-    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
-    
-    <!-- PWA Manifest with Portrait Lock -->
-    <link rel="manifest" href="/manifest.json" />
-    
-    <title>LTC Flow - Real-Time Messaging & Video Conferencing</title>
-    
-    <style>
-      /* Base styles with safe area support */
-      html, body, #root {
-        width: 100%;
-        height: 100%;
-        position: relative;
-        overflow: hidden;
+
+<head>
+  <base href="./" />
+  <meta charset="utf-8" />
+
+  <!-- Enhanced viewport for mobile devices -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0, user-scalable=yes, viewport-fit=cover" />
+
+  <!-- Portrait Lock Configuration -->
+  <meta name="screen-orientation" content="portrait" />
+  <meta name="orientation" content="portrait" />
+
+  <!-- iOS Status Bar Configuration -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="LTC Flow" />
+  <meta name="apple-mobile-web-app-orientation" content="portrait" />
+
+  <!-- Android/Chrome Mobile Configuration -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#1e2e3b" />
+  <meta name="msapplication-TileColor" content="#1e2e3b" />
+  <meta name="msapplication-navbutton-color" content="#1e2e3b" />
+
+  <!-- Enhanced Meta Tags for Mobile -->
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="format-detection" content="date=no" />
+  <meta name="format-detection" content="address=no" />
+  <meta name="format-detection" content="email=no" />
+
+  <!-- Preconnect for Performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+
+  <!-- Favicon Configuration -->
+  <link rel="icon" href="/flowicon 32.webp" type="image/webp" sizes="32x32" />
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+
+  <!-- PWA Manifest with Portrait Lock -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <title>LTC Flow - Real-Time Messaging & Video Conferencing</title>
+
+  <style>
+    /* Base styles with safe area support */
+    html,
+    body,
+    #root {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Loading spinner */
+    .loading-spinner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 9999;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #1e2e3b;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
       }
-      
-      /* Loading spinner */
-      .loading-spinner {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 9999;
+
+      100% {
+        transform: rotate(360deg);
       }
-      
-      .spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #1e2e3b;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
+    }
+
+    /* Safe area handling for iPhone X and newer */
+    @supports (padding: max(0px)) {
+      body {
+        padding-left: max(0px, env(safe-area-inset-left));
+        padding-right: max(0px, env(safe-area-inset-right));
+        padding-top: max(0px, env(safe-area-inset-top));
+        padding-bottom: max(0px, env(safe-area-inset-bottom));
       }
-      
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+    }
+
+    /* Prevent zoom on input focus */
+    @media screen and (max-width: 768px) {
+
+      input[type="text"],
+      input[type="email"],
+      input[type="password"],
+      input[type="number"],
+      input[type="tel"],
+      input[type="url"],
+      input[type="search"],
+      textarea,
+      select {
+        font-size: 16px !important;
       }
-      
-      /* Safe area handling for iPhone X and newer */
-      @supports (padding: max(0px)) {
-        body {
-          padding-left: max(0px, env(safe-area-inset-left));
-          padding-right: max(0px, env(safe-area-inset-right));
-          padding-top: max(0px, env(safe-area-inset-top));
-          padding-bottom: max(0px, env(safe-area-inset-bottom));
-        }
-      }
-      
-      /* Prevent zoom on input focus */
-      @media screen and (max-width: 768px) {
-        input[type="text"],
-        input[type="email"],
-        input[type="password"],
-        input[type="number"],
-        input[type="tel"],
-        input[type="url"],
-        input[type="search"],
-        textarea,
-        select {
-          font-size: 16px !important;
-        }
-      }
-      
-      /* Enhanced touch targets */
-      button, 
-      .button, 
-      [role="button"],
-      a {
-        min-height: 44px;
-        min-width: 44px;
-        touch-action: manipulation;
-      }
-      
-      /* Smooth scrolling */
-      html {
-        scroll-behavior: smooth;
-      }
-      
-      /* Hide scrollbars on mobile while maintaining functionality */
-      ::-webkit-scrollbar {
-        width: 0px;
-        background: transparent;
-      }
-      
-      /* Focus states for accessibility */
-      button:focus,
-      input:focus,
-      textarea:focus,
-      select:focus {
-        outline: 2px solid #1e2e3b;
-        outline-offset: 2px;
-      }
-    </style>
-  </head>
-  <body>
-    <noscript>
-      <div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">
-        <h2>JavaScript Required</h2>
-        <p>You need to enable JavaScript to run this app.</p>
-        <p>Please enable JavaScript in your browser settings and reload the page.</p>
-      </div>
-    </noscript>
-    
-    <!-- Loading spinner -->
-    <div id="loading-spinner" class="loading-spinner">
-      <div class="spinner"></div>
+    }
+
+    /* Enhanced touch targets */
+    .login-scrollable button,
+    .login-scrollable .button,
+    .login-scrollable [role="button"],
+    a {
+      /*
+      min-height: 44px;
+      min-width: 44px;
+      */
+      touch-action: manipulation;
+    }
+
+    /* Smooth scrolling */
+    html {
+      scroll-behavior: smooth;
+    }
+
+    /* Hide scrollbars on mobile while maintaining functionality */
+    ::-webkit-scrollbar {
+      width: 0px;
+      background: transparent;
+    }
+
+    /* Focus states for accessibility */
+    button:focus,
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: 2px solid #1e2e3b;
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+
+<body>
+  <noscript>
+    <div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">
+      <h2>JavaScript Required</h2>
+      <p>You need to enable JavaScript to run this app.</p>
+      <p>Please enable JavaScript in your browser settings and reload the page.</p>
     </div>
-    
-    <div id="root"></div>
-    
-    <!-- Portrait Lock JavaScript -->
-    <script>
-      // Portrait Lock Implementation
-      class PortraitLockManager {
-        constructor() {
-          this.init();
-        }
+  </noscript>
 
-        async init() {
-          // Initial orientation check
-          this.handleOrientationChange();
+  <!-- Loading spinner -->
+  <div id="loading-spinner" class="loading-spinner">
+    <div class="spinner"></div>
+  </div>
 
-          // Try to lock screen orientation to portrait
-          if (screen.orientation && screen.orientation.lock) {
-            try {
-              await screen.orientation.lock('portrait');
-              console.log('✅ Screen locked to portrait mode');
-            } catch (error) {
-              console.log('❌ Could not lock screen orientation:', error);
-            }
-          }
+  <div id="root"></div>
 
-          // Event listeners for orientation changes
-          window.addEventListener('orientationchange', () => {
-            setTimeout(() => this.handleOrientationChange(), 100);
-          });
-
-          window.addEventListener('resize', () => {
-            setTimeout(() => this.handleOrientationChange(), 100);
-          });
-        }
-
-        handleOrientationChange() {
-          const isLandscape = window.innerWidth > window.innerHeight;
-          const isMobile = window.innerWidth <= 1024;
-
-          if (isLandscape && isMobile) {
-            this.showLandscapeWarning();
-          } else {
-            this.hideLandscapeWarning();
-            
-            // Re-attempt portrait lock when returning to portrait
-            if (screen.orientation && screen.orientation.lock) {
-              screen.orientation.lock('portrait').catch(console.warn);
-            }
-          }
-        }
-
-        showLandscapeWarning() {
-          // This will be handled by React components
-          document.body.classList.add('landscape-mode');
-          console.log('🔄 Device in landscape mode - showing warning');
-        }
-
-        hideLandscapeWarning() {
-          document.body.classList.remove('landscape-mode');
-          console.log('✅ Device in portrait mode');
-        }
+  <!-- Portrait Lock JavaScript -->
+  <script>
+    // Portrait Lock Implementation
+    class PortraitLockManager {
+      constructor() {
+        this.init();
       }
 
-      // Initialize portrait lock manager
-      new PortraitLockManager();
+      async init() {
+        // Initial orientation check
+        this.handleOrientationChange();
 
-      // Hide loading spinner once app starts
-      window.addEventListener('load', function() {
-        const spinner = document.getElementById('loading-spinner');
-        if (spinner) {
-          spinner.style.display = 'none';
-        }
-      });
-      
-      // Enhanced error handling for mobile
-      window.addEventListener('error', function(e) {
-        console.error('Application error:', e.error);
-      });
-      
-      // Handle viewport changes (orientation, keyboard)
-      let viewportHeight = window.innerHeight;
-      window.addEventListener('resize', function() {
-        // Only trigger if height change is significant (keyboard show/hide)
-        if (Math.abs(window.innerHeight - viewportHeight) > 150) {
-          viewportHeight = window.innerHeight;
-          document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
-        }
-      });
-      
-      // Set initial viewport height
-      document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
-      
-      // Prevent double-tap zoom
-      let lastTouchEnd = 0;
-      document.addEventListener('touchend', function (event) {
-        const now = (new Date()).getTime();
-        if (now - lastTouchEnd <= 300) {
-          event.preventDefault();
-        }
-        lastTouchEnd = now;
-      }, false);
-
-      // Prevent pinch zoom
-      document.addEventListener('touchstart', function(e) {
-        if (e.touches.length > 1) {
-          e.preventDefault();
-        }
-      });
-      
-      // Performance optimization for mobile
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(() => {
-          // Register service worker when idle
-          if ('serviceWorker' in navigator && location.protocol === 'https:') {
-            navigator.serviceWorker.register('/service-worker.js')
-              .then(registration => {
-                console.log('SW registered: ', registration);
-              })
-              .catch(registrationError => {
-                console.log('SW registration failed: ', registrationError);
-              });
+        // Try to lock screen orientation to portrait
+        if (screen.orientation && screen.orientation.lock) {
+          try {
+            await screen.orientation.lock('portrait');
+            console.log('✅ Screen locked to portrait mode');
+          } catch (error) {
+            console.log('❌ Could not lock screen orientation:', error);
           }
+        }
+
+        // Event listeners for orientation changes
+        window.addEventListener('orientationchange', () => {
+          setTimeout(() => this.handleOrientationChange(), 100);
+        });
+
+        window.addEventListener('resize', () => {
+          setTimeout(() => this.handleOrientationChange(), 100);
         });
       }
-      
-      // PWA install prompt handling
-      let deferredPrompt;
-      window.addEventListener('beforeinstallprompt', (e) => {
+
+      handleOrientationChange() {
+        const isLandscape = window.innerWidth > window.innerHeight;
+        const isMobile = window.innerWidth <= 1024;
+
+        if (isLandscape && isMobile) {
+          this.showLandscapeWarning();
+        } else {
+          this.hideLandscapeWarning();
+
+          // Re-attempt portrait lock when returning to portrait
+          if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('portrait').catch(console.warn);
+          }
+        }
+      }
+
+      showLandscapeWarning() {
+        // This will be handled by React components
+        document.body.classList.add('landscape-mode');
+        console.log('🔄 Device in landscape mode - showing warning');
+      }
+
+      hideLandscapeWarning() {
+        document.body.classList.remove('landscape-mode');
+        console.log('✅ Device in portrait mode');
+      }
+    }
+
+    // Initialize portrait lock manager
+    new PortraitLockManager();
+
+    // Hide loading spinner once app starts
+    window.addEventListener('load', function () {
+      const spinner = document.getElementById('loading-spinner');
+      if (spinner) {
+        spinner.style.display = 'none';
+      }
+    });
+
+    // Enhanced error handling for mobile
+    window.addEventListener('error', function (e) {
+      console.error('Application error:', e.error);
+    });
+
+    // Handle viewport changes (orientation, keyboard)
+    let viewportHeight = window.innerHeight;
+    window.addEventListener('resize', function () {
+      // Only trigger if height change is significant (keyboard show/hide)
+      if (Math.abs(window.innerHeight - viewportHeight) > 150) {
+        viewportHeight = window.innerHeight;
+        document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
+      }
+    });
+
+    // Set initial viewport height
+    document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
+
+    // Prevent double-tap zoom
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function (event) {
+      const now = (new Date()).getTime();
+      if (now - lastTouchEnd <= 300) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, false);
+
+    // Prevent pinch zoom
+    document.addEventListener('touchstart', function (e) {
+      if (e.touches.length > 1) {
         e.preventDefault();
-        deferredPrompt = e;
-        window.dispatchEvent(new CustomEvent('pwacanuseinstall', { detail: e }));
+      }
+    });
+
+    // Performance optimization for mobile
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(() => {
+        // Register service worker when idle
+        if ('serviceWorker' in navigator && location.protocol === 'https:') {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(registration => {
+              console.log('SW registered: ', registration);
+            })
+            .catch(registrationError => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        }
       });
-      
-      // Handle successful PWA installation
-      window.addEventListener('appinstalled', (evt) => {
-        console.log('LTC Flow PWA was installed');
-        window.dispatchEvent(new CustomEvent('pwainstalled'));
-      });
-    </script>
-    
-    <!-- Main application script -->
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+    }
+
+    // PWA install prompt handling
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      window.dispatchEvent(new CustomEvent('pwacanuseinstall', { detail: e }));
+    });
+
+    // Handle successful PWA installation
+    window.addEventListener('appinstalled', (evt) => {
+      console.log('LTC Flow PWA was installed');
+      window.dispatchEvent(new CustomEvent('pwainstalled'));
+    });
+  </script>
+
+  <!-- Main application script -->
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>

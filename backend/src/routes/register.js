@@ -60,14 +60,21 @@ module.exports = async (req, res, next) => {
       });
     }
 
+    // REPLACE WITH:
     if (currentUserLevel === "root") {
-      // Root can create all
+      // Root can create all levels including other root users
     } else if (currentUserLevel === "admin") {
-      if (level === "admin") {
-        errors.level = "Administrators cannot create other administrators.";
+      // Admins can create users, managers, and other admins (but not root users)
+      const adminAllowedLevels = ["user", "manager", "admin"];
+      if (!adminAllowedLevels.includes(level)) {
+        errors.level = "Administrators cannot create root users.";
       }
     } else {
       errors.permission = "You do not have permission to create users.";
+    }
+
+    if (currentUserLevel === "admin" && level === "root") {
+      errors.level = "Only root users can assign root privileges.";
     }
   }
 

@@ -34,13 +34,16 @@ function UserTierSelect({ value, onChange, currentUserLevel }) {
     ];
 
     if (currentUserLevel === 'root') {
+      // Root users can assign all levels
       return allTiers;
     } else if (currentUserLevel === 'admin') {
-      return allTiers.slice(0, 2);
+      // UPDATED: Admins can now assign all levels except root
+      return allTiers; // This now includes admin level for admins
     } else {
       return [];
     }
   };
+
 
   const availableTiers = getAvailableTiers();
 
