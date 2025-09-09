@@ -1,0 +1,31 @@
+// frontend/src/components/ConnectionStatus.sass
+.connection-status
+  display: flex
+  align-items: center
+  padding: 4px 8px
+  font-size: 12px
+  border-radius: 4px
+  margin: 4px
+
+  &.green
+    background-color: rgba(76, 175, 80, 0.1)
+    color: #4CAF50
+
+  &.red
+    background-color: rgba(244, 67, 54, 0.1)
+    color: #F44336
+
+  .status-indicator
+    width: 8px
+    height: 8px
+    border-radius: 50%
+    margin-right: 6px
+    background-color: currentColor
+
+  .status-text
+    font-weight: 500
+
+  .queue-size
+    margin-left: 4px
+    opacity: 0.7
+    font-style: italic
