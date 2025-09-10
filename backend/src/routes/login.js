@@ -27,6 +27,7 @@ module.exports = (req, res, next) => {
       lastName: user.lastName,
       picture: user.picture,
       username: user.username,
+      phone: user.phone || "", // 🔹 ADD THIS LINE
       companyId: user.companyId,
     };
     jwt.sign(

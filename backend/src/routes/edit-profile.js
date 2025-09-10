@@ -243,11 +243,14 @@ module.exports = async (req, res) => {
       `✅ Profile updated for user: ${updatedUser.email} (Company: ${companyId})`
     );
 
+    const responseUser = updatedUser.toObject();
+    responseUser.id = responseUser._id.toString();
+
     // Return success response following your existing pattern
     res.status(200).json({
       status: "success",
       message: "Profile updated successfully.",
-      user: updatedUser,
+      user: responseUser,
       outseta: outsetaResult
         ? {
             synced: outsetaResult.success,

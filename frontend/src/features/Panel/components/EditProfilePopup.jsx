@@ -3,7 +3,10 @@ import './Popup.sass';
 import { FiX, FiUser, FiMail, FiPhone, FiLock } from 'react-icons/fi';
 import { useToasts } from 'react-toast-notifications';
 import { useGlobal } from 'reactn';
+import { useDispatch } from 'react-redux'; // ✨ ONLY ADD THIS
 import editUserProfile from '../../../actions/editUserProfile';
+import getRooms from '../../../actions/getRooms'; // ✨ ONLY ADD THIS
+import Actions from '../../../constants/Actions'; // ✨ ONLY ADD THIS
 
 function Input({
   icon, placeholder, type, onChange, required, value, disabled
@@ -29,6 +32,7 @@ function Input({
 function EditProfilePopup({ onClose }) {
   const { addToast } = useToasts();
   const [user, setUser] = useGlobal('user');
+  const dispatch = useDispatch(); // ✨ ONLY ADD THIS
 
   const [formData, setFormData] = useState({
     firstName: user.firstName || '',
@@ -149,6 +153,21 @@ function EditProfilePopup({ onClose }) {
         const updatedUser = response.data.user;
         localStorage.setItem('user', JSON.stringify(updatedUser));
         await setUser(updatedUser);
+        
+        /*
+        dispatch({ type: Actions.SET_ROOMS, rooms: [] }); // Clear cache first
+
+        // ✨ ONLY ADD THIS BLOCK - Group list fix
+        try {
+          const roomsResponse = await getRooms();
+          if (roomsResponse.data && roomsResponse.data.rooms) {
+            dispatch({ type: Actions.SET_ROOMS, rooms: roomsResponse.data.rooms });
+          }
+        } catch (roomsError) {
+          console.error('Failed to refresh rooms:', roomsError);
+        }
+        // ✨ END OF ADDED BLOCK
+        */
 
         onClose();
         addToast('Profile updated successfully!', {
