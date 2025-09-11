@@ -1,12 +1,12 @@
-const Room = require('../models/Room');
+const Room = require("../models/Room");
 
 module.exports = (req, res, next) => {
   let { limit } = req.fields;
-  const companyId = req.headers['x-company-id']; // Read from header
+  const companyId = req.headers["x-company-id"]; // Read from header
 
   // Validate companyId
   if (!companyId) {
-    return res.status(400).json({ error: 'Company ID required.' });
+    return res.status(400).json({ error: "Company ID required." });
   }
 
   !limit && (limit = 30);
@@ -25,20 +25,20 @@ module.exports = (req, res, next) => {
     ],
   })
     .sort({ lastUpdate: -1 })
-    .populate([{ path: 'picture', strictPopulate: false }])
+    .populate([{ path: "picture", strictPopulate: false }])
     .populate({
-      path: 'people',
-      select: '-email -password -friends -__v',
+      path: "people",
+      select: "-email -password -friends -__v",
       populate: {
-        path: 'picture',
+        path: "picture",
       },
     })
-    .populate('lastMessage')
+    .populate("lastMessage")
     .limit(limit)
     .exec((err, rooms) => {
       if (err) {
         console.error(err);
-        return res.status(500).json({ error: 'Server error.' });
+        return res.status(500).json({ error: "Server error." });
       }
       res.status(200).json({ limit, rooms });
     });

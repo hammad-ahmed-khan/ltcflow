@@ -29,7 +29,7 @@ function NavBar() {
             </div>
           )}
         </div>
-        <div className="text">Chat</div>
+        <div className="text">Chats</div>
       </div>
       <div className={`item${nav === 'search' ? ' active' : ''}`} onClick={() => setNav('search')}>
         <div className="icon">

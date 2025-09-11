@@ -6,6 +6,7 @@ import ReactImageAppear from 'react-image-appear';
 import { FiDownloadCloud } from 'react-icons/fi';
 import striptags from 'striptags';
 import Config from '../../../config';
+import { buildImageUrl, buildFileUrl } from '../../../utils/urlUtils';
 
 function Message({
   message, previous, next, onOpen,
@@ -81,7 +82,7 @@ function Message({
       case 'image':
         return (
           <ReactImageAppear
-            src={`${Config.url || ''}/api/images/${message.content}/512`}
+            src={buildImageUrl(message.content, 512)}
             animationDuration="0.2s"
             onClick={() => onOpen(message)}
           />
@@ -89,7 +90,7 @@ function Message({
       case 'file':
         return (
           <a
-            href={`${Config.url || ''}/api/files/${message.content}`}
+            href={buildFileUrl(message.content)}
             download={message.file ? message.file.name : 'File'}
           >
             <div className="content-download">

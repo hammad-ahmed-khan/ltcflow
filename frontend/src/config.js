@@ -9,4 +9,10 @@ export default {
     perUserRate: parseFloat(import.meta.env.VITE_PER_USER_RATE) || 5.0,
     currency: import.meta.env.VITE_BILLING_CURRENCY || "USD",
   },
+  // 🆕 NEW: Subdomain configuration
+  subdomain: {
+    domain: import.meta.env.VITE_DOMAIN || "ltcflow.com",
+    protocol: import.meta.env.VITE_PROTOCOL || "https",
+    port: import.meta.env.VITE_PORT || "",
+  },
 };

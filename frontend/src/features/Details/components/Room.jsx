@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { useGlobal } from 'reactn';
 import { Lightbox } from 'react-modal-image';
 import Config from '../../../config';
+import { buildImageUrl } from '../../../utils/urlUtils';
 
 function Room() {
   const room = useSelector((state) => state.io.room);
@@ -27,14 +28,14 @@ function Room() {
     lastName: 'A',
   };
 
-  if (!room.isGroup && room.people) {
+  if (room.people) {
     room.people.forEach((person) => {
       if (person._id !== user.id) other = person;
     });
   }
 
   function Picture({ picture, user, group }) {
-    if (picture) return <img src={`${Config.url || ''}/api/images/${picture.shieldedID}/256`} alt="Picture" />;
+    if (picture) return <img src={buildImageUrl(picture.shieldedID, 256)} alt="Picture" />;
     return (
       <div className="img">
         {group ? room.title.substr(0, 1) : `${user.firstName.substr(0, 1)}${user.lastName.substr(0, 1)}`}
@@ -62,7 +63,7 @@ function Room() {
       return (
         // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
         <img
-          src={`${Config.url || ''}/api/images/${message.content}/256`}
+          src={buildImageUrl(message.content, 256)}
           alt={`Sent by @${message.author.username}`}
           onClick={() => setOpen(message)}
           key={message.content}
@@ -142,14 +143,14 @@ function Room() {
         onClick={() => setViewMembers(!viewMembers)}
       >
         View
-        {viewMembers ? 'Images' : 'Members'}
+        {viewMembers ? ' Images' : ' Members'}
       </button>
       {viewMembers && <Members />}
       <div className="images" ref={scrollContainer} onScroll={onScroll} hidden={viewMembers}>
         {open && (
           <Lightbox
-            medium={`${Config.url || ''}/api/images/${open.content}/1024`}
-            large={`${Config.url || ''}/api/images/${open.content}/2048`}
+            medium={buildImageUrl(open.content, 1024)}
+            large={buildImageUrl(open.content, 2048)}
             alt="Lightbox"
             hideDownload
             onClose={() => setOpen(null)}

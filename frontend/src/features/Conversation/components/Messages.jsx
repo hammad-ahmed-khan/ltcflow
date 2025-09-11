@@ -8,6 +8,7 @@ import './Messages.sass';
 import getMoreMessages from '../../../actions/getMoreMessages';
 import Actions from '../../../constants/Actions';
 import Picture from '../../../components/Picture';
+import { buildImageUrl } from '../../../utils/urlUtils';
 
 function Messages() {
   const user = useGlobal('user')[0];
@@ -27,7 +28,7 @@ function Messages() {
     lastName: 'A',
   };
 
-  if (!room.isGroup && room.people) {
+  if (room.people) {
     room.people.forEach((person) => {
       if (person._id !== user.id) other = person;
     });
@@ -74,8 +75,8 @@ function Messages() {
       <div className="messages-container">
         {open && (
           <Lightbox
-            medium={`${Config.url || ''}/api/images/${open.content}/1024`}
-            large={`${Config.url || ''}/api/images/${open.content}/2048`}
+            medium={buildImageUrl(open.content, 1024)}
+            large={buildImageUrl(open.content, 2048)}
             alt="Lightbox"
             hideDownload
             onClose={() => setOpen(null)}
