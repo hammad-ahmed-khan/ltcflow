@@ -1,10 +1,11 @@
 import Config from '../config';
+import { buildImageUrl } from '../utils/urlUtils';
 
 function Picture({
   user = {}, group = false, picture, title = 'Group',
 }) {
   if (group) {
-    if (picture) return <img src={`${Config.url || ''}/api/images/${picture.shieldedID}/256`} alt="Picture" className="picture" />;
+    if (picture) return <img src={buildImageUrl(picture.shieldedID, 256)} alt="Picture" className="picture" />;
     return <div className="img">{title.substr(0, 1).toUpperCase()}</div>;
   }
 
@@ -12,7 +13,7 @@ function Picture({
   const lastName = user.lastName || 'Name';
   if (user.picture) {
     return (
-      <img src={`${Config.url || ''}/api/images/${user.picture.shieldedID}/256`} alt="Picture" className="picture" />
+      <img src={buildImageUrl(user.picture.shieldedID, 256)} alt="Picture" className="picture" />
     );
   }
   return (

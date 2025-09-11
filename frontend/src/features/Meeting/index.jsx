@@ -389,25 +389,109 @@ function Meeting() {
     window.transport = transport;
   };
 
-  const close = async () => {
-    try {
-      localStream.getVideoTracks()[0].stop();
-    } catch (e) {}
-    await setStreams([]);
-    try {
+const close = async () => {
+  // Stop all producers first
+  try {
+    if (videoProducer) {
+      await io.request('remove', { producerID: videoProducer.id, roomID });
+      videoProducer.close();
+      videoProducer = null;
+    }
+  } catch (e) {
+    console.log('Error stopping video producer:', e);
+  }
+
+  try {
+    if (screenProducer) {
+      await io.request('remove', { producerID: screenProducer.id, roomID });
+      screenProducer.close();
+      screenProducer = null;
+    }
+  } catch (e) {
+    console.log('Error stopping screen producer:', e);
+  }
+
+  try {
+    if (audioProducer) {
+      await io.request('remove', { producerID: audioProducer.id, roomID });
+      audioProducer.close();
+      audioProducer = null;
+    }
+  } catch (e) {
+    console.log('Error stopping audio producer:', e);
+  }
+
+  // Stop all tracks from global streams
+  try {
+    if (videoStream) {
+      videoStream.getTracks().forEach((track) => {
+        track.stop();
+        console.log('Stopped video track:', track);
+      });
+      setVideoStream(null);
+    }
+  } catch (e) {
+    console.log('Error stopping video stream:', e);
+  }
+
+  try {
+    if (audioStream) {
+      audioStream.getTracks().forEach((track) => {
+        track.stop();
+        console.log('Stopped audio track:', track);
+      });
+      setAudioStream(null);
+    }
+  } catch (e) {
+    console.log('Error stopping audio stream:', e);
+  }
+
+  try {
+    if (localStream) {
+      localStream.getTracks().forEach((track) => {
+        track.stop();
+        console.log('Stopped local stream track:', track);
+      });
+      setLocalStream(null);
+    }
+  } catch (e) {
+    console.log('Error stopping local stream:', e);
+  }
+
+  // Clear all streams and reset states
+  await setStreams([]);
+  await setVideo(false);
+  await setAudio(false);
+  await setScreen(false);
+
+  // Close transport
+  try {
+    if (transport) {
       transport.close();
-    } catch (e) {}
-    try {
-      await io.request('leave', { roomID });
-    } catch (e) {}
-    postClose({ roomID, userID: counterpart._id });
-    navigate('/', { replace: true });
-    await setJoined(false);
-    await setShowPanel(true);
-    await setCallStatus(null);
-    dispatch({ type: Actions.RTC_LEAVE });
-    console.log('close action meeting');
-  };
+    }
+  } catch (e) {
+    console.log('Error closing transport:', e);
+  }
+
+  // Socket cleanup
+  try {
+    await io.request('leave', { roomID });
+  } catch (e) {
+    console.log('Error leaving room:', e);
+  }
+
+  // API cleanup and navigation
+  postClose({ roomID, userID: counterpart._id });
+  navigate('/', { replace: true });
+  
+  // Reset component states
+  await setJoined(false);
+  await setShowPanel(true);
+  await setCallStatus(null);
+  
+  dispatch({ type: Actions.RTC_LEAVE });
+  console.log('close action meeting - all streams terminated');
+};
 
   useEffect(() => {
     if (closingState && joined) close();

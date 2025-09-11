@@ -9,6 +9,7 @@ import Config from '../../../config';
 import changePicture from '../../../actions/changePicture';
 import EditProfilePopup from './EditProfilePopup'; // Import the new component
 import CompanyManagementPopup from './CompanyManagementPopup'; // Import new component
+import { buildImageUrl } from '../../../utils/urlUtils';
 
 function Settings() {
   const { addToast } = useToasts();
@@ -63,7 +64,7 @@ const logout = async () => {
   function Picture() {
     if (user.picture) {
       return (
-        <img src={`${Config.url || ''}/api/images/${user.picture.shieldedID}/256`} alt="Picture" className="picture" />
+        <img src={buildImageUrl(user.picture.shieldedID, 256)} alt="Picture" className="picture" />
       );
     }
     return (
