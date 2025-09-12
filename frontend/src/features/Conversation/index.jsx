@@ -14,6 +14,7 @@ function Conversation() {
   const room = useSelector((state) => state.io.room);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(null); // NEW: Track API errors
   const setOver = useGlobal('over')[1];
   const { id } = useParams();
 
@@ -26,36 +27,96 @@ function Conversation() {
   };
 
   useEffect(() => {
+    console.log('🏠 CONVERSATION: Starting to load room');
+    console.log('🆔 CONVERSATION: Room ID from URL:', id);
+    console.log('🌐 CONVERSATION: Current URL:', window.location.href);
+    
+    if (!id) {
+      console.error('❌ CONVERSATION: No room ID in URL params');
+      setLoading(false);
+      setError(true);
+      return;
+    }
+
     setLoading(true);
+    setError(false);
+    setApiError(null);
+    
+    console.log('📡 CONVERSATION: Calling getRoom API...');
+    
     getRoom(id)
       .then((res) => {
+        console.log('✅ CONVERSATION: API SUCCESS');
+        console.log('📦 CONVERSATION: Response data:', res.data);
+        console.log('🏠 CONVERSATION: Room object:', res.data.room);
+        
+        if (!res.data.room) {
+          console.error('❌ CONVERSATION: API returned null room');
+          setApiError('API returned null room');
+          dispatch({ type: Actions.SET_ROOM, room: null });
+          dispatch({ type: Actions.SET_MESSAGES, messages: [] });
+          setLoading(false);
+          setError(true);
+          return;
+        }
+
         dispatch({ type: Actions.SET_ROOM, room: res.data.room });
-        console.log(res.data);
-        dispatch({ type: Actions.SET_MESSAGES, messages: res.data.room.messages });
+        dispatch({ type: Actions.SET_MESSAGES, messages: res.data.room.messages || [] });
         setLoading(false);
         setError(false);
         
-        // ENHANCED: Remove unread indicator for both direct messages and groups
+        // Remove unread indicator
         const isGroup = res.data.room.isGroup;
-        console.log(`🔄 Removing unread indicator for ${isGroup ? 'group' : 'room'}:`, id);
+        console.log(`🔄 CONVERSATION: Removing unread indicator for ${isGroup ? 'group' : 'room'}:`, id);
         dispatch({ 
           type: Actions.MESSAGES_REMOVE_ROOM_UNREAD, 
           roomID: id,
-          isGroup: isGroup // NEW: Pass group information
+          isGroup: isGroup 
         });
+        
+        console.log('✅ CONVERSATION: Room loaded successfully!');
       })
       .catch((err) => {
+        console.error('❌ CONVERSATION: API FAILED');
+        console.error('❌ CONVERSATION: Error object:', err);
+        console.error('❌ CONVERSATION: Error response:', err.response);
+        console.error('❌ CONVERSATION: Error status:', err.response?.status);
+        console.error('❌ CONVERSATION: Error data:', err.response?.data);
+        console.error('❌ CONVERSATION: Error message:', err.message);
+        
+        setApiError({
+          status: err.response?.status,
+          message: err.message,
+          data: err.response?.data
+        });
+        
         dispatch({ type: Actions.SET_ROOM, room: null });
         dispatch({ type: Actions.SET_MESSAGES, messages: [] });
         setLoading(false);
-        if (!err.response || err.response.status !== 404) setError(true);
+        
+        if (!err.response || err.response.status !== 404) {
+          setError(true);
+        }
       });
-  }, [setLoading, id]);
+  }, [id, dispatch]); // Fixed: Added dispatch to dependencies
+
+  // Enhanced error logging when room state changes
+  useEffect(() => {
+    console.log('🔄 CONVERSATION: Room state changed:', room);
+    if (room) {
+      console.log('✅ CONVERSATION: Room is now loaded:', room._id);
+    } else {
+      console.log('❌ CONVERSATION: Room is now null');
+    }
+  }, [room]);
 
   function Loading() {
     return (
       <div className="content uk-flex uk-flex-center uk-flex-middle uk-flex-column">
         <ClipLoader size={60} color="#666" loading={loading} />
+        <div style={{ marginTop: '20px', color: '#666' }}>
+          Loading room {id?.slice(-6)}...
+        </div>
       </div>
     );
   }
@@ -69,6 +130,22 @@ function Conversation() {
           <br />
           This is probably a broken URL.
         </div>
+        {/* DEBUG: Show API error details */}
+        {apiError && (
+          <div style={{ 
+            marginTop: '20px', 
+            padding: '10px', 
+            background: '#f5f5f5', 
+            borderRadius: '5px',
+            fontSize: '12px',
+            maxWidth: '400px'
+          }}>
+            <strong>Debug Info:</strong><br/>
+            Status: {apiError.status}<br/>
+            Message: {apiError.message}<br/>
+            Data: {JSON.stringify(apiError.data)}
+          </div>
+        )}
       </div>
     );
   }
@@ -78,6 +155,22 @@ function Conversation() {
       <div className="content uk-flex uk-flex-center uk-flex-middle uk-flex-column">
         <div className="notfound">Network Error</div>
         <div className="notfound-extended">Could not reach server.</div>
+        {/* DEBUG: Show API error details */}
+        {apiError && (
+          <div style={{ 
+            marginTop: '20px', 
+            padding: '10px', 
+            background: '#f5f5f5', 
+            borderRadius: '5px',
+            fontSize: '12px',
+            maxWidth: '400px'
+          }}>
+            <strong>Debug Info:</strong><br/>
+            Status: {apiError.status}<br/>
+            Message: {apiError.message}<br/>
+            Data: {JSON.stringify(apiError.data)}
+          </div>
+        )}
       </div>
     );
   }

@@ -36,9 +36,10 @@ const saveUnreadState = (roomsWithNewMessages, groupsWithNewMessages) => {
 const persistedState = loadPersistedUnreadState();
 
 const initialState = {
-  roomsWithNewMessages: persistedState.roomsWithNewMessages, // FIXED: Restore from localStorage
-  groupsWithNewMessages: persistedState.groupsWithNewMessages, // FIXED: Restore from localStorage
-  typing: null,
+  roomsWithNewMessages: persistedState.roomsWithNewMessages,
+  groupsWithNewMessages: persistedState.groupsWithNewMessages,
+  typing: null, // Keep for backward compatibility
+  typingUsers: [], // NEW: Array of typing users
 };
 
 console.log("🔄 Restored unread state on app startup:", {
@@ -53,7 +54,14 @@ const reducer = (state = initialState, action) => {
     case Actions.SET_TYPING:
       return {
         ...state,
-        typing: action.typing,
+        typing: action.typing, // Keep for backward compatibility
+      };
+
+    // ADD new case for enhanced typing:
+    case Actions.SET_TYPING_USERS:
+      return {
+        ...state,
+        typingUsers: action.typingUsers,
       };
 
     case Actions.MESSAGES_ADD_ROOM_UNREAD:
