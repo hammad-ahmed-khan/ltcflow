@@ -248,15 +248,35 @@ const initIO = (token) => (dispatch) => {
       store.getState().io.room &&
       data.roomID === store.getState().io.room._id
     ) {
-      if (data.isTyping) {
-        clearTimeout(window.typingTimeout);
-        window.typingTimeout = setTimeout(() => {
-          dispatch({ type: Actions.SET_TYPING, typing: false });
-        }, 10000);
+      // Handle enhanced typing with user aggregation
+      if (data.typingUsers) {
+        // New aggregated format
+        dispatch({
+          type: Actions.SET_TYPING_USERS,
+          typingUsers: data.typingUsers,
+        });
+        // Keep backward compatibility
+        dispatch({
+          type: Actions.SET_TYPING,
+          typing: data.typingUsers.length > 0,
+        });
       } else {
-        clearTimeout(window.typingTimeout);
+        // Fallback to old format
+        if (data.isTyping) {
+          clearTimeout(window.typingTimeout);
+          window.typingTimeout = setTimeout(() => {
+            dispatch({ type: Actions.SET_TYPING, typing: false });
+            dispatch({ type: Actions.SET_TYPING_USERS, typingUsers: [] });
+          }, 10000);
+        } else {
+          clearTimeout(window.typingTimeout);
+        }
+        dispatch({ type: Actions.SET_TYPING, typing: data.isTyping });
+        dispatch({
+          type: Actions.SET_TYPING_USERS,
+          typingUsers: data.isTyping ? [data] : [],
+        });
       }
-      dispatch({ type: Actions.SET_TYPING, typing: data.isTyping });
     }
   });
 
