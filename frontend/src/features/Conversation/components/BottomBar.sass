@@ -1,9 +1,12 @@
+// Simple CSS-only fix - just add this to your existing BottomBar.sass
+
 .bottom-bar-conversation
   width: 100%
   min-height: 54px
   max-height: 54px
   border-top: 1px solid rgba(218, 220, 224, 0.5)
   background: #f2f2f2
+   
   .profile
     overflow: hidden
     width: 40px
@@ -25,7 +28,7 @@
     flex-grow: 1
     width: calc(100% - 87px)
     height: 40px
-    font-size: 14px
+    font-size: 16px !important // Changed from 14px to prevent iOS zoom
     padding: 0 8px
     border: none
     background-image: none
@@ -48,15 +51,18 @@
     margin: 0
   .attach
     margin-left: 6px
+
 .picker
   position: relative
   width: 0
   height: 0
   bottom: 410px + 41px
   left: 0
+  
 .emoji-mart
   border: none !important
   border-radius: 0 !important
+  
 .file-input
   visibility: hidden
   width: 0
@@ -69,3 +75,21 @@
   display: none !important
 .emoji-mart-preview-emoticons
   display: none !important
+
+  // iOS PWA specific styles - ONLY applies when body has 'ios-pwa' class
+body.ios-pwa
+  .bottom-bar-conversation
+    position: fixed !important
+    bottom: 0
+    left: 0
+    right: 0
+    z-index: 1000
+    
+  // Adjust parent containers for iOS PWA
+  .main.uk-flex.uk-flex-column.over
+    @supports (padding: max(0px))
+      padding-bottom: calc(108px + env(safe-area-inset-bottom))
+
+  .messages-wrapper
+    .message:last-child
+      padding-bottom: calc(108px + env(safe-area-inset-bottom))        

@@ -78,7 +78,7 @@ function Ringing({ incoming, meetingID }) {
     if (isVideo && videoStream) videoStream.getVideoTracks()[0].stop();
     if (isAudio && audioStream) audioStream.getAudioTracks()[0].stop();
     dispatch({ type: Actions.RTC_LEAVE });
-    if (closingState) postClose({ meetingID, userID: counterpart._id });
+    //if (closingState) postClose({ meetingID, userID: counterpart._id });
     navigate('/', { replace: true });
 
     console.log('close action ringing');

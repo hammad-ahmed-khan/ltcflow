@@ -143,3 +143,19 @@ $panel-background: #363e47
       font-size: 14px
       width: 50px
       min-width: 50px
+      
+.reconnect-banner
+  position: fixed
+  top: 0
+  left: 50%
+  transform: translateX(-50%)
+  padding: 8px 16px
+  border-radius: 6px
+  z-index: 2000
+  font-size: 14px
+  font-weight: 500
+  color: white
+  &.reconnecting
+    background: #e67e22 // orange
+  &.reconnected
+    background: #27ae60 // green

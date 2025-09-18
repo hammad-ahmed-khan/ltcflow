@@ -196,13 +196,27 @@ const initIO = (token) => (dispatch) => {
     store.dispatch({ type: Actions.RTC_ANSWER, data });
   });
 
+  // Enhanced remove handler
   io.on("remove", (data) => {
-    console.log("remove", data.producerID);
+    console.log("🗑️ remove event:", {
+      producerID: data.producerID,
+      socketID: data.socketID,
+      mySocketID: io.id,
+    });
+
     let { producers } = store.getState().rtc;
+    const beforeCount = producers.length;
+
     producers = producers.filter(
       (producer) => producer.producerID !== data.producerID
     );
-    console.log("producers after remove", producers);
+
+    console.log(`🗑️ Filtered producers: ${beforeCount} → ${producers.length}`);
+    console.log(
+      "Remaining producer IDs:",
+      producers.map((p) => p.producerID)
+    );
+
     store.dispatch({
       type: Actions.RTC_RESET_PRODUCERS,
       producers,
@@ -280,11 +294,37 @@ const initIO = (token) => (dispatch) => {
     }
   });
 
-  io.on("disconnected", () => {});
+  io.on("disconnect", (reason) => {
+    console.log("🔌 Socket disconnected:", reason);
+  });
 
-  window.onbeforeunload = () => {
-    io.emit("leave", { socketID: io.id, roomID: store.getState().rtc.roomID });
+  io.on("connect_error", (error) => {
+    console.error("🔥 Socket connection error:", error);
+  });
+
+  io.on("reconnect", (attemptNumber) => {
+    console.log("🔄 Socket reconnected after", attemptNumber, "attempts");
+  });
+
+  // Enhanced beforeunload with retry logic
+  const handleBeforeUnload = () => {
+    const currentRoomID = store.getState().rtc.roomID;
+    if (currentRoomID) {
+      console.log("📤 Sending leave event on page unload");
+      // Try to send leave event (may not complete if browser closes quickly)
+      try {
+        io.emit("leave", {
+          socketID: io.id,
+          roomID: currentRoomID,
+        });
+      } catch (e) {
+        console.warn("Failed to send leave event on unload:", e);
+      }
+    }
   };
+
+  window.addEventListener("beforeunload", handleBeforeUnload);
+  window.addEventListener("pagehide", handleBeforeUnload); // Better mobile support
 };
 
 export default initIO;

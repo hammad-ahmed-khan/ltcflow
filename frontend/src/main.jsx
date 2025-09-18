@@ -10,6 +10,24 @@ import * as serviceWorker from './serviceWorker';
 import init from './init';
 import store from './store';
 
+const detectAndApplyIOSPWA = () => {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
+                window.navigator.standalone === true;
+  
+  if (isIOS && isPWA) {
+    document.body.classList.add('ios-pwa');
+    console.log('🍎 iOS PWA detected - applying specific styles');
+  }
+};
+
+// Run on DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', detectAndApplyIOSPWA);
+} else {
+  detectAndApplyIOSPWA();
+}
+
 init().then(() => {
   // Loading UIkit Icons plugin.
   UIkit.use(Icons);
