@@ -11,29 +11,31 @@ function LittleStreams({ streams }) {
   const [mainStream, setMainStream] = useGlobal('mainStream');
   const el = useRef(null);
 
-  useEffect(() => {
-    if (!el) return;
-    const scrollHorizontally = (e) => {
-      e = window.event || e;
-      const delta = Math.max(-1, Math.min(1, e.wheelDelta || -e.detail));
-      el.current.scrollLeft -= delta * 40; // Multiplied by 40
-      e.preventDefault();
-    };
-    if (el.current.addEventListener) {
-      // IE9, Chrome, Safari, Opera
-      el.current.addEventListener('mousewheel', scrollHorizontally, false);
-      // Firefox
-      el.current.addEventListener('DOMMouseScroll', scrollHorizontally, false);
+useEffect(() => {
+  if (!el.current) return;
+  
+  const scrollHorizontally = (e) => {
+    e = window.event || e;
+    const delta = Math.max(-1, Math.min(1, e.wheelDelta || -e.detail));
+    el.current.scrollLeft -= delta * 40;
+    e.preventDefault();
+  };
+  
+  const currentEl = el.current; // Store reference
+  
+  if (currentEl.addEventListener) {
+    currentEl.addEventListener('mousewheel', scrollHorizontally, false);
+    currentEl.addEventListener('DOMMouseScroll', scrollHorizontally, false);
+  }
+  
+  return () => {
+    // FIX: Use stored reference instead of el.current
+    if (currentEl && currentEl.removeEventListener) {
+      currentEl.removeEventListener('mousewheel', scrollHorizontally, false);
+      currentEl.removeEventListener('DOMMouseScroll', scrollHorizontally, false);
     }
-    return () => {
-      if (el.current.addEventListener) {
-        // IE9, Chrome, Safari, Opera
-        el.current.removeEventListener('mousewheel', scrollHorizontally, false);
-        // Firefox
-        el.current.removeEventListener('DOMMouseScroll', scrollHorizontally, false);
-      }
-    };
-  }, [el]);
+  };
+}, []);
 
   const actualConsumers = consumers.filter((c) => c !== socketID);
   const actualPeers = [];

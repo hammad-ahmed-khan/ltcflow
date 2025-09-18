@@ -1,5 +1,5 @@
-import moment from 'moment';
-import Actions from '../constants/Actions';
+import moment from "moment";
+import Actions from "../constants/Actions";
 
 const initialState = {
   producers: [],
@@ -13,7 +13,7 @@ const initialState = {
   callData: null,
   answerIncrement: 0,
   answerData: 0,
-  lastLeaveType: 'leave',
+  lastLeaveType: "leave",
   counterpart: null,
   closingState: false,
   closed: true,
@@ -43,7 +43,7 @@ const reducer = (state = initialState, action) => {
         ...state,
         producers: [...action.producers],
         lastLeave: action.producerID || action.socketID,
-        lastLeaveType: action.lastLeaveType || 'leave',
+        lastLeaveType: action.lastLeaveType || "leave",
         increment: state.increment + 1,
       };
     case Actions.RTC_ROOM_ID:
@@ -53,7 +53,13 @@ const reducer = (state = initialState, action) => {
         closed: false,
       };
     case Actions.RTC_CONSUMERS:
-      if (state.consumersTimestamp && moment(state.consumersTimestamp).isAfter(moment(action.consumers.timestamp))) return state;
+      if (
+        state.consumersTimestamp &&
+        moment(state.consumersTimestamp).isAfter(
+          moment(action.consumers.timestamp)
+        )
+      )
+        return state;
       return {
         ...state,
         consumers: action.consumers.content,
@@ -92,8 +98,10 @@ const reducer = (state = initialState, action) => {
         counterpart: action.counterpart,
         closed: false,
       };
+    /*
     case Actions.RTC_LEAVE:
       return initialState;
+    */
     default:
       return state;
   }
