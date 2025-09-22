@@ -1,3 +1,4 @@
+// backend/src/routes/get-room.js
 const Room = require("../models/Room");
 
 module.exports = async (req, res, next) => {
@@ -17,6 +18,10 @@ module.exports = async (req, res, next) => {
         path: "people",
         select: "-email -password -friends -__v",
         populate: { path: "picture" },
+      })
+      .populate({
+        path: "creator", // Add creator population
+        select: "firstName lastName username email",
       })
       .populate("lastMessage")
       .sort({ lastUpdate: -1 });

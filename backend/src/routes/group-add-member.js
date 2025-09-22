@@ -1,6 +1,7 @@
 // backend/src/routes/group-add-member.js
 const Room = require("../models/Room");
 const User = require("../models/User");
+const { checkGroupPermissions } = require("../utils/groupPermissions");
 
 module.exports = async (req, res) => {
   try {
@@ -22,12 +23,14 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Find the group
+    // Find the group and populate creator
     const group = await Room.findOne({
       _id: groupId,
       companyId,
       isGroup: true,
-    }).populate("people");
+    })
+      .populate("people")
+      .populate("creator");
 
     if (!group) {
       return res.status(404).json({
@@ -36,22 +39,14 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Check permissions
-    const isGroupMember = group.people.some(
-      (member) => member._id.toString() === req.user.id
-    );
-    const userLevel = req.user.level;
+    // Use the utility function - FIXED: Use correct property name
+    const permissions = checkGroupPermissions(req.user, group);
 
-    // Authorization logic: Root can manage globally, managers/admins need to be group members
-    const canManageMembers =
-      userLevel === "root" ||
-      (["manager", "admin"].includes(userLevel) && isGroupMember);
-
-    if (!canManageMembers) {
+    if (!permissions.canManageGroup) {
+      // Changed from canManageMembers to canManageGroup
       return res.status(403).json({
         error: "INSUFFICIENT_PERMISSIONS",
-        message:
-          "Only group members with manager+ level or root users can add members",
+        message: "You don't have permission to manage this group",
       });
     }
 
@@ -85,8 +80,14 @@ module.exports = async (req, res) => {
       $addToSet: { people: userId },
     });
 
-    // Return updated group with populated people
-    const updatedGroup = await Room.findById(groupId).populate("people");
+    // Return updated group with populated people and creator
+    const updatedGroup = await Room.findById(groupId)
+      .populate("people")
+      .populate("creator", "firstName lastName username email");
+
+    console.log(
+      `👥 ${userToAdd.firstName} ${userToAdd.lastName} added to group "${group.title}" by ${req.user.username}`
+    );
 
     res.status(200).json({
       status: "success",

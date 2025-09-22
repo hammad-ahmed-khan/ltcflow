@@ -17,6 +17,15 @@ const RoomSchema = new Schema(
       ref: "Company",
       required: true, // ensures room is linked to a company
     },
+
+    // 🆕 NEW: Group creator field
+    creator: {
+      type: Schema.Types.ObjectId,
+      ref: "users",
+      required: function () {
+        return this.isGroup; // Only required for groups
+      },
+    },
   },
   { timestamps: true }
 ); // adds createdAt & updatedAt automatically

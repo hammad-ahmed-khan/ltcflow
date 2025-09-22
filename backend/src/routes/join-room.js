@@ -1,16 +1,16 @@
-const Message = require('../models/Message');
-const Room = require('../models/Room');
+const Message = require("../models/Message");
+const Room = require("../models/Room");
 
 module.exports = (req, res, next) => {
   let { id } = req.fields;
-  const companyId = req.headers['x-company-id']; // Read from header
+  const companyId = req.headers["x-company-id"];
 
   // Validate required fields
   if (!id) {
-    return res.status(400).json({ error: 'Room ID required.' });
+    return res.status(400).json({ error: "Room ID required." });
   }
   if (!companyId) {
-    return res.status(400).json({ error: 'Company ID required.' });
+    return res.status(400).json({ error: "Company ID required." });
   }
 
   const findMessagesAndEmit = (room) => {
@@ -19,27 +19,27 @@ module.exports = (req, res, next) => {
       .sort({ _id: -1 })
       .limit(50)
       .populate({
-        path: 'author',
-        select: '-email -password -friends -__v',
+        path: "author",
+        select: "-email -password -friends -__v",
         populate: [
           {
-            path: 'picture',
+            path: "picture",
           },
         ],
       })
-      .populate([{ path: 'file', strictPopulate: false }])
+      .populate([{ path: "file", strictPopulate: false }])
       .lean()
       .then((messages) => {
         messages.reverse();
         // Images query also includes companyId
-        Message.find({ room: room._id, type: 'image', companyId })
+        Message.find({ room: room._id, type: "image", companyId })
           .sort({ _id: -1 })
           .limit(50)
           .populate({
-            path: 'author',
-            select: '-email -password -friends -__v',
+            path: "author",
+            select: "-email -password -friends -__v",
             populate: {
-              path: 'picture',
+              path: "picture",
             },
           })
           .then((images) => {
@@ -53,6 +53,7 @@ module.exports = (req, res, next) => {
                 lastAuthor: room.lastAuthor,
                 lastMessage: room.lastMessage,
                 picture: room.picture,
+                creator: room.creator, // Include creator info
                 messages: messages.map((e) => {
                   if (e.author) {
                     return e;
@@ -60,8 +61,8 @@ module.exports = (req, res, next) => {
                     return {
                       ...e,
                       author: {
-                        firstName: 'Deleted',
-                        lastName: 'User',
+                        firstName: "Deleted",
+                        lastName: "User",
                       },
                     };
                   }
@@ -72,39 +73,56 @@ module.exports = (req, res, next) => {
           })
           .catch((err) => {
             console.error(err);
-            res.status(500).json({ error: 'Server error loading images.' });
+            res.status(500).json({ error: "Server error loading images." });
           });
       })
       .catch((err) => {
         console.error(err);
-        res.status(500).json({ error: 'Server error loading messages.' });
+        res.status(500).json({ error: "Server error loading messages." });
       });
   };
 
-  // Room query includes companyId
+  // Room query includes companyId and populates creator
   Room.findOne({ _id: id, companyId })
-    .populate([{ path: 'picture', strictPopulate: false }])
+    .populate([{ path: "picture", strictPopulate: false }])
     .populate({
-      path: 'people',
-      select: '-email -tagLine -password -friends -__v',
+      path: "people",
+      select: "-email -tagLine -password -friends -__v",
       populate: [
         {
-          path: 'picture',
+          path: "picture",
         },
       ],
+    })
+    .populate({
+      path: "creator", // Populate creator info
+      select: "firstName lastName username email",
     })
     .exec((err, room) => {
       if (err) {
         console.error(err);
-        return res.status(500).json({ error: 'Server error.' });
+        return res.status(500).json({ error: "Server error." });
       }
       if (!room) {
-        return res.status(404).json({ error: 'Room not found.' });
+        return res.status(404).json({ error: "Room not found." });
       }
 
-      // Check if user is a member of this room
-      if (room.people.filter((person) => req.user.id.toString() === person._id.toString()).length === 0) {
-        return res.status(403).json({ error: 'Access denied.' });
+      // Updated permission check: Allow access if user is a member OR the creator
+      const isGroupMember =
+        room.people.filter(
+          (person) => req.user.id.toString() === person._id.toString()
+        ).length > 0;
+      const isCreator =
+        room.creator && room.creator._id.toString() === req.user.id.toString();
+
+      // For groups: Allow access if user is member or creator
+      // For direct rooms: Only allow if user is member
+      const hasAccess = room.isGroup
+        ? isGroupMember || isCreator
+        : isGroupMember;
+
+      if (!hasAccess) {
+        return res.status(403).json({ error: "Access denied." });
       }
 
       findMessagesAndEmit(room);

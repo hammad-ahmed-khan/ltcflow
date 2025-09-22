@@ -12,8 +12,17 @@ module.exports = async (req, res, next) => {
 
   const roomObj = req.fields.room;
   const companyId = req.headers["x-company-id"];
-  const roomID = roomObj._id;
   const isTyping = req.fields.isTyping;
+
+  // FIX: Handle null room object
+  if (!roomObj || !roomObj._id) {
+    console.log("❌ Invalid room object:", roomObj);
+    return res.status(400).json({
+      error: "Invalid room data provided",
+    });
+  }
+
+  const roomID = roomObj._id;
 
   console.log("🏠 Room ID:", roomID);
   console.log("⌨️  Is Typing:", isTyping);

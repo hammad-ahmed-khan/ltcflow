@@ -8,6 +8,7 @@ import Picture from '../../../components/Picture';
 import search from '../../../actions/search';
 import apiClient from '../../../api/apiClient';
 import getRooms from '../../../actions/getRooms';
+import getRoom from '../../../actions/getRoom';
 import upload from '../../../actions/uploadImage';
 import Actions from '../../../constants/Actions';
 import './GroupManage.sass';
@@ -80,12 +81,18 @@ function GroupManage() {
     }
   };
 
-  // Permission logic
+  // Updated permission logic with creator support
   const isGroupMember = group?.people?.some(member => member._id === user.id);
+  const isCreator = group?.creator?._id === user.id;
   const isManagerOrAbove = ['manager', 'admin', 'root'].includes(user.level);
-  const canManageMembers = user.level === 'root' || (isManagerOrAbove && isGroupMember);
   
-  // NEW: Delete permission - only root and admins can delete groups
+  // Updated: Creator can manage even if not a member
+  const canManageGroup = 
+    user.level === 'root' || 
+    isCreator || 
+    (isManagerOrAbove && isGroupMember);
+  
+  // Delete permission - only root and admins can delete groups
   const canDeleteGroup = ['root', 'admin'].includes(user.level);
 
   const showToast = (message, type = 'success') => {
@@ -128,10 +135,39 @@ function GroupManage() {
     }
   };
 
+  // Updated: Add self to group function for creators
+  const addSelfToGroup = async () => {
+  setLoading(prev => ({ ...prev, addSelf: true })); // Add loading state
+
+  try {
+    await apiClient.post('/api/group/add-member', { 
+      groupId: id, // Changed from room._id to id
+      userId: user.id 
+    });
+    
+    addToast('You joined the group successfully');
+    
+    // Update both global rooms list and current room data
+    const [roomsRes, roomRes] = await Promise.all([
+      getRooms(),
+      getRoom(id) // Use id instead of room._id
+    ]);
+    
+    dispatch({ type: Actions.SET_ROOMS, rooms: roomsRes.data.rooms });
+    dispatch({ type: Actions.SET_ROOM, room: roomRes.data.room });
+    
+  } catch (err) {
+    const message = err.response?.data?.message || 'Failed to join group';
+    addToast(message, 'error');
+  } finally {
+    setLoading(prev => ({ ...prev, addSelf: false }));
+  }
+};
+
   const removeMember = async (userId) => {
     const member = group.people.find(m => m._id === userId);
     const memberName = member ? `${member.firstName} ${member.lastName}` : 'User';
-    setLoading(prev => ({ ...prev, [`remove_${userId}`]: true }));
+    setLoading(prev => ({ ...prev, [`remove_${userId}`]: false }));
     
     try {
       await apiClient.post('/api/group/remove-member', { 
@@ -141,10 +177,21 @@ function GroupManage() {
       
       if (userId === user.id) {
         showToast('Left group successfully');
-        navigate('/');
+        // Update both local group AND global rooms list
+        await refreshGroup(); // Updates current group
+        
+        // ADDED: Update global rooms list so GroupList reflects the change
+        const roomsRes = await getRooms();
+        dispatch({ type: Actions.SET_ROOMS, rooms: roomsRes.data.rooms });
+        
+        // Don't navigate away - creator can still manage
       } else {
         showToast(`${memberName} removed from group`);
         await refreshGroup();
+        
+        // Also update global rooms list for consistency
+        const roomsRes = await getRooms();
+        dispatch({ type: Actions.SET_ROOMS, rooms: roomsRes.data.rooms });
       }
     } catch (err) {
       const message = err.response?.data?.message || 'Failed to remove member';
@@ -224,7 +271,6 @@ function GroupManage() {
     }
   };
 
-  // NEW: Delete group functionality
   const deleteGroup = async () => {
     const groupTitle = group.title;
     
@@ -272,12 +318,13 @@ function GroupManage() {
     }
   };
 
-  if (!group || !canManageMembers) {
+  // Updated access control logic
+  if (!group || !canManageGroup) {
     const accessDeniedMessage = !group ? 
       'Group not found' : 
       user.level === 'user' ?
         'Only managers and administrators can manage group members.' :
-        'You must be a member of this group to manage it.';
+        'You must be a member of this group or be its creator to manage it.';
         
     return (
       <div className="group-manage">
@@ -321,6 +368,28 @@ function GroupManage() {
         <h2 style={{ margin: 0, fontSize: '18px' }}>Manage Group</h2>
         <div style={{ width: '60px' }}></div> {/* Spacer for centering */}
       </div>
+
+      {/* Creator Status Alert */}
+      {isCreator && !isGroupMember && (
+        <div className="uk-alert uk-alert-primary" style={{ margin: '16px', marginBottom: '0' }}>
+          <div className="uk-flex uk-flex-between uk-flex-middle">
+            <div>
+              <strong>👑 Group Creator</strong>
+              <p style={{ margin: '4px 0 0 0', fontSize: '14px' }}>
+                You created this group but aren't a member. You can manage it but can't participate in conversations.
+              </p>
+            </div>
+            <button
+              className="uk-button uk-button-primary uk-button-small"
+              onClick={addSelfToGroup}
+              disabled={loading.addSelf}
+              style={{ whiteSpace: 'nowrap', marginLeft: '12px' }}
+            >
+              {loading.addSelf ? 'Joining...' : 'Join Group'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Group Info Section */}
       <div style={{ padding: '20px', background: '#fff', borderBottom: '1px solid #eee' }}>
@@ -421,6 +490,7 @@ function GroupManage() {
             )}
             <div style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
               {group.people.length} member{group.people.length !== 1 ? 's' : ''}
+              {isCreator && <span style={{ color: '#007bff', fontWeight: '500' }}> • You are the creator</span>}
             </div>
             {group.picture && (
               <button
@@ -442,73 +512,71 @@ function GroupManage() {
       </div>
 
       {/* Add Members Section */}
-      {canManageMembers && (
-        <div className="add-members-section" style={{ padding: '16px', background: '#f8f9fa', borderBottom: '1px solid #eee' }}>
-          <button
-            className="uk-button uk-button-primary uk-button-small uk-flex uk-flex-middle"
-            onClick={() => setShowAddMembers(!showAddMembers)}
-            style={{ marginBottom: showAddMembers ? '12px' : '0' }}
-          >
-            <FiUserPlus style={{ marginRight: '6px' }} />
-            Add Members
-          </button>
+      <div className="add-members-section" style={{ padding: '16px', background: '#f8f9fa', borderBottom: '1px solid #eee' }}>
+        <button
+          className="uk-button uk-button-primary uk-button-small uk-flex uk-flex-middle"
+          onClick={() => setShowAddMembers(!showAddMembers)}
+          style={{ marginBottom: showAddMembers ? '12px' : '0' }}
+        >
+          <FiUserPlus style={{ marginRight: '6px' }} />
+          Add Members
+        </button>
 
-          {showAddMembers && (
-            <div>
-              <div className="search-bar" style={{ position: 'relative', marginBottom: '12px' }}>
-                <FiSearch className="icon" />
-                <input
-                  ref={searchInputRef}
-                  className="uk-input"
-                  placeholder="Search users to add..."
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  style={{ paddingLeft: '40px', fontSize: '14px' }}
-                />
-              </div>
+        {showAddMembers && (
+          <div>
+            <div className="search-bar" style={{ position: 'relative', marginBottom: '12px' }}>
+              <FiSearch className="icon" />
+              <input
+                ref={searchInputRef}
+                className="uk-input"
+                placeholder="Search users to add..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                style={{ paddingLeft: '40px', fontSize: '14px' }}
+              />
+            </div>
 
-              {searchQuery && (
-                <div style={{ maxHeight: '200px', overflowY: 'auto', background: '#fff', border: '1px solid #ddd', borderRadius: '4px' }}>
-                  {filteredSearchResults.length > 0 ? (
-                    filteredSearchResults.map(searchUser => (
-                      <div
-                        key={searchUser._id}
-                        className="search-result-item uk-flex uk-flex-between uk-flex-middle"
-                        style={{ padding: '8px 12px', borderBottom: '1px solid #eee' }}
-                      >
-                        <div className="uk-flex uk-flex-middle" style={{ gap: '8px' }}>
-                          <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
-                            <Picture user={searchUser} />
+            {searchQuery && (
+              <div style={{ maxHeight: '200px', overflowY: 'auto', background: '#fff', border: '1px solid #ddd', borderRadius: '4px' }}>
+                {filteredSearchResults.length > 0 ? (
+                  filteredSearchResults.map(searchUser => (
+                    <div
+                      key={searchUser._id}
+                      className="search-result-item uk-flex uk-flex-between uk-flex-middle"
+                      style={{ padding: '8px 12px', borderBottom: '1px solid #eee' }}
+                    >
+                      <div className="uk-flex uk-flex-middle" style={{ gap: '8px' }}>
+                        <div className="user-avatar" style={{ width: '32px', height: '32px' }}>
+                          <Picture user={searchUser} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: '500' }}>
+                            {searchUser.firstName} {searchUser.lastName}
                           </div>
-                          <div>
-                            <div style={{ fontSize: '14px', fontWeight: '500' }}>
-                              {searchUser.firstName} {searchUser.lastName}
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#666' }}>
-                              @{searchUser.username}
-                            </div>
+                          <div style={{ fontSize: '12px', color: '#666' }}>
+                            @{searchUser.username}
                           </div>
                         </div>
-                        <button
-                          className="uk-button uk-button-primary uk-button-small"
-                          onClick={() => addMember(searchUser._id)}
-                          disabled={loading[`add_${searchUser._id}`]}
-                        >
-                          {loading[`add_${searchUser._id}`] ? '...' : <FiUserPlus />}
-                        </button>
                       </div>
-                    ))
-                  ) : (
-                    <div style={{ padding: '16px', textAlign: 'center', color: '#666' }}>
-                      No users found matching "{searchQuery}"
+                      <button
+                        className="uk-button uk-button-primary uk-button-small"
+                        onClick={() => addMember(searchUser._id)}
+                        disabled={loading[`add_${searchUser._id}`]}
+                      >
+                        {loading[`add_${searchUser._id}`] ? '...' : <FiUserPlus />}
+                      </button>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+                  ))
+                ) : (
+                  <div style={{ padding: '16px', textAlign: 'center', color: '#666' }}>
+                    No users found matching "{searchQuery}"
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Members List */}
       <div style={{ flex: 1, overflowY: 'auto', background: '#fff' }}>
@@ -537,7 +605,7 @@ function GroupManage() {
                 </div>
               </div>
               <div>
-                {(canManageMembers || member._id === user.id) && (
+                {(canManageGroup || member._id === user.id) && (
                   <button
                     className="uk-button uk-button-danger uk-button-small"
                     onClick={() => {
@@ -561,7 +629,7 @@ function GroupManage() {
         </div>
       </div>
 
-      {/* Group Actions - ENHANCED with Delete Group */}
+      {/* Group Actions */}
       <div style={{ 
         padding: '16px', 
         borderTop: '1px solid #eee',
@@ -572,23 +640,25 @@ function GroupManage() {
           Group Actions
         </div>
         <div className="uk-flex uk-flex-wrap" style={{ gap: '8px' }}>
-          {/* Leave Group Button */}
-          <button 
-            className="uk-button uk-button-small uk-button-default"
-            onClick={() => {
-              if (window.confirm(`Leave "${group.title}"? You can be re-added by other members.`)) {
-                removeMember(user.id);
-              }
-            }}
-            disabled={group.people.length === 1}
-            title={group.people.length === 1 ? "Cannot leave - you're the only member" : "Leave this group"}
-            style={{ whiteSpace: 'nowrap' }}
-          >
-            <FiUserMinus style={{ marginRight: '4px' }} />
-            Leave Group
-          </button>
+          {/* Leave Group Button - only show if user is a member */}
+          {isGroupMember && (
+            <button 
+              className="uk-button uk-button-small uk-button-default"
+              onClick={() => {
+                if (window.confirm(`Leave "${group.title}"? You can be re-added by other members.`)) {
+                  removeMember(user.id);
+                }
+              }}
+              disabled={group.people.length === 1}
+              title={group.people.length === 1 ? "Cannot leave - you're the only member" : "Leave this group"}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              <FiUserMinus style={{ marginRight: '4px' }} />
+              Leave Group
+            </button>
+          )}
 
-          {/* NEW: Delete Group Button - Only for admins/root */}
+          {/* Delete Group Button - Only for admins/root */}
           {canDeleteGroup && (
             <button 
               className="uk-button uk-button-small uk-button-danger"
@@ -614,11 +684,17 @@ function GroupManage() {
         
         {/* Permission Info */}
         <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
-          {canDeleteGroup ? (
+          {isCreator && !isGroupMember && (
+            <>
+              <strong>Creator privileges:</strong> You can manage this group even though you're not a member.
+            </>
+          )}
+          {canDeleteGroup && !isCreator && (
             <>
               <strong>Admin privileges:</strong> You can delete this group permanently.
             </>
-          ) : (
+          )}
+          {!canDeleteGroup && !isCreator && (
             <>
               Only administrators can delete groups. Contact an admin if this group needs to be removed.
             </>
