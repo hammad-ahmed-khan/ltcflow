@@ -10,14 +10,19 @@ import './GroupList.sass';
 
 function GroupList() {
   const rooms = useSelector((state) => state.io.rooms);
-  const groupsWithNewMessages = useSelector((state) => state.messages.groupsWithNewMessages); // NEW
+  const groupsWithNewMessages = useSelector((state) => state.messages.groupsWithNewMessages);
   const [user] = useGlobal('user');
   const setPanel = useGlobal('panel')[1];
   const navigate = useNavigate();
 
-  // Filter only groups the user belongs to
+  // Updated filter: Include groups where user is either a member OR the creator
   const userGroups = rooms.filter(room => 
-    room.isGroup && room.people && room.people.some(person => person._id === user.id)
+    room.isGroup && (
+      // User is a member
+      (room.people && room.people.some(person => person._id === user.id)) ||
+      // User is the creator (even if not a member)
+      (room.creator && room.creator._id === user.id)
+    )
   );
 
   // Check if user can create groups
@@ -36,7 +41,7 @@ function GroupList() {
     setPanel('createGroup');
   };
 
-  console.log("GroupList - Unread groups:", groupsWithNewMessages); // DEBUG
+  console.log("GroupList - Unread groups:", groupsWithNewMessages);
 
   if (userGroups.length === 0) {
     return (
@@ -71,14 +76,21 @@ function GroupList() {
   return (
     <>
       {userGroups.map(group => {
-        // NEW: Check if this group has unread messages
-        const hasUnreadMessages = groupsWithNewMessages.includes(group._id);
+        // Check user's relationship to the group
+        const isGroupMember = group.people && group.people.some(person => person._id === user.id);
+        const isCreator = group.creator && group.creator._id === user.id;
         
-        // NEW: Get last message info for groups
+        // Only show unread indicator for groups where user is a member
+        const hasUnreadMessages = isGroupMember && groupsWithNewMessages.includes(group._id);
+        
+        // Get last message info for groups (only for member groups)
         let { lastMessage } = group;
         let messageText = '';
         
-        if (!lastMessage) {
+        if (!isGroupMember) {
+          // For creator-only groups, show different message
+          messageText = 'Created by you (not joined)';
+        } else if (!lastMessage) {
           messageText = 'No messages yet.';
         } else {
           if (lastMessage.author === user.id) messageText += 'You: ';
@@ -95,35 +107,63 @@ function GroupList() {
           }
         }
         
-        const date = lastMessage ? moment(lastMessage.date).format('MMM D') : '';
-        const time = lastMessage ? moment(lastMessage.date).format('h:mm A') : '';
+        const date = lastMessage && isGroupMember ? moment(lastMessage.date).format('MMM D') : '';
+        const time = lastMessage && isGroupMember ? moment(lastMessage.date).format('h:mm A') : '';
         
         return (
           <div 
-            key={`${group._id}-${hasUnreadMessages ? 'unread' : 'read'}`} // ENHANCED: Dynamic key for re-render
-            className={`room uk-flex${hasUnreadMessages ? ' room-unread' : ''}`} // NEW: Add unread class
+            key={`${group._id}-${hasUnreadMessages ? 'unread' : 'read'}`}
+            className={`room uk-flex${hasUnreadMessages ? ' room-unread' : ''}${!isGroupMember ? ' room-creator-only' : ''}`}
             onClick={() => handleGroupClick(group._id)}
+            style={{
+              background: !isGroupMember ? '#f8f9fa' : undefined, // Subtle visual difference for creator-only groups
+              borderLeft: !isGroupMember ? '3px solid #007bff' : undefined // Creator indicator
+            }}
           >
-            <div className="profile">
+            <div className="profile" style={{ position: 'relative' }}>
               <Picture 
                 group={true} 
                 picture={group.picture} 
                 title={group.title}
               />
+              {/* Creator badge overlay */}
+              {isCreator && !isGroupMember && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-2px',
+                  right: '-2px',
+                  background: '#007bff',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '16px',
+                  height: '16px',
+                  fontSize: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  border: '2px solid white',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                }}>
+                  👑
+                </div>
+              )}
             </div>
             <div className="text">
-              <div className={`title${hasUnreadMessages ? ' highlight' : ''}`}> {/* NEW: Bold if unread */}
+              <div className={`title${hasUnreadMessages ? ' highlight' : ''}`}>
                 {group.title.length > 20 ? `${group.title.substr(0, 20)}...` : group.title}
               </div>
-              {/* NEW: Show last message preview */}
-              <div className={`message${hasUnreadMessages ? ' highlight' : ''}`}>
-                {messageText.length > 26 ? `${messageText.substr(0, 26)}...` : messageText}
+              <div className={`message${hasUnreadMessages ? ' highlight' : ''}`} style={{
+                color: !isGroupMember ? '#007bff' : undefined,
+                fontStyle: !isGroupMember ? 'italic' : 'normal'
+              }}>
+                {messageText.length > 36 ? `${messageText.substr(0, 36)}...` : messageText}
               </div>
             </div>
-            <div className="controls" hidden={!canCreateGroups}> {/* FIXED: Hide when no settings button */}
+            <div className="controls">
               <div className="date">
-                {/* Show last message time or member count */}
-                {lastMessage ? (
+                {/* Show different info based on membership */}
+                {isGroupMember && lastMessage ? (
                   <>
                     {date}
                     <br />
@@ -134,8 +174,8 @@ function GroupList() {
                 )}
               </div>
             </div>
-            {/* FIXED: Settings button with proper positioning */}
-            {canCreateGroups && (
+            {/* Settings button - show for creators or members with permissions */}
+            {(canCreateGroups && (isGroupMember || isCreator)) && (
               <div className="controls">
                 <div 
                   className="button"

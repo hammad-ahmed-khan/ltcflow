@@ -1,26 +1,28 @@
+// backend/src/routes/list-rooms.js
 const Room = require("../models/Room");
 
 module.exports = (req, res, next) => {
-  let { limit } = req.fields;
-  const companyId = req.headers["x-company-id"]; // Read from header
+  const companyId = req.headers["x-company-id"];
 
   // Validate companyId
   if (!companyId) {
     return res.status(400).json({ error: "Company ID required." });
   }
 
-  !limit && (limit = 30);
-
-  // Query includes companyId to ensure data isolation
+  // Updated query to include both member rooms and creator rooms
   Room.find({
-    people: { $in: [req.user.id] },
-    companyId, // Add companyId filter
-    $or: [
+    companyId,
+    $and: [
       {
-        lastMessage: { $ne: null },
+        $or: [
+          // Regular rooms and groups where user is a member
+          { people: { $in: [req.user.id] } },
+          // Groups where user is the creator (even if not a member)
+          { creator: req.user.id, isGroup: true },
+        ],
       },
       {
-        isGroup: true,
+        $or: [{ lastMessage: { $ne: null } }, { isGroup: true }],
       },
     ],
   })
@@ -33,13 +35,16 @@ module.exports = (req, res, next) => {
         path: "picture",
       },
     })
+    .populate({
+      path: "creator", // Add creator population
+      select: "firstName lastName username email",
+    })
     .populate("lastMessage")
-    .limit(limit)
     .exec((err, rooms) => {
       if (err) {
         console.error(err);
         return res.status(500).json({ error: "Server error." });
       }
-      res.status(200).json({ limit, rooms });
+      res.status(200).json({ rooms }); // Removed limit from response
     });
 };

@@ -1,6 +1,7 @@
 // backend/src/routes/group-remove-member.js
 const Room = require("../models/Room");
 const User = require("../models/User");
+const { checkGroupPermissions } = require("../utils/groupPermissions");
 
 module.exports = async (req, res) => {
   try {
@@ -22,12 +23,14 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Find the group
+    // Find the group and populate creator
     const group = await Room.findOne({
       _id: groupId,
       companyId,
       isGroup: true,
-    }).populate("people");
+    })
+      .populate("people")
+      .populate("creator");
 
     if (!group) {
       return res.status(404).json({
@@ -51,29 +54,22 @@ module.exports = async (req, res) => {
     const isSelfRemoval = req.user.id === userId;
 
     if (isSelfRemoval) {
-      // Anyone can leave a group (except if they're the only member)
+      // Anyone can leave a group they're a member of
       if (group.people.length === 1) {
-        return res.status(400).json({
-          error: "CANNOT_LEAVE_EMPTY_GROUP",
-          message: "Cannot leave group - you're the only member",
-        });
+        console.log(
+          `⚠️ Last member ${req.user.username} leaving group "${group.title}" - group will be empty`
+        );
       }
     } else {
       // Removing someone else - check permissions
-      const isGroupMember = group.people.some(
-        (member) => member._id.toString() === req.user.id
-      );
-      const userLevel = req.user.level;
+      const permissions = checkGroupPermissions(req.user, group);
 
-      // Authorization logic: Root can manage globally, managers/admins need to be group members
-      const canManageMembers =
-        userLevel === "root" ||
-        (["manager", "admin"].includes(userLevel) && isGroupMember);
-
-      if (!canManageMembers) {
+      if (!permissions.canManageGroup) {
+        // Fixed: Use correct property name
         return res.status(403).json({
           error: "INSUFFICIENT_PERMISSIONS",
-          message: "You do not have permission to remove members.",
+          message:
+            "You don't have permission to remove members from this group",
         });
       }
     }
@@ -83,12 +79,20 @@ module.exports = async (req, res) => {
       $pull: { people: userId },
     });
 
-    // Return updated group with populated people
-    const updatedGroup = await Room.findById(groupId).populate("people");
+    // Return updated group with populated people AND creator
+    const updatedGroup = await Room.findById(groupId)
+      .populate("people")
+      .populate("creator", "firstName lastName username email");
 
     const actionMessage = isSelfRemoval
-      ? "Left group successfully"
-      : `${targetUser.firstName} ${targetUser.lastName} removed from group successfully`;
+      ? `You left the group "${group.title}"`
+      : `${targetUser.firstName} ${targetUser.lastName} removed from group`;
+
+    console.log(
+      `👥 ${isSelfRemoval ? "Self-removal" : "Member removal"}: ${
+        targetUser.username
+      } from group "${group.title}" by ${req.user.username}`
+    );
 
     res.status(200).json({
       status: "success",

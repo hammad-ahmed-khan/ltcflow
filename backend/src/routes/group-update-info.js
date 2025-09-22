@@ -2,6 +2,7 @@
 const Room = require("../models/Room");
 const mongoose = require("mongoose");
 const xss = require("xss");
+const { checkGroupPermissions } = require("../utils/groupPermissions");
 
 module.exports = async (req, res) => {
   try {
@@ -51,18 +52,10 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Removing someone else - check permissions
-    const isGroupMember = group.people.some(
-      (member) => member._id.toString() === req.user.id
-    );
-    const userLevel = req.user.level;
+    // Check permissions using simplified system
+    const permissions = checkGroupPermissions(req.user, group);
 
-    // Authorization logic: Root can manage globally, managers/admins need to be group members
-    const canManageMembers =
-      userLevel === "root" ||
-      (["manager", "admin"].includes(userLevel) && isGroupMember);
-
-    if (!canManageMembers) {
+    if (!permissions.canManageGroup) {
       return res.status(403).json({
         status: 403,
         error: "INSUFFICIENT_PERMISSIONS",

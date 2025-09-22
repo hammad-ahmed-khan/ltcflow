@@ -1,10 +1,11 @@
 const Room = require("../models/Room");
+const User = require("../models/User");
 const xss = require("xss");
 
 module.exports = async (req, res) => {
   try {
-    const { people, title, picture } = req.fields;
-    const companyId = req.headers["x-company-id"]; // read from header
+    const { people, title, picture, includeCreator = true } = req.fields;
+    const companyId = req.headers["x-company-id"];
 
     if (!companyId) {
       return res
@@ -19,23 +20,43 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Create new room with companyId
+    const creatorId = req.user.id;
+
+    // Determine final group members
+    let finalPeople = people || [];
+
+    // If includeCreator is true (default), add creator to the group members
+    if (includeCreator && !finalPeople.includes(creatorId)) {
+      finalPeople.push(creatorId);
+    }
+
+    // If includeCreator is false, remove creator from members if they were included
+    if (!includeCreator) {
+      finalPeople = finalPeople.filter((userId) => userId !== creatorId);
+    }
+
+    // Create new room with creator field
     const room = await new Room({
-      people,
+      people: finalPeople,
       isGroup: true,
       title: xss(title),
       picture,
-      companyId, // associate room with company
+      companyId,
+      creator: creatorId,
     }).save();
 
     // Populate people field
-    const populatedRoom = await Room.findOne({ _id: room._id }).populate(
-      "people"
+    const populatedRoom = await Room.findOne({ _id: room._id })
+      .populate("people")
+      .populate("creator", "firstName lastName username email");
+
+    console.log(
+      `📊 Group "${title}" created by ${req.user.username} (creator in group: ${includeCreator})`
     );
 
     res.status(200).json(populatedRoom);
   } catch (err) {
-    console.error(err);
+    console.error("Create group error:", err);
     res
       .status(500)
       .json({ status: 500, error: "UNKNOWN_ERROR", details: err.message });

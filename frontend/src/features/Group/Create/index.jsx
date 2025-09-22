@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useGlobal } from 'reactn';
 import { FiEdit2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
@@ -14,14 +14,21 @@ function CreateGroup() {
   const setPanel = useGlobal('panel')[1];
   const [user] = useGlobal('user');
   const [searchResults] = useGlobal('searchResults');
-  const [selectedUsers, setSelectedUsers] = useState([user.id]);
+  const [selectedUsers, setSelectedUsers] = useState([]); // Changed: Don't include user by default
   const [groupTitle, setGroupTitle] = useState('');
   const [groupPicture, setGroupPicture] = useState(null);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
-  
+  const [includeCreator, setIncludeCreator] = useState(true);
+
   const fileInput = useRef(null);
   const navigate = useNavigate();
+
+  // Calculate total member count dynamically
+  const totalMemberCount = useMemo(() => {
+    const selectedCount = selectedUsers.length;
+    return includeCreator ? selectedCount + 1 : selectedCount;
+  }, [selectedUsers.length, includeCreator]);
 
   // Load initial search results
   useEffect(() => {
@@ -60,9 +67,9 @@ function CreateGroup() {
       newErrors.title = 'Group name cannot exceed 50 characters.';
     }
     
-    const selectedCount = selectedUsers.length - 1; // Exclude self
-    if (selectedCount === 0) {
-      newErrors.members = 'Select at least one member to create a group.';
+    // Updated validation: Check if total member count is 0
+    if (totalMemberCount === 0) {
+      newErrors.members = 'Select at least one member or include yourself in the group.';
     }
     
     setErrors(newErrors);
@@ -75,10 +82,17 @@ function CreateGroup() {
     setLoading(true);
     
     try {
+      // Prepare the final people array based on includeCreator
+      let finalPeople = [...selectedUsers];
+      if (includeCreator && !finalPeople.includes(user.id)) {
+        finalPeople.push(user.id);
+      }
+
       const res = await createGroup({ 
-        people: selectedUsers, 
+        people: finalPeople, 
         picture: groupPicture, 
-        title: groupTitle.trim() 
+        title: groupTitle.trim(),
+        includeCreator: includeCreator
       });
       
       setPanel('standard');
@@ -93,8 +107,7 @@ function CreateGroup() {
     }
   };
 
-  const selectedCount = selectedUsers.length - 1;
-  const canCreate = groupTitle.trim() && selectedCount > 0;
+  const canCreate = groupTitle.trim() && totalMemberCount > 0;
 
   const handleTitleChange = (e) => {
     setGroupTitle(e.target.value);
@@ -215,23 +228,43 @@ function CreateGroup() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div style={{ 
           padding: '12px 16px', 
-          background: '#f8f9fa',
+          background: '#ffffff',
           borderBottom: errors.members ? '2px solid #c62828' : '1px solid #eee'
         }}>
-          <div className="uk-flex uk-flex-between uk-flex-middle">
-            <span style={{ fontSize: '14px', fontWeight: '500' }}>
-              Add Group Members {selectedCount > 0 ? `(${selectedCount} selected)` : ''}
-            </span>
-            {selectedCount > 0 && (
+          <div className="uk-flex uk-flex-between uk-flex-middle" style={{ marginBottom: '8px' }}>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>
+                Add Group Members
+              </div>
+              {/* Updated count display with better spacing */}
+              {selectedUsers.length > 0 && (
+                <div style={{ fontSize: '12px', color: '#666', lineHeight: '1.4' }}>
+                  {selectedUsers.length} selected
+                  {includeCreator && (
+                    <span> + you = <strong style={{ color: '#007bff' }}>{totalMemberCount} total</strong></span>
+                  )}
+                  {!includeCreator && (
+                    <span>, you won't be included</span>
+                  )}
+                </div>
+              )}
+            </div>
+            {selectedUsers.length > 0 && (
               <button
                 className="uk-button uk-button-small uk-button-default"
-                onClick={() => setSelectedUsers([user.id])}
-                style={{ fontSize: '11px', padding: '4px 8px' }}
+                onClick={() => setSelectedUsers([])}
+                style={{ 
+                  fontSize: '11px', 
+                  padding: '6px 12px',
+                  height: 'auto',
+                  lineHeight: '1.2'
+                }}
               >
                 Clear Selection
               </button>
             )}
           </div>
+
           {errors.members && (
             <div style={{ 
               color: '#c62828', 
@@ -239,6 +272,42 @@ function CreateGroup() {
               marginTop: '4px'
             }}>
               {errors.members}
+            </div>
+          )}
+
+          {/* Creator Inclusion Checkbox */}
+          <div className="uk-margin" style={{ marginTop: '12px' }}>
+            <label>
+              <input 
+                className="uk-checkbox uk-margin-small-right" 
+                type="checkbox" 
+                checked={includeCreator}
+                onChange={(e) => setIncludeCreator(e.target.checked)}
+              />
+              Include me as a group member
+            </label>
+            <div className="uk-text-small uk-text-muted uk-margin-small-top">
+              {includeCreator ? 
+                "You'll be added to the group and can participate in conversations" : 
+                "You'll create the group but won't be a member (you can still manage it)"
+              }
+            </div>
+          </div>
+
+          {/* Member Count Summary */}
+          {(selectedUsers.length > 0 || includeCreator) && (
+            <div style={{ 
+              background: '#f8f9fa', 
+              padding: '8px', 
+              borderRadius: '4px', 
+              fontSize: '12px',
+              marginTop: '8px'
+            }}>
+              <strong>Total Members: {totalMemberCount}</strong>
+              {selectedUsers.length === 0 && includeCreator && <span> (just you)</span>}
+              {totalMemberCount === 0 && (
+                <span style={{ color: '#c62828' }}> - Please select members or include yourself</span>
+              )}
             </div>
           )}
         </div>
@@ -299,10 +368,10 @@ function CreateGroup() {
         >
           {loading ? (
             'Creating group...'
-          ) : selectedCount === 0 ? (
+          ) : totalMemberCount === 0 ? (
             'Select members to continue'
           ) : (
-            `Create Group (${selectedCount} Members)`
+            `Create Group (${totalMemberCount} Member${totalMemberCount !== 1 ? 's' : ''})`
           )}
         </button>
         
@@ -312,14 +381,14 @@ function CreateGroup() {
           color: '#666',
           marginTop: '8px'
         }}>
-          {!groupTitle.trim() && selectedCount === 0 ? (
+          {!groupTitle.trim() && totalMemberCount === 0 ? (
             'Enter a group name and select members to get started.'
           ) : !groupTitle.trim() ? (
             'Please enter a group name to continue.'
-          ) : selectedCount === 0 ? (
-            'Please select at least one member to continue.'
+          ) : totalMemberCount === 0 ? (
+            'Please select at least one member or include yourself.'
           ) : (
-            `Ready to create a group with ${selectedCount} members.`
+            `Ready to create a group with ${totalMemberCount} member${totalMemberCount !== 1 ? 's' : ''}.`
           )}
         </div>
       </div>
