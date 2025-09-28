@@ -129,7 +129,14 @@ module.exports = () => {
   );
   //store.app.use("/api", router);
   // Apply formidable to all normal routes under /api
-  store.app.use("/api", formidableMiddleware(), router);
+  //store.app.use("/api", formidableMiddleware(), router);
+  store.app.use(
+    "/api",
+    formidableMiddleware({
+      maxFileSize: 500 * 1024 * 1024, // 500MB
+    }),
+    router
+  );
 
   store.app.post(
     "/webhook/outseta",
