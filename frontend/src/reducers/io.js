@@ -53,7 +53,14 @@ const reducer = (state = initialState, action) => {
         ...state,
         refreshMeetings: action.timestamp,
       };
-    // ADD THIS NEW CASE:
+    case Actions.MESSAGE_UPDATE:
+      console.log("📝 Updating message in state:", action.message._id);
+      return {
+        ...state,
+        messages: state.messages.map((msg) =>
+          msg._id === action.message._id ? { ...msg, ...action.message } : msg
+        ),
+      };
     case Actions.REMOVE_MESSAGE:
       console.log("🗑️ Removing message from state:", action.messageId);
       return {

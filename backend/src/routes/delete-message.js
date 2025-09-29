@@ -1,7 +1,7 @@
 ﻿// backend/src/routes/delete-message.js
 const Message = require("../models/Message");
-const File = require("../models/File");
-const Image = require("../models/Image");
+const Room = require("../models/Room");
+const store = require("../store");
 
 module.exports = async (req, res) => {
   try {
@@ -37,6 +37,14 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Check if message is already deleted
+    if (message.isDeleted) {
+      return res.status(400).json({
+        error: "ALREADY_DELETED",
+        message: "Message is already deleted",
+      });
+    }
+
     // Check if user owns the message or is admin/root
     const isOwner = message.author._id.toString() === userId;
     const isAdmin = ["admin", "root"].includes(req.user.level);
@@ -48,40 +56,51 @@ module.exports = async (req, res) => {
       });
     }
 
-    console.log(`🗑️ User ${req.user.email} is deleting message: ${messageId}`);
+    console.log(
+      `🗑️ User ${req.user.email} is soft-deleting message: ${messageId}`
+    );
 
-    // Handle file cleanup for image and file messages
-    try {
-      if (message.type === "image" && message.content) {
-        // Delete associated image record
-        await Image.deleteOne({
-          shieldedID: message.content,
-          companyId,
-        });
-        console.log(`🖼️ Deleted image record: ${message.content}`);
-      } else if (message.type === "file" && message.content) {
-        // Delete associated file record
-        await File.deleteOne({
-          shieldedID: message.content,
-          companyId,
-        });
-        console.log(`📄 Deleted file record: ${message.content}`);
-      }
-    } catch (fileError) {
-      console.warn(
-        `⚠️ Warning: Could not clean up associated files:`,
-        fileError.message
-      );
-      // Continue with message deletion even if file cleanup fails
-    }
-
-    // Delete the message
-    await Message.deleteOne({
-      _id: messageId,
+    // Get the room to broadcast to all participants
+    const room = await Room.findOne({
+      _id: message.room,
       companyId,
     });
 
-    console.log(`✅ Message deleted successfully: ${messageId}`);
+    if (!room) {
+      return res.status(404).json({
+        error: "ROOM_NOT_FOUND",
+        message: "Room not found",
+      });
+    }
+
+    // ✨ SOFT DELETE: Mark as deleted instead of removing from database
+    message.originalContent = message.content;
+    message.isDeleted = true;
+    message.deletedAt = new Date();
+    message.deletedBy = userId;
+    message.content = null; // Hide content from UI
+
+    await message.save();
+
+    console.log(`✅ Message soft-deleted successfully: ${messageId}`);
+
+    // ✨ Broadcast message deletion to all room participants in real-time
+    if (store.io && room.people) {
+      room.people.forEach((person) => {
+        const personUserId = person.toString();
+        console.log(
+          `📡 Broadcasting message deletion to user: ${personUserId}`
+        );
+
+        store.io.to(personUserId).emit("message-deleted", {
+          messageId: messageId,
+          roomId: room._id.toString(),
+          deletedBy: userId,
+        });
+      });
+
+      console.log(`🔔 Broadcasted deletion to ${room.people.length} users`);
+    }
 
     res.status(200).json({
       status: 200,

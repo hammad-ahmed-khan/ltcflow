@@ -19,8 +19,50 @@ const MessageSchema = new Schema(
       ref: "Company",
       required: true,
     },
+
+    // HIPAA-Compliant Soft Delete
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "users",
+      default: null,
+    },
+
+    // HIPAA Audit Trail
+    originalContent: {
+      type: String,
+      default: null, // Store original for compliance/audit
+    },
+
+    // PHI indicator (if message contains Protected Health Information)
+    containsPHI: {
+      type: Boolean,
+      default: true, // Assume all messages contain PHI in healthcare context
+    },
   },
   { timestamps: true }
 ); // optional: track createdAt/updatedAt
+
+// Soft delete method
+MessageSchema.methods.softDelete = function (deletedBy) {
+  this.isDeleted = true;
+  this.deletedAt = new Date();
+  this.deletedBy = deletedBy;
+  this.content = null; // Clear content for privacy
+  return this.save();
+};
+
+// Query helper to exclude deleted messages by default
+MessageSchema.query.notDeleted = function () {
+  return this.where({ isDeleted: { $ne: true } });
+};
 
 module.exports = mongoose.model("messages", MessageSchema);

@@ -306,6 +306,49 @@ const initIO = (token) => (dispatch) => {
     console.log("🔄 Socket reconnected after", attemptNumber, "attempts");
   });
 
+  io.on("message-deleted", (data) => {
+    const { messageId, roomId, deletedBy } = data;
+
+    console.log("🗑️ Message deleted event received:", {
+      messageId,
+      roomId,
+      deletedBy,
+    });
+
+    const currentRoom = store.getState().io.room;
+    const currentMessages = store.getState().io.messages || [];
+
+    const messageToUpdate = currentMessages.find(
+      (msg) => msg._id === messageId
+    );
+
+    if (!messageToUpdate) {
+      console.log("⚠️ Message not found in current state");
+      return;
+    }
+
+    if (currentRoom && currentRoom._id === roomId) {
+      console.log("💬 Marking message as deleted");
+
+      store.dispatch({
+        type: Actions.MESSAGE_UPDATE,
+        message: {
+          ...messageToUpdate,
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: deletedBy,
+          content: null,
+        },
+      });
+    }
+
+    getRooms()
+      .then((res) =>
+        store.dispatch({ type: Actions.SET_ROOMS, rooms: res.data.rooms })
+      )
+      .catch((err) => console.error("❌ Error updating rooms list:", err));
+  });
+
   // Enhanced beforeunload with retry logic
   const handleBeforeUnload = () => {
     const currentRoomID = store.getState().rtc.roomID;

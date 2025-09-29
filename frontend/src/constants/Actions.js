@@ -3,6 +3,9 @@ const Actions = {
   SET_MESSAGES: "SET_MESSAGES",
   MORE_MESSAGES: "MORE_MESSAGES",
   MESSAGE: "MESSAGE",
+  REMOVE_MESSAGE: "REMOVE_MESSAGE", // ✨ NEW ACTION
+  MESSAGE_UPDATE: "MESSAGE_UPDATE", // ✨ ADD THIS
+
   SET_ROOM: "SET_ROOM",
   SET_ROOMS: "SET_ROOMS",
   ONLINE_USERS: "ONLINE_USERS",
@@ -28,6 +31,7 @@ const Actions = {
   // REMOVED: CLEAR_UNREAD_STATE - no longer needed since we don't clear on logout
 
   REFRESH_MEETINGS: "REFRESH_MEETINGS",
+  MESSAGE_DELETED: "MESSAGE_DELETED",
 };
 
 export default Actions;

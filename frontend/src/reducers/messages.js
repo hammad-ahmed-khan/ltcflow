@@ -124,6 +124,16 @@ const reducer = (state = initialState, action) => {
       );
       return newState;
 
+    case Actions.MESSAGE_DELETED:
+      return {
+        ...state,
+        messages: state.messages.map((msg) =>
+          msg._id === action.messageId
+            ? { ...msg, isDeleted: true, deletedAt: new Date(), content: null }
+            : msg
+        ),
+      };
+
     // REMOVED: No longer clear unread state on logout
     // Users should see unread messages when they log back in
     default:
