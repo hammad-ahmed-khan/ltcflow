@@ -48,6 +48,49 @@ function Message({
   ) attachPrevious = true;
   if (next && Math.abs(moment(next.date).diff(moment(date), 'minutes')) < 3 && author._id === next.author._id) attachNext = true;
 
+    // ✅ CHECK IF MESSAGE IS DELETED EARLY - BEFORE ANY CONTENT PROCESSING
+if (message.isDeleted) {
+  return (
+    <div
+      className={`message${isMine ? ' right' : ' left'}${attachPrevious ? ' attach-previous' : ''}${attachNext ? ' attach-next' : ''}`}
+      ref={messageRef}
+    >
+      {/* Picture or Spacer - Same logic as PictureOrSpacer() */}
+      {attachPrevious ? (
+        <div className="spacer" />
+      ) : (
+        <div className="picture">
+          {author.picture ? (
+            <img
+              src={`${Config.url || ''}/api/images/${author.picture.shieldedID}/256`}
+              alt="Picture"
+            />
+          ) : (
+            <div className="img">
+              {author.firstName.substr(0, 1)}
+              {author.lastName.substr(0, 1)}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div
+        className={`content-x${isMine ? ' right' : ''}${attachPrevious ? ' attach-previous' : ''}${attachNext ? ' attach-next' : ''} deleted-message`}
+      >
+        <div className={`bubble bubble-${isMine ? 'right' : 'left'} ${isMine ? 'right' : 'left'}`}>
+          <span className="deleted-icon">🚫</span>
+          <span className="deleted-text">This message was deleted</span>
+        </div>
+        {!attachNext && (
+          <div className={`message-details ${isMine ? 'right' : 'left'}`}>
+            {moment(date).format('MMM DD - h:mm A')}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
   // Close context menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -91,11 +134,34 @@ function Message({
     
     if (!isMine) return; // Only allow deletion of own messages
     
-    const rect = messageRef.current.getBoundingClientRect();
-    setContextMenuPosition({
-      x: e.clientX,
-      y: e.clientY
-    });
+    // Calculate position and keep within viewport
+    const menuWidth = 200; // Approximate menu width
+    const menuHeight = 60; // Approximate menu height
+    
+    let x = e.clientX;
+    let y = e.clientY;
+    
+    // Check if menu would go off right edge
+    if (x + menuWidth > window.innerWidth) {
+      x = window.innerWidth - menuWidth - 10;
+    }
+    
+    // Check if menu would go off bottom edge
+    if (y + menuHeight > window.innerHeight) {
+      y = window.innerHeight - menuHeight - 10;
+    }
+    
+    // Ensure minimum distance from left edge
+    if (x < 10) {
+      x = 10;
+    }
+    
+    // Ensure minimum distance from top edge
+    if (y < 10) {
+      y = 10;
+    }
+    
+    setContextMenuPosition({ x, y });
     setShowContextMenu(true);
   };
 
@@ -107,30 +173,48 @@ function Message({
   };
 
   // Mobile: Touch and hold
-  const handleTouchStart = (e) => {
-    if (!isMine) return;
-    
-    const startTime = Date.now();
-    setTouchStartTime(startTime);
-    
-    const timer = setTimeout(() => {
-      // Long press detected
-      if (Date.now() - startTime >= 500) {
-        const touch = e.touches[0];
-        const rect = messageRef.current.getBoundingClientRect();
-        setContextMenuPosition({
-          x: touch.clientX,
-          y: touch.clientY
-        });
-        setShowContextMenu(true);
-        
-        // Prevent default to stop selection
-        e.preventDefault();
+const handleTouchStart = (e) => {
+  if (!isMine) return;
+
+  const startTime = Date.now();
+  setTouchStartTime(startTime);
+
+  const timer = setTimeout(() => {
+    if (Date.now() - startTime >= 500) {
+      const touch = e.touches[0];
+
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+
+      const menuWidth = 185;   // exact menu width
+      const menuHeight = 60;  // estimate or measure later
+
+      let posX = touch.clientX;
+      let posY = touch.clientY;
+
+      // Clamp horizontally
+      if (posX + menuWidth > screenWidth) {
+        posX = screenWidth - menuWidth - 8; // small padding
       }
-    }, 500);
-    
-    setTouchTimer(timer);
-  };
+
+      // Clamp vertically
+      if (posY + menuHeight > screenHeight) {
+        posY = screenHeight - menuHeight - 8;
+      }
+
+      // Never let it go negative
+      posX = Math.max(8, posX);
+      posY = Math.max(8, posY);
+
+      setContextMenuPosition({ x: posX, y: posY });
+      setShowContextMenu(true);
+
+      e.preventDefault();
+    }
+  }, 500);
+
+  setTouchTimer(timer);
+};
 
   const handleTouchEnd = () => {
     if (touchTimer) {
@@ -166,8 +250,9 @@ function Message({
     );
   }
 
-  const noEmoji = content.replace(emojiRegex(), '');
-  const isOnlyEmoji = !noEmoji.replace(/[\s\n]/gm, '');
+  // ✅ SAFE: Only process content if it exists (not deleted)
+  const noEmoji = content ? content.replace(emojiRegex(), '') : '';
+  const isOnlyEmoji = content ? !noEmoji.replace(/[\s\n]/gm, '') : false;
 
   const getBubble = () => {
     if (attachPrevious || isOnlyEmoji) {
@@ -179,6 +264,7 @@ function Message({
   };
 
   const convertUrls = (text) => {
+    if (!text) return '';
     const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi;
     return text.replace(urlRegex, (url) => {
       return `<a href="${url}" target="_blank">${url}</a>`;
@@ -218,7 +304,7 @@ function Message({
         return (
           <div
             dangerouslySetInnerHTML={{
-              __html: convertUrls(striptags(content, ['a', 'strong', 'b', 'i', 'em', 'u', 'br'])),
+              __html: convertUrls(striptags(content || '', ['a', 'strong', 'b', 'i', 'em', 'u', 'br'])),
             }}
           />
         );
@@ -239,7 +325,6 @@ function Message({
       className={`message${isMine ? ' right' : ' left'}${attachPrevious ? ' attach-previous' : ''}${
         attachNext ? ' attach-next' : ''
       } message-with-menu`}
-      onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onMouseEnter={() => setIsHovered(true)}

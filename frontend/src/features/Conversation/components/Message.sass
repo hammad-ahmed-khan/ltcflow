@@ -121,7 +121,7 @@
       border: 1px solid #e1e1e1
       border-radius: 8px
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15)
-      min-width: 140px
+      min-width: 165px
       z-index: 100
       animation: dropdownFadeIn 0.15s ease-out
       
@@ -262,3 +262,26 @@
     -moz-user-select: text
     -ms-user-select: text
     user-select: text
+
+.deleted-message
+  background-color: #f0f0f0
+  border-radius: 8px
+  color: #999
+  font-style: italic
+  font-size: 14px
+
+  i
+    font-size: 16px
+    color: #999
+
+  .deleted-text
+    user-select: none
+
+  // For dark mode
+  @media (prefers-color-scheme: dark)
+    background-color: #2a2a2a
+    color: #666
+
+    i
+      color: #666
+    
