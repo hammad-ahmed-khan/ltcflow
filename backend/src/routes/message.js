@@ -1,16 +1,16 @@
-const Message = require('../models/Message');
-const Room = require('../models/Room');
-const store = require('../store');
-const xss = require('xss');
+const Message = require("../models/Message");
+const Room = require("../models/Room");
+const store = require("../store");
+const xss = require("xss");
 
 module.exports = (req, res, next) => {
   const { roomID, authorID, content, type, fileID } = req.fields;
-  const companyId = req.headers['x-company-id']; // Read from header
+  const companyId = req.headers["x-company-id"]; // Read from header
 
   // Validate required fields
   if (!roomID || !authorID || !companyId) {
     return res.status(400).json({
-      error: 'Room ID, Author ID, and Company ID are required.',
+      error: "Room ID, Author ID, and Company ID are required.",
     });
   }
 
@@ -18,12 +18,18 @@ module.exports = (req, res, next) => {
   Room.findOne({ _id: roomID, companyId })
     .then((room) => {
       if (!room) {
-        return res.status(404).json({ error: 'Room not found or access denied.' });
+        return res
+          .status(404)
+          .json({ error: "Room not found or access denied." });
       }
 
       // Check if user is a member of this room
-      if (room.people.filter((person) => authorID.toString() === person.toString()).length === 0) {
-        return res.status(403).json({ error: 'Access denied to this room.' });
+      if (
+        room.people.filter(
+          (person) => authorID.toString() === person.toString()
+        ).length === 0
+      ) {
+        return res.status(403).json({ error: "Access denied to this room." });
       }
 
       // Create message with companyId
@@ -39,15 +45,15 @@ module.exports = (req, res, next) => {
         .then((message) => {
           Message.findById(message._id)
             .populate({
-              path: 'author',
-              select: '-email -password -friends -__v',
+              path: "author",
+              select: "-email -password -friends -__v",
               populate: [
                 {
-                  path: 'picture',
+                  path: "picture",
                 },
               ],
             })
-            .populate([{ path: 'file', strictPopulate: false }])
+            .populate([{ path: "file", strictPopulate: false }])
             .then((message) => {
               // Update room with companyId check
               Room.findOneAndUpdate(
@@ -58,11 +64,13 @@ module.exports = (req, res, next) => {
                     lastMessage: message._id,
                     lastAuthor: authorID,
                   },
-                },
+                }
               )
                 .then((room) => {
                   if (!room) {
-                    return res.status(404).json({ error: 'Room update failed.' });
+                    return res
+                      .status(404)
+                      .json({ error: "Room update failed." });
                   }
 
                   // Emit to room members (they're all in the same company)
@@ -71,28 +79,36 @@ module.exports = (req, res, next) => {
                     const personUserID = person.toString();
 
                     if (personUserID !== myUserID) {
-                      store.io.to(personUserID).emit('message-in', { status: 200, message, room });
+                      store.io
+                        .to(personUserID)
+                        .emit("message-in", { status: 200, message, room });
                     }
                   });
                   res.status(200).json({ message, room });
                 })
                 .catch((err) => {
                   console.error(err);
-                  return res.status(500).json({ error: 'Server error updating room.' });
+                  return res
+                    .status(500)
+                    .json({ error: "Server error updating room." });
                 });
             })
             .catch((err) => {
               console.error(err);
-              return res.status(500).json({ error: 'Server error loading message.' });
+              return res
+                .status(500)
+                .json({ error: "Server error loading message." });
             });
         })
         .catch((err) => {
           console.error(err);
-          return res.status(500).json({ error: 'Server error creating message.' });
+          return res
+            .status(500)
+            .json({ error: "Server error creating message." });
         });
     })
     .catch((err) => {
       console.error(err);
-      return res.status(500).json({ error: 'Server error verifying room.' });
+      return res.status(500).json({ error: "Server error verifying room." });
     });
 };

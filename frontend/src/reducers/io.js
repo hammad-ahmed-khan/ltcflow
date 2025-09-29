@@ -1,4 +1,4 @@
-import Actions from '../constants/Actions';
+import Actions from "../constants/Actions";
 
 const initialState = {
   io: null,
@@ -52,6 +52,15 @@ const reducer = (state = initialState, action) => {
       return {
         ...state,
         refreshMeetings: action.timestamp,
+      };
+    // ADD THIS NEW CASE:
+    case Actions.REMOVE_MESSAGE:
+      console.log("🗑️ Removing message from state:", action.messageId);
+      return {
+        ...state,
+        messages: state.messages.filter(
+          (message) => message._id !== action.messageId
+        ),
       };
     default:
       return state;
