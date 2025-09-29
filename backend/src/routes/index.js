@@ -236,4 +236,10 @@ router.post(
 // Webhook route
 router.post("/webhook/outseta", require("./outseta-webhook"));
 
+router.post(
+  "/message/delete",
+  passport.authenticate("jwt", { session: false }, null),
+  require("./delete-message")
+);
+
 module.exports = router;

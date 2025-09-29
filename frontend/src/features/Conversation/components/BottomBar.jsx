@@ -106,10 +106,13 @@ useEffect(() => {
       type: 'text',
       date: moment(),
     };
+    
     dispatch({ type: Actions.MESSAGE, message: newMessage });
     setText('');
     showPicker(false);
   };
+
+  
 
   const handleKeyPress = (event) => {
     showPicker(false);
