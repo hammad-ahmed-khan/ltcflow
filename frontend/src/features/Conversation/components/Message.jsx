@@ -10,7 +10,9 @@ import Config from '../../../config';
 import { buildImageUrl, buildFileUrl } from '../../../utils/urlUtils';
 import { useToasts } from 'react-toast-notifications';
 import deleteMessage from '../../../actions/deleteMessage';
-
+import { useDispatch } from 'react-redux';
+import Actions from '../../../constants/Actions';
+ 
 function Message({
   message, previous, next, onOpen,
 }) {
@@ -19,6 +21,7 @@ function Message({
 
   const user = useGlobal('user')[0];
   const { addToast } = useToasts();
+  const dispatch = useDispatch();
 
   // Context menu states
   const [showContextMenu, setShowContextMenu] = useState(false);
@@ -48,50 +51,7 @@ function Message({
   ) attachPrevious = true;
   if (next && Math.abs(moment(next.date).diff(moment(date), 'minutes')) < 3 && author._id === next.author._id) attachNext = true;
 
-    // ✅ CHECK IF MESSAGE IS DELETED EARLY - BEFORE ANY CONTENT PROCESSING
-if (message.isDeleted) {
-  return (
-    <div
-      className={`message${isMine ? ' right' : ' left'}${attachPrevious ? ' attach-previous' : ''}${attachNext ? ' attach-next' : ''}`}
-      ref={messageRef}
-    >
-      {/* Picture or Spacer - Same logic as PictureOrSpacer() */}
-      {attachPrevious ? (
-        <div className="spacer" />
-      ) : (
-        <div className="picture">
-          {author.picture ? (
-            <img
-              src={`${Config.url || ''}/api/images/${author.picture.shieldedID}/256`}
-              alt="Picture"
-            />
-          ) : (
-            <div className="img">
-              {author.firstName.substr(0, 1)}
-              {author.lastName.substr(0, 1)}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div
-        className={`content-x${isMine ? ' right' : ''}${attachPrevious ? ' attach-previous' : ''}${attachNext ? ' attach-next' : ''} deleted-message`}
-      >
-        <div className={`bubble bubble-${isMine ? 'right' : 'left'} ${isMine ? 'right' : 'left'}`}>
-          <span className="deleted-icon">🚫</span>
-          <span className="deleted-text">This message was deleted</span>
-        </div>
-        {!attachNext && (
-          <div className={`message-details ${isMine ? 'right' : 'left'}`}>
-            {moment(date).format('MMM DD - h:mm A')}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-  // Close context menu when clicking outside
+  // ✅ MOVED: useEffect MUST come before any early returns
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (contextMenuRef.current && !contextMenuRef.current.contains(event.target)) {
@@ -110,17 +70,32 @@ if (message.isDeleted) {
     };
   }, []);
 
-  // Handle message deletion
+  // ✅ UPDATED: Handle message deletion with soft delete
   const handleDeleteMessage = async () => {
     try {
       await deleteMessage(message._id);
+      
+      dispatch({
+        type: Actions.MESSAGE_UPDATE,
+        message: {
+          ...message,
+          isDeleted: true,
+          deletedAt: new Date(),
+          deletedBy: user.id,
+          content: null,
+        },
+      });
+      
       addToast('Message deleted successfully', {
         appearance: 'success',
         autoDismiss: true,
       });
+      
       setShowContextMenu(false);
       setShowDropdown(false);
     } catch (error) {
+      console.error('Failed to delete message:', error);
+      
       addToast('Failed to delete message', {
         appearance: 'error',
         autoDismiss: true,
@@ -132,34 +107,24 @@ if (message.isDeleted) {
   const handleContextMenu = (e) => {
     e.preventDefault();
     
-    if (!isMine) return; // Only allow deletion of own messages
+    if (!isMine) return;
     
-    // Calculate position and keep within viewport
-    const menuWidth = 200; // Approximate menu width
-    const menuHeight = 60; // Approximate menu height
+    const menuWidth = 200;
+    const menuHeight = 60;
     
     let x = e.clientX;
     let y = e.clientY;
     
-    // Check if menu would go off right edge
     if (x + menuWidth > window.innerWidth) {
       x = window.innerWidth - menuWidth - 10;
     }
     
-    // Check if menu would go off bottom edge
     if (y + menuHeight > window.innerHeight) {
       y = window.innerHeight - menuHeight - 10;
     }
     
-    // Ensure minimum distance from left edge
-    if (x < 10) {
-      x = 10;
-    }
-    
-    // Ensure minimum distance from top edge
-    if (y < 10) {
-      y = 10;
-    }
+    if (x < 10) x = 10;
+    if (y < 10) y = 10;
     
     setContextMenuPosition({ x, y });
     setShowContextMenu(true);
@@ -173,48 +138,45 @@ if (message.isDeleted) {
   };
 
   // Mobile: Touch and hold
-const handleTouchStart = (e) => {
-  if (!isMine) return;
+  const handleTouchStart = (e) => {
+    if (!isMine) return;
 
-  const startTime = Date.now();
-  setTouchStartTime(startTime);
+    const startTime = Date.now();
+    setTouchStartTime(startTime);
 
-  const timer = setTimeout(() => {
-    if (Date.now() - startTime >= 500) {
-      const touch = e.touches[0];
+    const timer = setTimeout(() => {
+      if (Date.now() - startTime >= 500) {
+        const touch = e.touches[0];
 
-      const screenWidth = window.innerWidth;
-      const screenHeight = window.innerHeight;
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
 
-      const menuWidth = 185;   // exact menu width
-      const menuHeight = 60;  // estimate or measure later
+        const menuWidth = 185;
+        const menuHeight = 60;
 
-      let posX = touch.clientX;
-      let posY = touch.clientY;
+        let posX = touch.clientX;
+        let posY = touch.clientY;
 
-      // Clamp horizontally
-      if (posX + menuWidth > screenWidth) {
-        posX = screenWidth - menuWidth - 8; // small padding
+        if (posX + menuWidth > screenWidth) {
+          posX = screenWidth - menuWidth - 23;
+        }
+
+        if (posY + menuHeight > screenHeight) {
+          posY = screenHeight - menuHeight - 23;
+        }
+
+        posX = Math.max(8, posX);
+        posY = Math.max(8, posY);
+
+        setContextMenuPosition({ x: posX, y: posY });
+        setShowContextMenu(true);
+
+        e.preventDefault();
       }
+    }, 500);
 
-      // Clamp vertically
-      if (posY + menuHeight > screenHeight) {
-        posY = screenHeight - menuHeight - 8;
-      }
-
-      // Never let it go negative
-      posX = Math.max(8, posX);
-      posY = Math.max(8, posY);
-
-      setContextMenuPosition({ x: posX, y: posY });
-      setShowContextMenu(true);
-
-      e.preventDefault();
-    }
-  }, 500);
-
-  setTouchTimer(timer);
-};
+    setTouchTimer(timer);
+  };
 
   const handleTouchEnd = () => {
     if (touchTimer) {
@@ -223,7 +185,7 @@ const handleTouchStart = (e) => {
     }
   };
 
-  // Utility functions from original component
+  // Utility functions
   function Picture({ user }) {
     if (user.picture) return <img src={`${Config.url || ''}/api/images/${user.picture.shieldedID}/256`} alt="Picture" />;
     return (
@@ -250,7 +212,6 @@ const handleTouchStart = (e) => {
     );
   }
 
-  // ✅ SAFE: Only process content if it exists (not deleted)
   const noEmoji = content ? content.replace(emojiRegex(), '') : '';
   const isOnlyEmoji = content ? !noEmoji.replace(/[\s\n]/gm, '') : false;
 
@@ -316,15 +277,58 @@ const handleTouchStart = (e) => {
     return isOnlyEmoji ? 'emoji-bubble' : 'bubble';
   };
 
-  // Check if we should show the dropdown button (desktop only, on hover, for own messages)
   const shouldShowDropdownButton = isMine && isHovered && window.innerWidth >= 768;
 
+  // ✅ NOW it's safe to check for deleted messages - ALL hooks have been called
+  if (message.isDeleted) {
+    return (
+      <div
+        className={`message${isMine ? ' right' : ' left'}${attachPrevious ? ' attach-previous' : ''}${attachNext ? ' attach-next' : ''}`}
+        ref={messageRef}
+      >
+        {attachPrevious ? (
+          <div className="spacer" />
+        ) : (
+          <div className="picture">
+            {author.picture ? (
+              <img
+                src={`${Config.url || ''}/api/images/${author.picture.shieldedID}/256`}
+                alt="Picture"
+              />
+            ) : (
+              <div className="img">
+                {author.firstName.substr(0, 1)}
+                {author.lastName.substr(0, 1)}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div
+          className={`content-x${isMine ? ' right' : ''}${attachPrevious ? ' attach-previous' : ''}${attachNext ? ' attach-next' : ''} deleted-message`}
+        >
+          <div className={`bubble bubble-${isMine ? 'right' : 'left'} ${isMine ? 'right' : 'left'}`}>
+            <span className="deleted-icon">🚫</span>
+            <span className="deleted-text">This message was deleted</span>
+          </div>
+          {!attachNext && (
+            <div className={`message-details ${isMine ? 'right' : 'left'}`}>
+              {moment(date).format('MMM DD - h:mm A')}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Regular message rendering
   return (
     <div
       ref={messageRef}
       className={`message${isMine ? ' right' : ' left'}${attachPrevious ? ' attach-previous' : ''}${
         attachNext ? ' attach-next' : ''
       } message-with-menu`}
+      onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onMouseEnter={() => setIsHovered(true)}
@@ -345,7 +349,6 @@ const handleTouchStart = (e) => {
             <Content />
           </div>
           
-          {/* Desktop: Dropdown button (appears on hover) */}
           {shouldShowDropdownButton && (
             <div ref={dropdownRef} className="message-dropdown-container">
               <button
@@ -370,7 +373,6 @@ const handleTouchStart = (e) => {
         <Details side={isMine ? 'right' : 'left'} />
       </div>
 
-      {/* Context Menu (for right-click and long-press) */}
       {showContextMenu && (
         <div
           ref={contextMenuRef}
