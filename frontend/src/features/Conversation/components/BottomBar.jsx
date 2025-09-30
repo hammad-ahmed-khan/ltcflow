@@ -86,7 +86,7 @@ useEffect(() => {
       addToast(message, 'error');
     }
   };
-
+  /*
   const sendMessage = () => {
     if (text.length === 0 || isCreatorNonMember) return;
     message({
@@ -111,7 +111,50 @@ useEffect(() => {
     setText('');
     showPicker(false);
   };
-
+*/
+  const sendMessage = () => {
+  if (text.length === 0 || isCreatorNonMember) return;
+  
+  // Create temporary message with temp ID
+  const tempId = `temp-${Date.now()}-${Math.random()}`;
+  const newMessage = {
+    _id: tempId,
+    author: { ...user, _id: user.id },
+    content: text,
+    type: 'text',
+    date: moment(),
+  };
+  
+  // Add message to UI immediately (optimistic update)
+  dispatch({ type: Actions.MESSAGE, message: newMessage });
+  setText('');
+  showPicker(false);
+  
+  // Send to server
+  message({
+    roomID: room._id,
+    authorID: user.id,
+    content: text,
+    contentType: 'text',
+  }).then((res) => {
+    // Replace temp message with real message from server
+    dispatch({ 
+      type: Actions.MESSAGE_UPDATE,
+      message: {
+        ...newMessage,
+        _id: res.data.message._id,  // Real MongoDB ID
+        tempId: tempId  // Keep track of temp ID for replacement
+      }
+    });
+    
+    getRooms()
+      .then((res) => dispatch({ type: Actions.SET_ROOMS, rooms: res.data.rooms }))
+      .catch((err) => console.log(err));
+  }).catch((err) => {
+    console.error('Failed to send message:', err);
+    // Optionally: Remove the temp message or mark it as failed
+  });
+};
   
 
   const handleKeyPress = (event) => {

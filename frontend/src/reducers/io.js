@@ -53,6 +53,7 @@ const reducer = (state = initialState, action) => {
         ...state,
         refreshMeetings: action.timestamp,
       };
+    /*
     case Actions.MESSAGE_UPDATE:
       console.log("📝 Updating message in state:", action.message._id);
       return {
@@ -61,6 +62,25 @@ const reducer = (state = initialState, action) => {
           msg._id === action.message._id ? { ...msg, ...action.message } : msg
         ),
       };
+      */
+
+    case Actions.MESSAGE_UPDATE:
+      console.log("📝 Updating message in state:", action.message._id);
+      return {
+        ...state,
+        messages: state.messages.map((msg) => {
+          // If updating by real ID match
+          if (msg._id === action.message._id) {
+            return { ...msg, ...action.message };
+          }
+          // If updating by temp ID (for optimistic updates)
+          if (action.message.tempId && msg._id === action.message.tempId) {
+            return { ...msg, ...action.message };
+          }
+          return msg;
+        }),
+      };
+
     case Actions.REMOVE_MESSAGE:
       console.log("🗑️ Removing message from state:", action.messageId);
       return {

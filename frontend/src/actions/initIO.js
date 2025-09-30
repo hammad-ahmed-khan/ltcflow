@@ -6,6 +6,7 @@ import store from "../store";
 import getRooms from "./getRooms";
 import messageSound from "../assets/message.mp3";
 import socketPromise from "../lib/socket.io-promise";
+import NotificationService from "../services/NotificationService";
 
 // Track played sounds to prevent duplicates
 let playedSounds = new Set();
