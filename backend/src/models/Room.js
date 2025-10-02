@@ -1,3 +1,4 @@
+// backend/src/models/Room.js
 const mongoose = require("./mongoose");
 const Schema = mongoose.Schema;
 
@@ -11,23 +12,33 @@ const RoomSchema = new Schema(
     lastAuthor: { type: Schema.ObjectId, ref: "users" },
     lastMessage: { type: Schema.ObjectId, ref: "messages" },
 
-    // 🔹 New company reference
     companyId: {
       type: Schema.Types.ObjectId,
       ref: "Company",
-      required: true, // ensures room is linked to a company
+      required: true,
     },
 
-    // 🆕 NEW: Group creator field
     creator: {
       type: Schema.Types.ObjectId,
       ref: "users",
       required: function () {
-        return this.isGroup; // Only required for groups
+        return this.isGroup;
       },
     },
+
+    // 🆕 CRITICAL: Track when each user last read this room
+    lastReadByUser: [
+      {
+        userId: { type: Schema.Types.ObjectId, ref: "users", required: true },
+        lastReadAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   { timestamps: true }
-); // adds createdAt & updatedAt automatically
+);
+
+// 🆕 Add index for faster queries
+RoomSchema.index({ "lastReadByUser.userId": 1 });
+RoomSchema.index({ companyId: 1, people: 1 });
 
 module.exports = mongoose.model("rooms", RoomSchema);

@@ -9,12 +9,13 @@ import './Conversation.sass';
 import getRoom from '../../actions/getRoom';
 import Messages from './components/Messages';
 import Actions from '../../constants/Actions';
+import apiClient from '../../api/apiClient'; // 🆕 ADD THIS IMPORT
 
 function Conversation() {
   const room = useSelector((state) => state.io.room);
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState(null); // NEW: Track API errors
+  const [apiError, setApiError] = useState(null);
   const setOver = useGlobal('over')[1];
   const { id } = useParams();
 
@@ -60,19 +61,42 @@ function Conversation() {
           return;
         }
 
-        dispatch({ type: Actions.SET_ROOM, room: res.data.room });
-        dispatch({ type: Actions.SET_MESSAGES, messages: res.data.room.messages || [] });
+        const roomData = res.data.room;
+        
+        dispatch({ type: Actions.SET_ROOM, room: roomData });
+        dispatch({ type: Actions.SET_MESSAGES, messages: roomData.messages || [] });
         setLoading(false);
         setError(false);
         
-        // Remove unread indicator
-        const isGroup = res.data.room.isGroup;
-        console.log(`🔄 CONVERSATION: Removing unread indicator for ${isGroup ? 'group' : 'room'}:`, id);
-        dispatch({ 
-          type: Actions.MESSAGES_REMOVE_ROOM_UNREAD, 
-          roomID: id,
-          isGroup: isGroup 
-        });
+        // 🆕 CRITICAL: Mark room as read on the SERVER first
+        const isGroup = roomData.isGroup;
+        console.log(`📖 CONVERSATION: Marking room as read on server (${isGroup ? 'group' : 'room'}):`, id);
+        
+        apiClient.post('/api/mark-room-read', { roomId: id })
+          .then(() => {
+            console.log('✅ CONVERSATION: Server confirmed room marked as read');
+            
+            // THEN remove unread indicator from Redux
+            dispatch({ 
+              type: Actions.MESSAGES_REMOVE_ROOM_UNREAD, 
+              roomID: id,
+              isGroup: isGroup 
+            });
+            
+            console.log('✅ CONVERSATION: Unread badge removed from Redux');
+          })
+          .catch(err => {
+            console.error('❌ CONVERSATION: Failed to mark room as read on server:', err);
+            console.error('❌ CONVERSATION: Error response:', err.response?.data);
+            
+            // Still remove badge locally for better UX
+            // (Badge disappears even if server update fails)
+            dispatch({ 
+              type: Actions.MESSAGES_REMOVE_ROOM_UNREAD, 
+              roomID: id,
+              isGroup: isGroup 
+            });
+          });
         
         console.log('✅ CONVERSATION: Room loaded successfully!');
       })
@@ -98,7 +122,7 @@ function Conversation() {
           setError(true);
         }
       });
-  }, [id, dispatch]); // Fixed: Added dispatch to dependencies
+  }, [id, dispatch]);
 
   // Enhanced error logging when room state changes
   useEffect(() => {

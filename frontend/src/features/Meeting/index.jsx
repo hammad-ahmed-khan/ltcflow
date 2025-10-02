@@ -138,13 +138,23 @@ const [reconnected, setReconnected] = useState(false);
   }, []);
 
 const getAudio = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ 
-    audio: {
-      echoCancellation: true,
-      noiseSuppression: true,
-      autoGainControl: true
-    }
-  });
+
+  const constraints = {
+      audio: {
+        echoCancellation: { exact: true },        // Force AEC
+        noiseSuppression: { exact: true },         // Force NS  
+        autoGainControl: { exact: true },          // Force AGC
+        sampleRate: { ideal: 48000 },             // Higher quality
+        channelCount: { ideal: 1 },               // Mono reduces processing
+        sampleSize: 16,
+        googEchoCancellation: true,               // Chrome-specific
+        googTypingNoiseDetection: true,           // Chrome-specific
+        googHighpassFilter: true,                 // Chrome-specific
+        googNoiseSuppression: 2,                  // Chrome-specific (0-2)
+      }
+    };
+    
+  const stream = await navigator.mediaDevices.getUserMedia(constraints);
   setAudioStream(stream);
   return stream;
 };

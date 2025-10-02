@@ -31,15 +31,6 @@ module.exports = () => {
       const { email, id } = socket.decoded_token;
       console.log(`Socket connected: ${email}`.cyan);
 
-      // ADD THIS: Enhanced connection logging
-      console.log(
-        `🔌 Socket ${socket.id} authenticated for user ${id} (${email})`
-      );
-
-      // JOIN USER TO THEIR OWN ROOM (important for message deletion notifications)
-      socket.join(id);
-      console.log(`👤 Socket ${socket.id} joined personal room: ${id}`);
-
       mediasoup.initSocket(socket);
 
       socket.join(id);
@@ -114,20 +105,6 @@ module.exports = () => {
         store.onlineUsers.delete(socket);
         store.io.emit("onlineUsers", Array.from(store.onlineUsers.values()));
       });
-
-      // ADD THIS: Log when socket joins/leaves rooms
-      const originalJoin = socket.join;
-      const originalLeave = socket.leave;
-
-      socket.join = function (room) {
-        console.log(`🚪 Socket ${socket.id} joining room: ${room}`);
-        return originalJoin.call(this, room);
-      };
-
-      socket.leave = function (room) {
-        console.log(`🚪 Socket ${socket.id} leaving room: ${room}`);
-        return originalLeave.call(this, room);
-      };
     });
 
   store.app.use(cors());

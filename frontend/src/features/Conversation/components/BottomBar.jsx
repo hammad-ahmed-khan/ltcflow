@@ -794,6 +794,44 @@ const renderUploadProgress = () => {
   );
 };
 
+const handleTextareaFocus = () => {
+    if (!room || !room._id) return;
+    
+    console.log('👁️ Textarea focused - marking room as read');
+    
+    apiClient.post('/api/mark-room-read', { roomId: room._id })
+      .then(() => {
+        console.log('✅ Room marked as read on focus');
+        dispatch({
+          type: Actions.MESSAGES_REMOVE_ROOM_UNREAD,
+          roomID: room._id,
+          isGroup: room.isGroup,
+        });
+      })
+      .catch(err => {
+        console.error('❌ Failed to mark room as read:', err);
+      });
+  };
+
+  const handleTextareaBlur = () => {
+    if (!room || !room._id) return;
+    
+    console.log('👁️ Textarea blur - marking room as read');
+    
+    apiClient.post('/api/mark-room-read', { roomId: room._id })
+      .then(() => {
+        console.log('✅ Room marked as read on blur');
+        dispatch({
+          type: Actions.MESSAGES_REMOVE_ROOM_UNREAD,
+          roomID: room._id,
+          isGroup: room.isGroup,
+        });
+      })
+      .catch(err => {
+        console.error('❌ Failed to mark room as read:', err);
+      });
+  };
+
 // Then in your return statement, add the progress display:
 return (
   <div className="bottom-bar-conversation uk-flex uk-flex-middle" style={{ position: 'relative' }}>
@@ -817,8 +855,10 @@ return (
     <input
       disabled={isUploading || isImageUploading}
       value={text}
-      onKeyPress={handleKeyPress}
+      onKeyUp={handleKeyPress}
       onChange={(e) => setText(e.target.value)}
+      onFocus={handleTextareaFocus}   // 🆕
+      onBlur={handleTextareaBlur}     // 🆕
       className="search-input"
       placeholder="Type a message..."
       type="text"
