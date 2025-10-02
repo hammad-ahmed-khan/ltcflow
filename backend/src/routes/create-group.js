@@ -43,6 +43,12 @@ module.exports = async (req, res) => {
       picture,
       companyId,
       creator: creatorId,
+
+      // 🆕 NEW: Initialize lastReadByUser for all members
+      lastReadByUser: finalPeople.map((userId) => ({
+        userId: userId,
+        lastReadAt: new Date(), // Everyone starts with "read" status
+      })),
     }).save();
 
     // Populate people field

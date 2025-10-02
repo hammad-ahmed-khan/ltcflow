@@ -20,6 +20,7 @@ import { setCompanyId, setCompanyError } from './actions/companyActions';
 import { getSubdomain, verifySubdomain } from './utils/domainUtils';
 import apiClient from './api/apiClient';
 import { usePortraitLock, LandscapeWarning } from './hooks/usePortraitLock';
+import UnreadSyncManager from './components/UnreadSyncManager';
 
 function App() {
   const dispatch = useDispatch();
@@ -238,6 +239,7 @@ function App() {
 
   return (
     <>
+      <UnreadSyncManager />
       {/* Landscape Warning Overlay */}
       <LandscapeWarning />
       

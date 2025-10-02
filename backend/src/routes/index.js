@@ -242,4 +242,16 @@ router.post(
   require("./delete-message")
 );
 
+router.post(
+  "/unread-summary",
+  passport.authenticate("jwt", { session: false }),
+  require("./unread-summary")
+);
+
+router.post(
+  "/mark-room-read",
+  passport.authenticate("jwt", { session: false }),
+  require("./mark-room-read")
+);
+
 module.exports = router;

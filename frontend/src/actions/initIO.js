@@ -1,12 +1,11 @@
 import IO from "socket.io-client";
-import { setGlobal } from "reactn";
+import { setGlobal, getGlobal } from "reactn";
 import Config from "../config";
 import Actions from "../constants/Actions";
 import store from "../store";
 import getRooms from "./getRooms";
 import messageSound from "../assets/message.mp3";
 import socketPromise from "../lib/socket.io-promise";
-import NotificationService from "../services/NotificationService";
 
 // Track played sounds to prevent duplicates
 let playedSounds = new Set();
@@ -28,6 +27,7 @@ const initIO = (token) => (dispatch) => {
   io.on("message-in", (data) => {
     const { room, message } = data;
 
+    const currentUser = store.getState().user || getGlobal().user;
     const currentRoom = store.getState().io.room;
     const currentMessages = store.getState().io.messages || [];
 
@@ -76,10 +76,15 @@ const initIO = (token) => (dispatch) => {
       room.isGroup
     );
 
+    // 🆕 CRITICAL: Notify using NotificationService
+    if (NotificationService) {
+      NotificationService.notify(message, room, currentUser);
+    }
+
     // Play sound only once per unique message ID
     const messageId =
       message._id || `${message.content}-${message.date}-${message.author._id}`;
-
+    /*
     if (!playedSounds.has(messageId)) {
       playedSounds.add(messageId);
 
@@ -99,46 +104,42 @@ const initIO = (token) => (dispatch) => {
     } else {
       console.log("🔇 Sound already played for message:", messageId);
     }
+      */
 
-    // Update rooms list FIRST to ensure sidebar reflects new message
-    console.log("Updating rooms list to reflect new message...");
+    // 🚀 OPTIMIZATION: Add unread badge IMMEDIATELY (don't wait for getRooms)
+    const isViewingThisRoom = currentRoom && currentRoom._id === room._id;
+
+    if (!isViewingThisRoom) {
+      console.log(
+        `📬 INSTANT: Adding unread badge for ${
+          room.isGroup ? "group" : "room"
+        }:`,
+        room._id
+      );
+      store.dispatch({
+        type: Actions.MESSAGES_ADD_ROOM_UNREAD,
+        roomID: room._id,
+        isGroup: room.isGroup,
+      });
+    } else {
+      console.log(
+        `👀 User is viewing this ${
+          room.isGroup ? "group" : "room"
+        }, not marking as unread:`,
+        room._id
+      );
+    }
+
+    // 🚀 OPTIMIZATION: Update rooms list in BACKGROUND (non-blocking)
+    console.log("📋 Updating rooms list in background...");
     getRooms()
       .then((res) => {
         console.log("✅ Rooms list updated successfully");
         store.dispatch({ type: Actions.SET_ROOMS, rooms: res.data.rooms });
-
-        // ENHANCED: Add unread indicator for both direct messages and groups
-        if (!currentRoom || currentRoom._id !== room._id) {
-          console.log(
-            `📬 Adding unread indicator for ${
-              room.isGroup ? "group" : "room"
-            }:`,
-            room._id
-          );
-          store.dispatch({
-            type: Actions.MESSAGES_ADD_ROOM_UNREAD,
-            roomID: room._id,
-            isGroup: room.isGroup, // NEW: Pass group information
-          });
-        } else {
-          console.log(
-            `👀 User is viewing this ${
-              room.isGroup ? "group" : "room"
-            }, not marking as unread:`,
-            room._id
-          );
-        }
       })
       .catch((err) => {
         console.error("❌ Error updating rooms list:", err);
-        // Still add unread indicator even if rooms update fails
-        if (!currentRoom || currentRoom._id !== room._id) {
-          store.dispatch({
-            type: Actions.MESSAGES_ADD_ROOM_UNREAD,
-            roomID: room._id,
-            isGroup: room.isGroup, // NEW: Pass group information
-          });
-        }
+        // Badge already added above, so error here doesn't break UX
       });
 
     // Add message to current conversation if user is viewing this room

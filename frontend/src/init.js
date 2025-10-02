@@ -1,9 +1,10 @@
+// frontend/src/init.js
 import { setGlobal } from "reactn";
 import jwtDecode from "jwt-decode";
 import setAuthToken from "./actions/setAuthToken";
 import initIO from "./actions/initIO";
 import store from "./store";
-import Actions from "./constants/Actions";
+import syncUnreadFromServer from "./actions/syncUnreadFromServer";
 
 const init = async () => {
   document.addEventListener("gesturestart", (e) => {
@@ -15,7 +16,6 @@ const init = async () => {
     localStorage.setItem("app", "Clover 2.x.x");
   }
 
-  // Get token and user from localStorage
   const token = localStorage.getItem("token");
   const userString = localStorage.getItem("user");
   const user = userString ? JSON.parse(userString) : null;
@@ -25,26 +25,38 @@ const init = async () => {
     hasUser: !!user,
   });
 
-  // If token exists, set it up immediately (no validation)
   if (token) {
-    setAuthToken(token); // This sets the Authorization header in axios
-    store.dispatch(initIO(token)); // This initializes socket.io
+    setAuthToken(token);
+    store.dispatch(initIO(token));
     console.log("✅ Token and socket initialized");
 
-    // FIXED: Restore unread state from localStorage is handled automatically
-    // by the messages reducer initialState, but we can log it here
-    const persistedRooms = localStorage.getItem("unreadRooms");
-    const persistedGroups = localStorage.getItem("unreadGroups");
-    if (persistedRooms || persistedGroups) {
-      console.log("📬 Restoring unread messages from previous session");
+    // 🆕 CRITICAL: Sync unread state from server after socket connects
+    console.log("⏰ Scheduling unread sync in 3 seconds...");
+
+    //setTimeout(async () => {
+    console.log("📬 Starting unread sync from server...");
+
+    try {
+      const result = await store.dispatch(syncUnreadFromServer());
+
+      if (result.success) {
+        console.log(
+          `✅ Unread sync SUCCESS: ${result.totalUnread} unread conversations`
+        );
+      } else {
+        console.error("❌ Unread sync FAILED:", result.error);
+      }
+    } catch (error) {
+      console.error("❌ Unread sync threw error:", error);
     }
+    //}, 3000); // 3 seconds to ensure socket is connected
   }
 
   const state = {
     version: "2.9.2",
     entryPath: window.location.pathname,
-    token: token, // Keep token for immediate availability
-    user: user || (token ? jwtDecode(token) : {}), // Keep user for immediate availability
+    token: token,
+    user: user || (token ? jwtDecode(token) : {}),
     rooms: [],
     searchResults: [],
     favorites: [],
@@ -77,4 +89,4 @@ const init = async () => {
   );
 };
 
-export default init;
+export default init; // ✅ THIS LINE IS CRITICAL - must be at the end

@@ -142,10 +142,6 @@ const reducer = (state = initialState, action) => {
         typingUsers: action.typingUsers,
       };
 
-    // ============================================
-    // ADD UNREAD MESSAGE INDICATOR
-    // ============================================
-
     case Actions.MESSAGES_ADD_ROOM_UNREAD: {
       const { roomID, isGroup } = action;
 
@@ -155,7 +151,6 @@ const reducer = (state = initialState, action) => {
       }
 
       if (isGroup) {
-        // Handle group messages
         if (state.groupsWithNewMessages.includes(roomID)) {
           console.log("ℹ️ Group already marked as unread:", roomID);
           return state;
@@ -168,7 +163,6 @@ const reducer = (state = initialState, action) => {
           groupsWithNewMessages: [...state.groupsWithNewMessages, roomID],
         };
       } else {
-        // Handle direct messages
         if (state.roomsWithNewMessages.includes(roomID)) {
           console.log("ℹ️ Room already marked as unread:", roomID);
           return state;
@@ -182,7 +176,6 @@ const reducer = (state = initialState, action) => {
         };
       }
 
-      // Persist to storage and sync across tabs
       saveUnreadState(
         newState.roomsWithNewMessages,
         newState.groupsWithNewMessages
@@ -190,10 +183,6 @@ const reducer = (state = initialState, action) => {
 
       return newState;
     }
-
-    // ============================================
-    // REMOVE UNREAD MESSAGE INDICATOR
-    // ============================================
 
     case Actions.MESSAGES_REMOVE_ROOM_UNREAD: {
       const { roomID, isGroup } = action;
@@ -204,7 +193,6 @@ const reducer = (state = initialState, action) => {
       }
 
       if (isGroup) {
-        // Remove from groups
         console.log("✅ Removing unread indicator for group:", roomID);
 
         newState = {
@@ -214,7 +202,6 @@ const reducer = (state = initialState, action) => {
           ),
         };
       } else {
-        // Remove from direct messages
         console.log("✅ Removing unread indicator for room:", roomID);
 
         newState = {
@@ -225,7 +212,6 @@ const reducer = (state = initialState, action) => {
         };
       }
 
-      // Persist to storage and sync across tabs
       saveUnreadState(
         newState.roomsWithNewMessages,
         newState.groupsWithNewMessages
@@ -233,10 +219,6 @@ const reducer = (state = initialState, action) => {
 
       return newState;
     }
-
-    // ============================================
-    // SYNC FROM OTHER TABS
-    // ============================================
 
     case Actions.SYNC_UNREAD_STATE: {
       console.log("📡 Syncing unread state from another tab");
@@ -247,7 +229,6 @@ const reducer = (state = initialState, action) => {
         groupsWithNewMessages: action.groups || [],
       };
 
-      // Update favicon without saving (to avoid infinite loop)
       if (NotificationService) {
         NotificationService.updateFaviconBadge();
       }
@@ -255,9 +236,31 @@ const reducer = (state = initialState, action) => {
       return newState;
     }
 
-    // ============================================
-    // CLEAR ALL UNREAD (for logout, etc.)
-    // ============================================
+    // 🆕 NEW: Sync from server (overrides local state - server is source of truth)
+    case Actions.SYNC_UNREAD_FROM_SERVER: {
+      console.log(
+        "🔄 Syncing unread state from server (SERVER IS SOURCE OF TRUTH)"
+      );
+
+      newState = {
+        ...state,
+        roomsWithNewMessages: action.unreadRooms || [],
+        groupsWithNewMessages: action.unreadGroups || [],
+      };
+
+      // Update localStorage to match server
+      saveUnreadState(
+        newState.roomsWithNewMessages,
+        newState.groupsWithNewMessages
+      );
+
+      console.log("✅ Unread state synced from server:", {
+        rooms: newState.roomsWithNewMessages.length,
+        groups: newState.groupsWithNewMessages.length,
+      });
+
+      return newState;
+    }
 
     case Actions.CLEAR_ALL_UNREAD: {
       console.log("🧹 Clearing all unread indicators");
@@ -273,10 +276,6 @@ const reducer = (state = initialState, action) => {
       return newState;
     }
 
-    // ============================================
-    // MESSAGE DELETED
-    // ============================================
-
     case Actions.MESSAGE_DELETED: {
       console.log("🗑️ Message marked as deleted:", action.messageId);
 
@@ -289,50 +288,6 @@ const reducer = (state = initialState, action) => {
         ),
       };
     }
-
-    // ============================================
-    // BULK OPERATIONS (for optimization)
-    // ============================================
-
-    case Actions.MESSAGES_ADD_MULTIPLE_UNREAD: {
-      const { roomIDs } = action; // Array of { roomID, isGroup }
-
-      if (!roomIDs || !Array.isArray(roomIDs)) {
-        console.warn("⚠️ MESSAGES_ADD_MULTIPLE_UNREAD: Invalid roomIDs");
-        return state;
-      }
-
-      const newUnreadRooms = [...state.roomsWithNewMessages];
-      const newUnreadGroups = [...state.groupsWithNewMessages];
-
-      roomIDs.forEach(({ roomID, isGroup }) => {
-        if (isGroup) {
-          if (!newUnreadGroups.includes(roomID)) {
-            newUnreadGroups.push(roomID);
-          }
-        } else {
-          if (!newUnreadRooms.includes(roomID)) {
-            newUnreadRooms.push(roomID);
-          }
-        }
-      });
-
-      newState = {
-        ...state,
-        roomsWithNewMessages: newUnreadRooms,
-        groupsWithNewMessages: newUnreadGroups,
-      };
-
-      saveUnreadState(newUnreadRooms, newUnreadGroups);
-
-      console.log("📬 Added multiple unread indicators:", roomIDs.length);
-
-      return newState;
-    }
-
-    // ============================================
-    // DEFAULT
-    // ============================================
 
     default:
       return state;
