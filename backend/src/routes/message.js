@@ -128,27 +128,29 @@ module.exports = (req, res, next) => {
               }
 
               console.log(
-                `📡 Emitting message to ${updatedRoom.people.length} room members`
+                `📡 Emitting message to ${updatedRoom.people.length} room members (including sender's other devices)`
               );
 
-              // Emit to room members (they're all in the same company)
+              // ✅ FIXED: Emit to ALL room members including sender
+              // This ensures when you send from mobile, your desktop receives it too!
               let emittedCount = 0;
               updatedRoom.people.forEach((person) => {
-                const myUserID = req.user.id;
                 const personUserID = person._id.toString();
 
-                if (personUserID !== myUserID) {
-                  store.io.to(personUserID).emit("message-in", {
-                    status: 200,
-                    message,
-                    room: updatedRoom,
-                  });
-                  emittedCount++;
-                  console.log(`  📤 Emitted to user: ${personUserID}`);
-                }
+                // REMOVED: if (personUserID !== myUserID) check
+                // Now broadcasts to EVERYONE including sender's other logged-in devices
+                store.io.to(personUserID).emit("message-in", {
+                  status: 200,
+                  message,
+                  room: updatedRoom,
+                });
+                emittedCount++;
+                console.log(`  📤 Emitted to user: ${personUserID}`);
               });
 
-              console.log(`✅ Message emitted to ${emittedCount} users`);
+              console.log(
+                `✅ Message emitted to ${emittedCount} users (including all sender's devices)`
+              );
 
               res.status(200).json({ message, room: updatedRoom });
             })

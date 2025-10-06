@@ -31,6 +31,7 @@ const initIO = (token) => (dispatch) => {
     const currentRoom = store.getState().io.room;
     const currentMessages = store.getState().io.messages || [];
 
+    /*
     // Check if message already exists to prevent duplicates
     const messageExists = currentMessages.some((existingMessage) => {
       // Check by exact ID match first
@@ -38,21 +39,25 @@ const initIO = (token) => (dispatch) => {
         return true;
       }
 
-      // Check for potential duplicates by content, author, and timing
       if (
-        existingMessage.content === message.content &&
-        existingMessage.author &&
         message.author &&
-        existingMessage.author._id === message.author._id
+        currentUser &&
+        message.author._id === currentUser.id &&
+        existingMessage._id &&
+        typeof existingMessage._id === "string" &&
+        existingMessage._id.startsWith("temp-")
       ) {
-        // Check if messages are within 2 seconds of each other (accounting for potential timing differences)
-        const existingDate = new Date(existingMessage.date);
-        const newDate = new Date(message.date);
-        const timeDiff = Math.abs(existingDate - newDate);
+        // Check if content and timing match (within 5 seconds)
+        const isSameContent = existingMessage.content === message.content;
+        const timeDiff = Math.abs(
+          new Date(existingMessage.date) - new Date(message.date)
+        );
 
-        if (timeDiff < 2000) {
-          // 2 seconds tolerance
-          return true;
+        if (isSameContent && timeDiff < 5000) {
+          console.log(
+            `⚠️ Detected temp message for real message ${message._id}, will be replaced by MESSAGE_UPDATE`
+          );
+          return true; // Skip this message, let MESSAGE_UPDATE handle it
         }
       }
 
@@ -64,6 +69,15 @@ const initIO = (token) => (dispatch) => {
         "Duplicate message detected, skipping:",
         message._id || "no-id"
       );
+      return;
+    }
+    */
+
+    // ✅ SIMPLE: Just check if ID exists
+    const existsById = currentMessages.some((msg) => msg._id === message._id);
+
+    if (existsById) {
+      console.log("✓ Message exists, skipping:", message._id);
       return;
     }
 
@@ -82,9 +96,10 @@ const initIO = (token) => (dispatch) => {
     }
 
     // Play sound only once per unique message ID
+    /*
     const messageId =
       message._id || `${message.content}-${message.date}-${message.author._id}`;
-    /*
+
     if (!playedSounds.has(messageId)) {
       playedSounds.add(messageId);
 
@@ -106,14 +121,17 @@ const initIO = (token) => (dispatch) => {
     }
       */
 
-    // 🚀 OPTIMIZATION: Add unread badge IMMEDIATELY (don't wait for getRooms)
+    // Determine if viewing this room
     const isViewingThisRoom = currentRoom && currentRoom._id === room._id;
 
-    if (!isViewingThisRoom) {
+    // Determine if this is the current user's message
+    const isOwnMessage =
+      message.author && currentUser && message.author._id === currentUser.id;
+
+    // Add unread badge only if NOT viewing this room AND NOT own message
+    if (!isViewingThisRoom && !isOwnMessage) {
       console.log(
-        `📬 INSTANT: Adding unread badge for ${
-          room.isGroup ? "group" : "room"
-        }:`,
+        `📬 Adding unread badge for ${room.isGroup ? "group" : "room"}:`,
         room._id
       );
       store.dispatch({
@@ -121,6 +139,8 @@ const initIO = (token) => (dispatch) => {
         roomID: room._id,
         isGroup: room.isGroup,
       });
+    } else if (isOwnMessage) {
+      console.log(`📤 Own message from another device, not marking as unread`);
     } else {
       console.log(
         `👀 User is viewing this ${
@@ -130,7 +150,7 @@ const initIO = (token) => (dispatch) => {
       );
     }
 
-    // 🚀 OPTIMIZATION: Update rooms list in BACKGROUND (non-blocking)
+    // Update rooms list in background
     console.log("📋 Updating rooms list in background...");
     getRooms()
       .then((res) => {
@@ -139,7 +159,6 @@ const initIO = (token) => (dispatch) => {
       })
       .catch((err) => {
         console.error("❌ Error updating rooms list:", err);
-        // Badge already added above, so error here doesn't break UX
       });
 
     // Add message to current conversation if user is viewing this room

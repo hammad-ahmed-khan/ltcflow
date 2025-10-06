@@ -1,94 +1,76 @@
-import { useState, useEffect, useRef } from 'react';
+// frontend/src/features/Details/components/Room.jsx
+import { useState, useEffect } from 'react';
 import './Room.sass';
-import { FiCircle } from 'react-icons/fi';
+import { FiCircle, FiImage, FiFile, FiLink, FiDownload } from 'react-icons/fi';
 import { useSelector } from 'react-redux';
 import { useGlobal } from 'reactn';
-import { Lightbox } from 'react-modal-image';
-import Config from '../../../config';
-import { buildImageUrl } from '../../../utils/urlUtils';
+import EnhancedLightbox from '../../Conversation/components/EnhancedLightbox';
+import Picture from '../../../components/Picture';
+import { buildImageUrl, buildFileUrl } from '../../../utils/urlUtils';
+import getRoomMedia from '../../../actions/getRoomMedia';
+import moment from 'moment';
 
 function Room() {
   const room = useSelector((state) => state.io.room);
+  const messages = useSelector((state) => state.io.messages) || [];
   const onlineUsers = useSelector((state) => state.io.onlineUsers);
-  const imagesNumber = useSelector((state) => state.io.room.images.length);
   const user = useGlobal('user')[0];
 
-  const scrollContainer = useRef(null);
-
-  const [scrollHeight, setScrollHeight] = useState(0);
+  const [activeTab, setActiveTab] = useState('info');
   const [open, setOpen] = useState(null);
-  const [viewMembers, setViewMembers] = useState(false);
+  const [imageMessages, setImageMessages] = useState([]);
+  const [fileMessages, setFileMessages] = useState([]);
+  const [linkMessages, setLinkMessages] = useState([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
 
+  // Fetch ALL media when component mounts or room changes
   useEffect(() => {
-    if (scrollContainer.current.scrollTop === 0) scrollContainer.current.scrollTop = scrollHeight;
-  }, [imagesNumber]);
+    if (room && room._id) {
+      setLoadingMedia(true);
+      getRoomMedia(room._id)
+        .then((res) => {
+          setImageMessages(res.data.images || []);
+          setFileMessages(res.data.files || []);
+          setLinkMessages(res.data.links || []);
+          setLoadingMedia(false);
+        })
+        .catch((err) => {
+          console.error('Error loading room media:', err);
+          // Fallback to messages from Redux if API fails
+          const images = messages.filter(msg => msg.type === 'image' && !msg.isDeleted);
+          const files = messages.filter(msg => msg.type === 'file' && !msg.isDeleted);
+          const urlRegex = /(https?:\/\/[^\s]+)/g;
+          const links = messages.filter(msg => 
+            msg.type === 'text' && 
+            !msg.isDeleted && 
+            msg.content && 
+            urlRegex.test(msg.content)
+          );
+          setImageMessages(images);
+          setFileMessages(files);
+          setLinkMessages(links);
+          setLoadingMedia(false);
+        });
+    }
+  }, [room?._id]);
 
   let other = {
     firstName: 'A',
     lastName: 'A',
   };
 
-  if (room.people) {
+  if (room && room.people) {
     room.people.forEach((person) => {
       if (person._id !== user.id) other = person;
     });
   }
 
-  function Picture({ picture, user, group }) {
-    if (picture) return <img src={buildImageUrl(picture.shieldedID, 256)} alt="Picture" />;
-    return (
-      <div className="img">
-        {group ? room.title.substr(0, 1) : `${user.firstName.substr(0, 1)}${user.lastName.substr(0, 1)}`}
-      </div>
-    );
-  }
-
-  const rows = [];
-  // eslint-disable-next-line no-unused-vars
-  let rowIndex = 0;
-  let row = [];
-
-  room.images.forEach((message) => {
-    row.push(message);
-    if (row.length === 2) {
-      rows.push(row);
-      rowIndex++;
-      row = [];
-    }
-  });
-  if (row.length > 0) rows.push(row);
-
-  const images = rows.map((row, key) => {
-    const images = row.map((message) => {
-      return (
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-        <img
-          src={buildImageUrl(message.content, 256)}
-          alt={`Sent by @${message.author.username}`}
-          onClick={() => setOpen(message)}
-          key={message.content}
-        />
-      );
-    });
-    return <div className="row" key={key}>{images}</div>;
-  });
-
-  const onScroll = () => {
-    setScrollHeight(scrollContainer.current.scrollHeight);
-    if (
-      scrollContainer.current.scrollTop
-      >= scrollContainer.current.scrollHeight - scrollContainer.current.offsetHeight
-    ) {
-      // Request more images
-    }
+  const getColor = (id) => {
+    if (onlineUsers.filter((u) => u.id === id && u.status === 'busy').length > 0) return 'busy';
+    if (onlineUsers.filter((u) => u.id === id && u.status === 'online').length > 0) return 'online';
+    if (onlineUsers.filter((u) => u.id === id && u.status === 'away').length > 0) return 'away';
+    return 'offline';
   };
-
-  function Notice() {
-    if (images.length === 0) {
-      return <div className="notice-text">There are no images in this conversation yet.</div>;
-    }
-    return null;
-  }
 
   const compare = (a, b) => {
     if (a.firstName < b.firstName) return -1;
@@ -98,67 +80,207 @@ function Room() {
     return 0;
   };
 
-  const { people } = room;
+  const people = room.people ? [...room.people].sort(compare) : [];
 
-  people.sort(compare);
-
-  const getColor = (id) => {
-    if (onlineUsers.filter((u) => u.id === id && u.status === 'busy').length > 0) return 'busy';
-    if (onlineUsers.filter((u) => u.id === id && u.status === 'online').length > 0) return 'online';
-    if (onlineUsers.filter((u) => u.id === id && u.status === 'away').length > 0) return 'away';
-    return 'offline';
+  const extractLinks = (text) => {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return text.match(urlRegex) || [];
   };
 
-  const members = people.map((person, key) => (
-    <div className="member" key={key}>
-      <Picture picture={person.picture} user={person} />
-      <div className="text">
-        {person.firstName}
-        {' '}
-        {person.lastName}
+  if (!room) {
+    return (
+      <div className="details-room">
+        <div className="notice-text">Loading room details...</div>
       </div>
-      <div className={getColor(person._id)}>
-        <FiCircle />
-      </div>
-    </div>
-  ));
-
-  function Members() {
-    return <div className="members">{members}</div>;
+    );
   }
 
   return (
     <div className="details-room">
+      {/* Profile Section */}
       <div className="profile">
-        <Picture group={room.isGroup} picture={room.isGroup ? room.picture : other.picture} user={other} />
+        <Picture 
+          group={room.isGroup} 
+          picture={room.isGroup ? room.picture : other.picture} 
+          user={other} 
+        />
       </div>
-      <div className="name" hidden>
+      <div className="name">
         {room.isGroup ? room.title : `${other.firstName} ${other.lastName}`}
       </div>
-      <div className="title" hidden>
-        {other.tagLine || 'No Tag Line'}
+      {!room.isGroup && other.tagLine && (
+        <div className="title">{other.tagLine}</div>
+      )}
+      {room.isGroup && (
+        <div className="title">Group · {room.people.length} members</div>
+      )}
+
+      {/* Tabs */}
+      <div className="details-tabs">
+        <button 
+          className={`tab ${activeTab === 'info' ? 'active' : ''}`}
+          onClick={() => setActiveTab('info')}
+        >
+          {room.isGroup ? 'Members' : 'Info'}
+        </button>
+        <button 
+          className={`tab ${activeTab === 'media' ? 'active' : ''}`}
+          onClick={() => setActiveTab('media')}
+        >
+          Media
+        </button>
       </div>
-      <button
-        className="details-button uk-margin-remove-bottom uk-button uk-button-secondary"
-        onClick={() => setViewMembers(!viewMembers)}
-      >
-        View
-        {viewMembers ? ' Images' : ' Members'}
-      </button>
-      {viewMembers && <Members />}
-      <div className="images" ref={scrollContainer} onScroll={onScroll} hidden={viewMembers}>
-        {open && (
-          <Lightbox
-            medium={buildImageUrl(open.content, 1024)}
-            large={buildImageUrl(open.content, 2048)}
-            alt="Lightbox"
-            hideDownload
-            onClose={() => setOpen(null)}
-          />
+
+      {/* Content */}
+      <div className="details-content">
+        {activeTab === 'info' && (
+          <div className="members-section">
+            {room.isGroup && (
+              <div className="members">
+                {people.map((person, key) => (
+                  <div className="member" key={key}>
+                    <Picture picture={person.picture} user={person} />
+                    <div className="text">
+                      {person.firstName} {person.lastName}
+                    </div>
+                    <div className={getColor(person._id)}>
+                      <FiCircle />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!room.isGroup && (
+              <div className="contact-details">
+                <div className="detail-item">
+                  <span className="detail-label">Username</span>
+                  <span className="detail-value">@{other.username || 'N/A'}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Status</span>
+                  <span className={`detail-value ${getColor(other._id)}`}>
+                    {getColor(other._id)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         )}
-        {images}
-        <Notice />
+
+        {activeTab === 'media' && (
+          <div className="media-section">
+            {/* Images */}
+            <div className="media-category">
+              <div className="category-header">
+                <FiImage />
+                <span>Photos ({imageMessages.length})</span>
+              </div>
+              {imageMessages.length > 0 ? (
+                <div className="images">
+                  {imageMessages.slice(0, 20).map((msg) => (
+                    <img
+                      key={msg._id}
+                      src={buildImageUrl(msg.content, 256)}
+                      alt="Media"
+                      onClick={() => setOpen(msg)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-state">No photos yet</div>
+              )}
+            </div>
+
+            {/* Files */}
+            <div className="media-category">
+              <div className="category-header">
+                <FiFile />
+                <span>Documents ({fileMessages.length})</span>
+              </div>
+              {fileMessages.length > 0 ? (
+                <div className="files-list">
+                  {fileMessages.map((msg) => {
+                    const fileName = msg.file?.name || msg.fileName || 'Unknown File';
+                    const fileSize = msg.file?.size || msg.fileSize || 0;
+                    const fileSizeMB = fileSize > 0 ? `${Math.round((fileSize / 1024 / 1024) * 100) / 100} MB` : 'Unknown size';
+                    
+                    return (
+                      <a
+                        key={msg._id}
+                        href={buildFileUrl(msg.content)}
+                        download={fileName}
+                        className="file-item"
+                      >
+                        <div className="file-icon">
+                          <FiFile />
+                        </div>
+                        <div className="file-info">
+                          <div className="file-name">{fileName}</div>
+                          <div className="file-meta">
+                            {fileSizeMB}
+                            {msg.date && ` · ${moment(msg.date).format('MMM DD, YYYY')}`}
+                          </div>
+                        </div>
+                        <div className="file-download">
+                          <FiDownload />
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="empty-state">No documents yet</div>
+              )}
+            </div>
+
+            {/* Links */}
+            <div className="media-category">
+              <div className="category-header">
+                <FiLink />
+                <span>Links ({linkMessages.length})</span>
+              </div>
+              {linkMessages.length > 0 ? (
+                <div className="links-list">
+                  {linkMessages.slice(0, 10).map((msg) => {
+                    const links = extractLinks(msg.content);
+                    return links.map((link, idx) => (
+                      <a
+                        key={`${msg._id}-${idx}`}
+                        href={link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="link-item"
+                      >
+                        <div className="link-icon">
+                          <FiLink />
+                        </div>
+                        <div className="link-info">
+                          <div className="link-url">{link}</div>
+                          <div className="link-meta">
+                            {moment(msg.date).format('MMM DD')}
+                          </div>
+                        </div>
+                      </a>
+                    ));
+                  })}
+                </div>
+              ) : (
+                <div className="empty-state">No links yet</div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Lightbox for images */}
+      {open && imageMessages.length > 0 && (
+        <EnhancedLightbox
+          images={imageMessages}
+          currentImage={open}
+          onClose={() => setOpen(null)}
+          buildImageUrl={buildImageUrl}
+        />
+      )}
     </div>
   );
 }

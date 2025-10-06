@@ -5,11 +5,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import ClipLoader from 'react-spinners/ClipLoader';
 import TopBar from './components/TopBar';
 import BottomBar from './components/BottomBar';
+import RoomInfo from '../Details/components/RoomInfo';
 import './Conversation.sass';
 import getRoom from '../../actions/getRoom';
 import Messages from './components/Messages';
 import Actions from '../../constants/Actions';
-import apiClient from '../../api/apiClient'; // 🆕 ADD THIS IMPORT
+import apiClient from '../../api/apiClient';
 
 function Conversation() {
   const room = useSelector((state) => state.io.room);
@@ -17,6 +18,7 @@ function Conversation() {
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState(null);
   const setOver = useGlobal('over')[1];
+  const [showRoomInfo, setShowRoomInfo] = useGlobal('showRoomInfo');
   const { id } = useParams();
 
   const navigate = useNavigate();
@@ -68,7 +70,7 @@ function Conversation() {
         setLoading(false);
         setError(false);
         
-        // 🆕 CRITICAL: Mark room as read on the SERVER first
+        // Mark room as read on the SERVER first
         const isGroup = roomData.isGroup;
         console.log(`📖 CONVERSATION: Marking room as read on server (${isGroup ? 'group' : 'room'}):`, id);
         
@@ -90,7 +92,6 @@ function Conversation() {
             console.error('❌ CONVERSATION: Error response:', err.response?.data);
             
             // Still remove badge locally for better UX
-            // (Badge disappears even if server update fails)
             dispatch({ 
               type: Actions.MESSAGES_REMOVE_ROOM_UNREAD, 
               roomID: id,
@@ -124,6 +125,11 @@ function Conversation() {
       });
   }, [id, dispatch]);
 
+  // Close room info when room changes
+  useEffect(() => {
+    setShowRoomInfo(false);
+  }, [id, setShowRoomInfo]);
+
   // Enhanced error logging when room state changes
   useEffect(() => {
     console.log('🔄 CONVERSATION: Room state changed:', room);
@@ -154,7 +160,6 @@ function Conversation() {
           <br />
           This is probably a broken URL.
         </div>
-        {/* DEBUG: Show API error details */}
         {apiError && (
           <div style={{ 
             marginTop: '20px', 
@@ -179,7 +184,6 @@ function Conversation() {
       <div className="content uk-flex uk-flex-center uk-flex-middle uk-flex-column">
         <div className="notfound">Network Error</div>
         <div className="notfound-extended">Could not reach server.</div>
-        {/* DEBUG: Show API error details */}
         {apiError && (
           <div style={{ 
             marginTop: '20px', 
@@ -205,12 +209,18 @@ function Conversation() {
 
   return (
     <div className="content uk-flex uk-flex-column uk-flex-between">
-      <TopBar back={back} loading={loading} />
-      {loading && <Loading />}
-      {error && <Error />}
-      {!room && !loading && !error && <NotFound />}
-      {room && !loading && <Content />}
-      <BottomBar />
+      {showRoomInfo ? (
+        <RoomInfo onBack={() => setShowRoomInfo(false)} />
+      ) : (
+        <>
+          <TopBar back={back} loading={loading} />
+          {loading && <Loading />}
+          {error && <Error />}
+          {!room && !loading && !error && <NotFound />}
+          {room && !loading && <Content />}
+          <BottomBar />
+        </>
+      )}
     </div>
   );
 }

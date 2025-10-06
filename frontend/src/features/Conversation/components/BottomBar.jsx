@@ -112,8 +112,13 @@ useEffect(() => {
     showPicker(false);
   };
 */
+/*
   const sendMessage = () => {
   if (text.length === 0 || isCreatorNonMember) return;
+
+   // ✅ CRITICAL FIX: Immediately stop typing indicator
+  // This happens BEFORE setText(''), so it sends with the current room state
+  dispatch(typing(room, false));
   
   // Create temporary message with temp ID
   const tempId = `temp-${Date.now()}-${Math.random()}`;
@@ -155,12 +160,49 @@ useEffect(() => {
     // Optionally: Remove the temp message or mark it as failed
   });
 };
-  
-
+*/
+  /*
   const handleKeyPress = (event) => {
     showPicker(false);
     if (event.key === 'Enter' && !isCreatorNonMember) sendMessage();
   };
+  */
+
+  const sendMessage = () => {
+  if (text.length === 0 || isCreatorNonMember) return;
+  
+  // Stop typing indicator
+  dispatch(typing(room, false));
+  
+  const messageText = text;
+  
+  // Clear input immediately
+  setText('');
+  showPicker(false);
+  
+  // Send to server - no temp message
+  message({
+    roomID: room._id,
+    authorID: user.id,
+    content: messageText,
+    contentType: 'text',
+  }).then((res) => {
+    // Add real message from server
+    dispatch({ 
+      type: Actions.MESSAGE,
+      message: res.data.message
+    });
+    
+    getRooms()
+      .then((res) => dispatch({ type: Actions.SET_ROOMS, rooms: res.data.rooms }))
+      .catch((err) => console.log(err));
+      
+  }).catch((err) => {
+    console.error('Failed to send message:', err);
+    setText(messageText); // Restore on error
+    alert('Failed to send message. Please try again.');
+  });
+};
 
 const sendImages = async (images) => {
   if (isCreatorNonMember) return;
@@ -255,6 +297,7 @@ const sendImages = async (images) => {
         type: 'image',
       });
       
+      /*
       const newMessage = {
         _id: Math.random(),
         author: { ...user, _id: user.id },
@@ -263,6 +306,7 @@ const sendImages = async (images) => {
         date: moment(),
       };
       dispatch({ type: Actions.MESSAGE, message: newMessage });
+      */
       
       // Remove progress bar after successful upload
       setTimeout(() => {
@@ -539,14 +583,15 @@ const sendFiles = async (files) => {
       }
       
       // Send message for successful upload
-      message({
+      await message({
         roomID: room._id,
         authorID: user.id,
         content: res.data.file.shieldedID,
         type: 'file',
         fileID: res.data.file._id,
       });
-      
+
+      /*
       const newMessage = {
         _id: Math.random(),
         author: { ...user, _id: user.id },
@@ -556,6 +601,7 @@ const sendFiles = async (files) => {
         file: res.data.file,
       };
       dispatch({ type: Actions.MESSAGE, message: newMessage });
+      */
       
       // Remove progress bar after successful upload
       setTimeout(() => {
@@ -831,7 +877,24 @@ const handleTextareaFocus = () => {
         console.error('❌ Failed to mark room as read:', err);
       });
   };
+ 
+  const handleTextChange = (e) => {
+  setText(e.target.value);
+  
+  // Auto-resize textarea
+  //e.target.style.height = 'auto';
+  //e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+};
 
+
+// Also update handleKeyPress to only send on Enter without Shift:
+const handleKeyPress = (event) => {
+  showPicker(false);
+  if (event.key === 'Enter' && !event.shiftKey && !isCreatorNonMember) {
+    event.preventDefault(); // Prevent newline
+    sendMessage();
+  }
+};
 // Then in your return statement, add the progress display:
 return (
   <div className="bottom-bar-conversation uk-flex uk-flex-middle" style={{ position: 'relative' }}>
@@ -851,7 +914,7 @@ return (
       </div>
     )}
     
-    {/* Text input - disable during any upload */}
+    {/*
     <input
       disabled={isUploading || isImageUploading}
       value={text}
@@ -862,6 +925,25 @@ return (
       className="search-input"
       placeholder="Type a message..."
       type="text"
+    />
+    */}
+
+    <textarea
+      disabled={isUploading || isImageUploading}
+      value={text}
+      onKeyDown={handleKeyPress}
+      onChange={handleTextChange}  // Use the new handler
+      onFocus={handleTextareaFocus}
+      onBlur={handleTextareaBlur}
+      className="search-input"
+      placeholder="Type a message..."
+      rows={1}
+      style={{
+        resize: 'none',
+        overflow: 'hidden',
+        minHeight: '20px',
+        maxHeight: '120px',
+      }}
     />
     
     {/* Emoji button */}

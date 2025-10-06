@@ -1,0 +1,567 @@
+// frontend/src/features/Details/components/RoomInfo.sass
+
+$nav-background: #303841
+$panel-background: #363e47
+
+.room-info-container
+  height: 100%
+  width: 100%
+  background: #f2f2f2
+  display: flex
+  flex-direction: column
+  overflow: hidden
+
+.room-info-header
+  display: flex
+  align-items: center
+  padding: 16px 20px
+  background: white
+  border-bottom: 1px solid rgba(218, 220, 224, 0.5)
+  flex-shrink: 0
+
+  .back-button
+    background: none
+    border: none
+    font-size: 24px
+    color: #666
+    cursor: pointer
+    padding: 8px
+    margin-right: 12px
+    display: flex
+    align-items: center
+    justify-content: center
+    transition: color 0.2s
+
+    &:hover
+      color: #333
+
+  h3
+    margin: 0
+    font-size: 18px
+    font-weight: 600
+    color: #333
+
+.room-info-profile
+  padding: 30px 20px
+  background: white
+  display: flex
+  flex-direction: column
+  align-items: center
+  border-bottom: 1px solid rgba(218, 220, 224, 0.5)
+  flex-shrink: 0
+
+  .profile-picture
+    width: 120px
+    height: 120px
+    border-radius: 60px
+    overflow: hidden
+    margin-bottom: 16px
+
+    img
+      width: 100%
+      height: 100%
+      object-fit: cover
+
+    .img
+      width: 120px
+      height: 120px
+      border-radius: 60px
+      display: flex
+      justify-content: center
+      align-items: center
+      background: $nav-background
+      color: #f7f7f8
+      font-size: 48px
+      font-weight: 600
+
+  .profile-name
+    font-size: 22px
+    font-weight: 600
+    margin: 0 0 4px 0
+    color: #333
+    text-align: center
+
+  .profile-tagline
+    font-size: 14px
+    color: #666
+    margin: 0
+    text-align: center
+
+  .profile-members
+    font-size: 14px
+    color: #666
+    margin: 0
+    text-align: center
+
+.room-info-tabs
+  display: flex
+  background: white
+  border-bottom: 2px solid #e5e5e5
+  flex-shrink: 0
+
+  .tab
+    flex: 1
+    padding: 14px 20px
+    background: none
+    border: none
+    font-size: 14px
+    font-weight: 500
+    color: #666
+    cursor: pointer
+    border-bottom: 3px solid transparent
+    transition: all 0.2s
+    position: relative
+    top: 2px
+
+    &:hover
+      color: #333
+      background: #f9f9f9
+
+    &.active
+      color: #007bff
+      border-bottom-color: #007bff
+
+.room-info-content
+  flex: 1
+  overflow-y: auto
+  overflow-x: hidden
+
+.members-section
+  background: white
+
+  .section-header
+    padding: 16px 20px 8px
+    border-bottom: 1px solid rgba(218, 220, 224, 0.3)
+
+    h4
+      margin: 0
+      font-size: 14px
+      font-weight: 600
+      color: #666
+      text-transform: uppercase
+      letter-spacing: 0.5px
+
+  .members-list
+    .member-item
+      display: flex
+      align-items: center
+      padding: 12px 20px
+      border-bottom: 1px solid rgba(218, 220, 224, 0.3)
+      transition: background 0.2s
+
+      &:hover
+        background: #f9f9f9
+
+      img
+        width: 44px
+        height: 44px
+        border-radius: 22px
+        margin-right: 12px
+
+      .img
+        width: 44px
+        height: 44px
+        border-radius: 22px
+        display: flex
+        justify-content: center
+        align-items: center
+        background: $nav-background
+        color: #f7f7f8
+        font-size: 16px
+        font-weight: 600
+        margin-right: 12px
+
+      .member-info
+        flex: 1
+
+        .member-name
+          font-size: 15px
+          font-weight: 500
+          color: #333
+          margin-bottom: 2px
+
+        .member-username
+          font-size: 13px
+          color: #999
+
+      .status-indicator
+        font-size: 12px
+
+        &.online
+          color: #55d48b
+
+        &.away
+          color: orange
+
+        &.busy
+          color: #d61314
+
+        &.offline
+          color: #ccc
+
+  .contact-details
+    padding: 20px
+
+    .detail-item
+      display: flex
+      justify-content: space-between
+      align-items: center
+      padding: 14px 0
+      border-bottom: 1px solid rgba(218, 220, 224, 0.3)
+
+      &:last-child
+        border-bottom: none
+
+      .detail-label
+        font-size: 14px
+        color: #666
+        font-weight: 500
+
+      .detail-value
+        font-size: 14px
+        color: #333
+
+        &.online
+          color: #55d48b
+
+        &.away
+          color: orange
+
+        &.busy
+          color: #d61314
+
+        &.offline
+          color: #999
+
+.media-section
+  .media-category
+    background: white
+    margin-bottom: 12px
+    padding-bottom: 16px
+
+    .category-header
+      display: flex
+      align-items: center
+      padding: 16px 20px
+      border-bottom: 1px solid rgba(218, 220, 224, 0.3)
+
+      svg
+        font-size: 18px
+        color: #666
+        margin-right: 10px
+
+      h4
+        margin: 0
+        font-size: 15px
+        font-weight: 600
+        color: #333
+
+    .empty-state
+      padding: 40px 20px
+      text-align: center
+      color: #999
+      font-size: 14px
+
+    .view-all-btn
+      display: block
+      width: calc(100% - 40px)
+      margin: 12px 20px 0
+      padding: 10px
+      background: #f5f5f5
+      border: none
+      border-radius: 6px
+      color: #007bff
+      font-size: 14px
+      font-weight: 500
+      cursor: pointer
+      transition: background 0.2s
+
+      &:hover
+        background: #e8e8e8
+
+  .media-grid
+    display: grid
+    grid-template-columns: repeat(3, 1fr)
+    gap: 4px
+    padding: 8px
+
+    .media-item
+      aspect-ratio: 1
+      cursor: pointer
+      overflow: hidden
+      border-radius: 4px
+      transition: transform 0.2s
+
+      &:hover
+        transform: scale(1.05)
+
+      img
+        width: 100%
+        height: 100%
+        object-fit: cover
+        display: block
+
+  .files-list
+    padding: 8px 12px
+
+    .file-item
+      display: flex
+      align-items: center
+      padding: 12px
+      margin-bottom: 8px
+      background: #f9f9f9
+      border-radius: 8px
+      text-decoration: none
+      color: inherit
+      transition: background 0.2s
+
+      &:hover
+        background: #f0f0f0
+
+      .file-icon
+        width: 44px
+        height: 44px
+        display: flex
+        align-items: center
+        justify-content: center
+        background: #007bff
+        color: white
+        border-radius: 8px
+        font-size: 20px
+        margin-right: 12px
+        flex-shrink: 0
+
+      .file-info
+        flex: 1
+        min-width: 0
+
+        .file-name
+          font-size: 14px
+          font-weight: 500
+          color: #333
+          white-space: nowrap
+          overflow: hidden
+          text-overflow: ellipsis
+          margin-bottom: 4px
+
+        .file-meta
+          font-size: 12px
+          color: #999
+
+      .file-download
+        font-size: 18px
+        color: #666
+        margin-left: 12px
+        flex-shrink: 0
+
+  .links-list
+    padding: 8px 12px
+
+    .link-item
+      display: flex
+      align-items: center
+      padding: 12px
+      margin-bottom: 8px
+      background: #f9f9f9
+      border-radius: 8px
+      text-decoration: none
+      color: inherit
+      transition: background 0.2s
+
+      &:hover
+        background: #f0f0f0
+
+      .link-icon
+        width: 40px
+        height: 40px
+        display: flex
+        align-items: center
+        justify-content: center
+        background: #28a745
+        color: white
+        border-radius: 8px
+        font-size: 18px
+        margin-right: 12px
+        flex-shrink: 0
+
+      .link-info
+        flex: 1
+        min-width: 0
+
+        .link-url
+          font-size: 14px
+          font-weight: 500
+          color: #007bff
+          white-space: nowrap
+          overflow: hidden
+          text-overflow: ellipsis
+          margin-bottom: 4px
+
+        .link-meta
+          font-size: 12px
+          color: #999
+
+// Mobile responsive
+@media screen and (max-width: 699px)
+  .room-info-profile
+    padding: 24px 16px
+
+    .profile-picture
+      width: 100px
+      height: 100px
+
+      .img
+        width: 100px
+        height: 100px
+        font-size: 40px
+
+  .media-section
+    .media-grid
+      grid-template-columns: repeat(3, 1fr)
+      gap: 3px
+      padding: 6px
+
+// Tablet responsive
+@media screen and (min-width: 700px) and (max-width: 1199px)
+  .room-info-profile
+    .profile-picture
+      width: 110px
+      height: 110px
+
+      .img
+        width: 110px
+        height: 110px
+        font-size: 44px
+
+// Dark theme support
+.theme.dark
+  .room-info-container
+    background: $panel-background
+
+  .room-info-header
+    background: $nav-background
+    border-bottom-color: rgba(255, 255, 255, 0.1)
+
+    .back-button
+      color: #ddd
+
+      &:hover
+        color: white
+
+    h3
+      color: white
+
+  .room-info-profile
+    background: $nav-background
+    border-bottom-color: rgba(255, 255, 255, 0.1)
+
+    .profile-name
+      color: white
+
+    .profile-tagline,
+    .profile-members
+      color: #ccc
+
+  .room-info-tabs
+    background: $nav-background
+    border-bottom-color: rgba(255, 255, 255, 0.1)
+
+    .tab
+      color: #ccc
+
+      &:hover
+        color: white
+        background: rgba(255, 255, 255, 0.05)
+
+      &.active
+        color: #007bff
+
+  .room-info-content
+    background: $panel-background
+
+  .members-section
+    background: $nav-background
+
+    .section-header
+      border-bottom-color: rgba(255, 255, 255, 0.1)
+
+      h4
+        color: #ccc
+
+    .members-list
+      .member-item
+        border-bottom-color: rgba(255, 255, 255, 0.1)
+
+        &:hover
+          background: rgba(255, 255, 255, 0.05)
+
+        .member-info
+          .member-name
+            color: white
+
+          .member-username
+            color: #999
+
+    .contact-details
+      .detail-item
+        border-bottom-color: rgba(255, 255, 255, 0.1)
+
+        .detail-label
+          color: #ccc
+
+        .detail-value
+          color: white
+
+  .media-section
+    .media-category
+      background: $nav-background
+
+      .category-header
+        border-bottom-color: rgba(255, 255, 255, 0.1)
+
+        svg
+          color: #ccc
+
+        h4
+          color: white
+
+      .empty-state
+        color: #999
+
+      .view-all-btn
+        background: rgba(255, 255, 255, 0.1)
+        color: #007bff
+
+        &:hover
+          background: rgba(255, 255, 255, 0.15)
+
+    .files-list
+      .file-item
+        background: rgba(255, 255, 255, 0.05)
+
+        &:hover
+          background: rgba(255, 255, 255, 0.1)
+
+        .file-info
+          .file-name
+            color: white
+
+          .file-meta
+            color: #999
+
+        .file-download
+          color: #ccc
+
+    .links-list
+      .link-item
+        background: rgba(255, 255, 255, 0.05)
+
+        &:hover
+          background: rgba(255, 255, 255, 0.1)
+
+        .link-info
+          .link-url
+            color: #007bff
+
+          .link-meta
+            color: #999

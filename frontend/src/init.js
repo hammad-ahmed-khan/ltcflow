@@ -11,9 +11,9 @@ const init = async () => {
     e.preventDefault();
   });
 
-  if (localStorage.getItem("app") !== "Clover 2.x.x") {
+  if (localStorage.getItem("app") !== "LTC Flow 2.x.x") {
     localStorage.clear();
-    localStorage.setItem("app", "Clover 2.x.x");
+    localStorage.setItem("app", "LTC Flow 2.x.x");
   }
 
   const token = localStorage.getItem("token");

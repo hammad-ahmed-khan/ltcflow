@@ -1,7 +1,7 @@
 import apiClient from "../api/apiClient";
 
-const getRooms = (limit = 30) => {
-  return apiClient.post("/api/rooms/list", { limit });
+const getRooms = () => {
+  return apiClient.post("/api/rooms/list", {});
 };
 
 export default getRooms;

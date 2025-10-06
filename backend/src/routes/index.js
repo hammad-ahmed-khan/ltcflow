@@ -254,4 +254,10 @@ router.post(
   require("./mark-room-read")
 );
 
+router.post(
+  "/room/media",
+  passport.authenticate("jwt", { session: false }, null),
+  require("./get-room-media")
+);
+
 module.exports = router;

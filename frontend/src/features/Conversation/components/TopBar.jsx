@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import './TopBar.sass';
 import {
-  FiPhone, FiVideo, FiArrowLeft, FiMoreHorizontal, FiExternalLink, FiStar, FiInfo,
+  FiPhone, FiVideo, FiArrowLeft, FiMoreHorizontal, FiExternalLink, FiStar, FiInfo, FiImage,
 } from 'react-icons/fi';
 import { useGlobal } from 'reactn';
 import { useDispatch, useSelector } from 'react-redux';
@@ -25,6 +25,7 @@ function TopBar({ back, loading }) {
   const setVideo = useGlobal('video')[1];
   const setCallDirection = useGlobal('callDirection')[1];
   const setMeeting = useGlobal('meeting')[1];
+  const [showRoomInfo, setShowRoomInfo] = useGlobal('showRoomInfo');
 
   const { addToast } = useToasts();
   const dispatch = useDispatch();
@@ -100,7 +101,13 @@ function TopBar({ back, loading }) {
   };
 
   const roomInfo = () => {
-    navigate(`/room/${room._id}/info`, { replace: true });
+    setShowRoomInfo(true);
+  };
+
+  const mediaFiles = () => {
+    setShowRoomInfo(true);
+    // Room info will open on the first tab by default
+    // You can enhance this later to open directly on media tab
   };
 
   const Online = ({ other }) => {
@@ -170,9 +177,15 @@ function TopBar({ back, loading }) {
           </div>
           <div data-uk-dropdown="mode: click; offset: 5; boundary: .top-bar; pos: bottom-right">
             <div className="link" onClick={roomInfo}>
-              Room Info
+              {room.isGroup ? 'Group Info' : 'Contact Info'}
               <div className="icon">
                 <FiInfo />
+              </div>
+            </div>
+            <div className="link" onClick={mediaFiles}>
+              Media, Documents & Links
+              <div className="icon">
+                <FiImage />
               </div>
             </div>
             {Config.demo && <div className="divider" />}
