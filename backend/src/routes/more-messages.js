@@ -1,13 +1,14 @@
-const Message = require('../models/Message');
+// backend/src/routes/more-messages.js
+const Message = require("../models/Message");
 
 module.exports = (req, res, next) => {
   let { roomID, firstMessageID } = req.fields;
-  const companyId = req.headers['x-company-id']; // Read from header
+  const companyId = req.headers["x-company-id"];
 
   // Validate required fields
   if (!roomID || !firstMessageID || !companyId) {
     return res.status(400).json({
-      error: 'Room ID, First Message ID, and Company ID are required.',
+      error: "Room ID, First Message ID, and Company ID are required.",
     });
   }
 
@@ -15,17 +16,18 @@ module.exports = (req, res, next) => {
   Message.find({
     room: roomID,
     _id: { $lt: firstMessageID },
-    companyId, // Add companyId filter
+    companyId,
   })
     .sort({ _id: -1 })
     .limit(20)
     .populate({
-      path: 'author',
-      select: '-email -password -friends -__v',
+      path: "author",
+      select: "-email -password -friends -__v",
       populate: {
-        path: 'picture',
+        path: "picture",
       },
     })
+    .populate([{ path: "file", strictPopulate: false }]) // ⬅️ ADD THIS LINE - Populate file data!
     .lean()
     .then((messages) => {
       messages.reverse();
@@ -37,8 +39,8 @@ module.exports = (req, res, next) => {
             return {
               ...e,
               author: {
-                firstName: 'Deleted',
-                lastName: 'User',
+                firstName: "Deleted",
+                lastName: "User",
               },
             };
           }
@@ -47,6 +49,6 @@ module.exports = (req, res, next) => {
     })
     .catch((err) => {
       console.error(err);
-      res.status(500).json({ error: 'Server error loading messages.' });
+      res.status(500).json({ error: "Server error loading messages." });
     });
 };

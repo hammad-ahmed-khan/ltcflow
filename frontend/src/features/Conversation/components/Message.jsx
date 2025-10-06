@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo, useMemo, useCallback } from 'react';
 import moment from 'moment';
 import './Message.sass';
 import emojiRegex from 'emoji-regex';
 import { useGlobal } from 'reactn';
 import ReactImageAppear from 'react-image-appear';
-import { FiDownloadCloud, FiMoreVertical, FiTrash2, FiChevronDown } from 'react-icons/fi';
+import { FiDownloadCloud, FiMoreVertical, FiTrash2 } from 'react-icons/fi';
 import striptags from 'striptags';
 import Config from '../../../config';
 import { buildImageUrl, buildFileUrl } from '../../../utils/urlUtils';
@@ -12,10 +12,10 @@ import { useToasts } from 'react-toast-notifications';
 import deleteMessage from '../../../actions/deleteMessage';
 import { useDispatch } from 'react-redux';
 import Actions from '../../../constants/Actions';
- 
-function Message({
+
+const Message = memo(({
   message, previous, next, onOpen,
-}) {
+}) => {
   const { content, date } = message;
   let { author } = message;
 
@@ -51,7 +51,6 @@ function Message({
   ) attachPrevious = true;
   if (next && Math.abs(moment(next.date).diff(moment(date), 'minutes')) < 3 && author._id === next.author._id) attachNext = true;
 
-  // ✅ MOVED: useEffect MUST come before any early returns
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (contextMenuRef.current && !contextMenuRef.current.contains(event.target)) {
@@ -70,8 +69,7 @@ function Message({
     };
   }, []);
 
-  // ✅ UPDATED: Handle message deletion with soft delete
-  const handleDeleteMessage = async () => {
+  const handleDeleteMessage = useCallback(async () => {
     try {
       await deleteMessage(message._id);
       
@@ -101,10 +99,9 @@ function Message({
         autoDismiss: true,
       });
     }
-  };
+  }, [message, user.id, dispatch, addToast]);
 
-  // Desktop: Right-click context menu
-  const handleContextMenu = (e) => {
+  const handleContextMenu = useCallback((e) => {
     e.preventDefault();
     
     if (!isMine) return;
@@ -128,17 +125,15 @@ function Message({
     
     setContextMenuPosition({ x, y });
     setShowContextMenu(true);
-  };
+  }, [isMine]);
 
-  // Desktop: Dropdown button click
-  const handleDropdownClick = (e) => {
+  const handleDropdownClick = useCallback((e) => {
     e.stopPropagation();
     if (!isMine) return;
     setShowDropdown(!showDropdown);
-  };
+  }, [isMine, showDropdown]);
 
-  // Mobile: Touch and hold
-  const handleTouchStart = (e) => {
+  const handleTouchStart = useCallback((e) => {
     if (!isMine) return;
 
     const startTime = Date.now();
@@ -176,67 +171,68 @@ function Message({
     }, 500);
 
     setTouchTimer(timer);
-  };
+  }, [isMine]);
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = useCallback(() => {
     if (touchTimer) {
       clearTimeout(touchTimer);
       setTouchTimer(null);
     }
-  };
+  }, [touchTimer]);
 
-  // Utility functions
-  function Picture({ user }) {
-    if (user.picture) return <img src={`${Config.url || ''}/api/images/${user.picture.shieldedID}/256`} alt="Picture" />;
+  const Picture = useMemo(() => {
+    if (author.picture) return <img src={`${Config.url || ''}/api/images/${author.picture.shieldedID}/256`} alt="Picture" />;
     return (
       <div className="img">
-        {user.firstName.substr(0, 1)}
-        {user.lastName.substr(0, 1)}
+        {author.firstName.substr(0, 1)}
+        {author.lastName.substr(0, 1)}
       </div>
     );
-  }
+  }, [author.picture, author.firstName, author.lastName]);
 
-  function Details({ side }) {
+  const Details = useMemo(() => {
     if (!attachNext) {
+      const side = isMine ? 'right' : 'left';
       return <div className={`message-details ${side}`}>{moment(date).format('MMM DD - h:mm A')}</div>;
     }
     return null;
-  }
+  }, [attachNext, isMine, date]);
 
-  function PictureOrSpacer() {
+  const PictureOrSpacer = useMemo(() => {
     if (attachPrevious) return <div className="spacer" />;
     return (
       <div className="picture">
-        <Picture user={author} />
+        {Picture}
       </div>
     );
-  }
+  }, [attachPrevious, Picture]);
 
   const noEmoji = content ? content.replace(emojiRegex(), '') : '';
   const isOnlyEmoji = content ? !noEmoji.replace(/[\s\n]/gm, '') : false;
 
-  const getBubble = () => {
+  const getBubble = useCallback(() => {
     if (attachPrevious || isOnlyEmoji) {
       if (isMine) return ' right';
       return ' left';
     }
     if (isMine) return ' bubble-right right';
     return ' bubble-left left';
-  };
+  }, [attachPrevious, isOnlyEmoji, isMine]);
 
-  const convertUrls = (text) => {
+  const convertUrls = useCallback((text) => {
     if (!text) return '';
     const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi;
     return text.replace(urlRegex, (url) => {
       return `<a href="${url}" target="_blank">${url}</a>`;
     });
-  };
+  }, []);
 
-  function Content() {
+  const ContentComponent = useMemo(() => {
     switch (message.type) {
       case 'image':
         return (
           <ReactImageAppear
+            key={message._id}
             src={buildImageUrl(message.content, 512)}
             animationDuration="0.2s"
             onClick={() => onOpen(message)}
@@ -270,16 +266,15 @@ function Message({
           />
         );
     }
-  }
+  }, [message._id, message.type, message.content, message.file, convertUrls, content, onOpen]);
 
-  const getBubbleClass = () => {
+  const getBubbleClass = useCallback(() => {
     if (message.type === 'image') return 'bubble-image';
     return isOnlyEmoji ? 'emoji-bubble' : 'bubble';
-  };
+  }, [message.type, isOnlyEmoji]);
 
   const shouldShowDropdownButton = isMine && isHovered && window.innerWidth >= 768;
 
-  // ✅ NOW it's safe to check for deleted messages - ALL hooks have been called
   if (message.isDeleted) {
     return (
       <div
@@ -321,20 +316,18 @@ function Message({
     );
   }
 
-  // Regular message rendering
   return (
     <div
       ref={messageRef}
       className={`message${isMine ? ' right' : ' left'}${attachPrevious ? ' attach-previous' : ''}${
         attachNext ? ' attach-next' : ''
       } message-with-menu`}
-      onContextMenu={handleContextMenu}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <PictureOrSpacer />
+      {PictureOrSpacer}
       <div
         className={`content-x${isMine ? ' right' : ''}${attachPrevious ? ' attach-previous' : ''}${
           attachNext ? ' attach-next' : ''
@@ -346,7 +339,7 @@ function Message({
               attachNext ? ' attach-next' : ''
             }`}
           >
-            <Content />
+            {ContentComponent}
           </div>
           
           {shouldShowDropdownButton && (
@@ -356,7 +349,7 @@ function Message({
                 onClick={handleDropdownClick}
                 aria-label="Message options"
               >
-                <FiChevronDown />
+                <FiMoreVertical />
               </button>
               
               {showDropdown && (
@@ -370,7 +363,7 @@ function Message({
             </div>
           )}
         </div>
-        <Details side={isMine ? 'right' : 'left'} />
+        {Details}
       </div>
 
       {showContextMenu && (
@@ -392,6 +385,17 @@ function Message({
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.message._id === nextProps.message._id &&
+    prevProps.message.content === nextProps.message.content &&
+    prevProps.message.isDeleted === nextProps.message.isDeleted &&
+    prevProps.message.type === nextProps.message.type &&
+    prevProps.previous?._id === nextProps.previous?._id &&
+    prevProps.next?._id === nextProps.next?._id
+  );
+});
+
+Message.displayName = 'Message';
 
 export default Message;

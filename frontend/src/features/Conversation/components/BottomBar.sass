@@ -1,13 +1,14 @@
 .bottom-bar-conversation
   width: 100%
   min-height: 54px
-  max-height: 54px
+  max-height: 160px  // Allow expansion for multi-line text
   border-top: 1px solid rgba(218, 220, 224, 0.5)
   background: #f2f2f2
   display: flex
   flex-direction: row
-  align-items: center
+  align-items: flex-end  // Changed from center to flex-end
   padding: 0 8px
+  transition: max-height 0.2s ease  // Smooth height transition
    
   .profile
     overflow: visible
@@ -31,7 +32,7 @@
     flex: 0 0 auto
     width: 36px
     height: 36px
-    margin: 0
+    margin: 0 0 7px 0  // Add bottom margin to align with textarea
     font-size: 24px
     display: flex
     justify-content: center
@@ -53,7 +54,45 @@
     margin-left: 2px
     margin-right: 8px
     
-  // Text input in the middle
+  // Text input in the middle - NOW SUPPORTS TEXTAREA
+  > textarea.search-input
+    order: 4
+    flex: 1 1 auto
+    min-width: 0
+    min-height: 40px
+    max-height: 120px
+    font-size: 16px !important
+    padding: 10px 12px
+    margin: 7px 0
+    border: none
+    background-image: none
+    background-color: transparent
+    -webkit-box-shadow: none
+    -moz-box-shadow: none
+    box-shadow: none
+    font-family: inherit
+    line-height: 1.4
+    resize: none
+    overflow-y: auto
+    overflow-x: hidden
+    word-wrap: break-word
+    white-space: pre-wrap
+    
+    // Smooth scrolling for overflow
+    &::-webkit-scrollbar
+      width: 4px
+      
+    &::-webkit-scrollbar-track
+      background: transparent
+      
+    &::-webkit-scrollbar-thumb
+      background: #ccc
+      border-radius: 2px
+      
+    &::-webkit-scrollbar-thumb:hover
+      background: #999
+    
+  // Keep compatibility with old input if needed
   > input.search-input
     order: 4
     flex: 1 1 auto
@@ -61,7 +100,7 @@
     height: 40px
     font-size: 16px !important
     padding: 0 12px
-    margin: 0
+    margin: 7px 0
     border: none
     background-image: none
     background-color: transparent
@@ -75,16 +114,39 @@
     margin-left: 8px
     margin-right: 4px
 
+// Mobile responsive adjustments
+@media screen and (max-width: 768px)
+  .bottom-bar-conversation
+    > textarea.search-input,
+    > input.search-input
+      font-size: 16px !important  // Prevent iOS zoom
+      
+// Dark theme support
+.theme.dark .bottom-bar-conversation
+  background: #2a2e35
+  border-top-color: rgba(255, 255, 255, 0.1)
+  
+  > textarea.search-input,
+  > input.search-input
+    color: #fff
+    
+    &::placeholder
+      color: #888
+
+// Add this to your BottomBar.sass file to fix emoji picker z-index
 .picker
   position: relative
   width: 0
   height: 0
-  bottom: 410px + 41px
+  bottom: 410px + 1px
   left: 0
+  z-index: 100 !important  // Ensure picker appears above messages and scroll button
   
 .emoji-mart
   border: none !important
   border-radius: 0 !important
+  z-index: 100 !important  // Match picker z-index
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important  // Add shadow for better visibility
   
 .file-input
   visibility: hidden

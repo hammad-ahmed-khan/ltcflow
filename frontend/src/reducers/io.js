@@ -1,3 +1,4 @@
+// frontend/src/reducers/io.js
 import Actions from "../constants/Actions";
 
 const initialState = {
@@ -38,47 +39,83 @@ const reducer = (state = initialState, action) => {
         ...state,
         messages: [...action.messages, ...state.messages],
       };
+
     case Actions.MESSAGE:
+      // ✅ ENHANCED: Check for duplicates before adding
+      const isDuplicate = state.messages.some(
+        (msg) => msg._id === action.message._id
+      );
+
+      if (isDuplicate) {
+        console.log(
+          "⚠️ Duplicate message prevented in reducer:",
+          action.message._id
+        );
+        return state;
+      }
+
       return {
         ...state,
         messages: [...state.messages, action.message],
       };
+
     case Actions.ONLINE_USERS:
       return {
         ...state,
         onlineUsers: action.data,
       };
+
     case Actions.REFRESH_MEETINGS:
       return {
         ...state,
         refreshMeetings: action.timestamp,
       };
-    /*
-    case Actions.MESSAGE_UPDATE:
-      console.log("📝 Updating message in state:", action.message._id);
-      return {
-        ...state,
-        messages: state.messages.map((msg) =>
-          msg._id === action.message._id ? { ...msg, ...action.message } : msg
-        ),
-      };
-      */
 
     case Actions.MESSAGE_UPDATE:
-      console.log("📝 Updating message in state:", action.message._id);
+      console.log("📝 MESSAGE_UPDATE:", {
+        messageId: action.message._id,
+        tempId: action.message.tempId,
+        currentCount: state.messages.length,
+      });
+
+      // Check if real message already exists
+      const realMessageExists = state.messages.some(
+        (msg) => msg._id === action.message._id
+      );
+
+      if (realMessageExists) {
+        console.log("  ⚠️ Real message already exists, just updating fields");
+        return {
+          ...state,
+          messages: state.messages.map((msg) =>
+            msg._id === action.message._id ? { ...msg, ...action.message } : msg
+          ),
+        };
+      }
+
+      // Replace temp with real message
+      const hasTemp =
+        action.message.tempId &&
+        state.messages.some((msg) => msg._id === action.message.tempId);
+
+      if (hasTemp) {
+        console.log(
+          `  ✅ Replacing temp ${action.message.tempId} with real ${action.message._id}`
+        );
+        return {
+          ...state,
+          messages: state.messages.map((msg) =>
+            msg._id === action.message.tempId ? { ...action.message } : msg
+          ),
+        };
+      }
+
+      // If we get here, neither temp nor real exists - this shouldn't happen
+      // but add the message to be safe
+      console.log("  ⚠️ Neither temp nor real exists, adding message");
       return {
         ...state,
-        messages: state.messages.map((msg) => {
-          // If updating by real ID match
-          if (msg._id === action.message._id) {
-            return { ...msg, ...action.message };
-          }
-          // If updating by temp ID (for optimistic updates)
-          if (action.message.tempId && msg._id === action.message.tempId) {
-            return { ...msg, ...action.message };
-          }
-          return msg;
-        }),
+        messages: [...state.messages, action.message],
       };
 
     case Actions.REMOVE_MESSAGE:
@@ -89,6 +126,7 @@ const reducer = (state = initialState, action) => {
           (message) => message._id !== action.messageId
         ),
       };
+
     default:
       return state;
   }

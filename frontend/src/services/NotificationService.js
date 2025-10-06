@@ -347,9 +347,9 @@ class NotificationService {
 
   updateDocumentTitle(count) {
     if (count > 0) {
-      document.title = `(${count}) Messages - Clover`;
+      document.title = `(${count}) Messages - LTC Flow`;
     } else {
-      document.title = "Clover";
+      document.title = "LTC Flow - Instant Communication for LTC Teams";
     }
   }
 
@@ -382,7 +382,11 @@ class NotificationService {
       `${message.content}-${message.date}-${message.author?._id}`;
 
     // Don't notify for own messages
-    if (currentUser && message.author?._id === currentUser._id) {
+    const currentUserId = currentUser?._id || currentUser?.id;
+    const messageAuthorId = message.author?._id || message.author?.id;
+
+    // Don't notify for own messages
+    if (currentUserId && messageAuthorId && currentUserId === messageAuthorId) {
       console.log("📤 Skipping notification for own message");
       return;
     }

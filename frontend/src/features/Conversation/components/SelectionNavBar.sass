@@ -1,0 +1,121 @@
+// frontend/src/features/Conversation/components/SelectionNavBar.sass
+// Mobile selection navbar styles
+
+.selection-navbar
+  position: fixed
+  top: 0
+  left: 0
+  right: 0
+  height: 56px
+  background: #557d53
+  color: white
+  z-index: 1000
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15)
+  animation: slideDown 0.2s ease-out
+
+  .selection-navbar-content
+    display: flex
+    align-items: center
+    height: 100%
+    padding: 0 16px
+    gap: 16px
+
+    .selection-action
+      background: none
+      border: none
+      color: white
+      cursor: pointer
+      padding: 8px
+      border-radius: 50%
+      display: flex
+      align-items: center
+      justify-content: center
+      transition: background-color 0.2s ease
+      -webkit-tap-highlight-color: transparent
+
+      svg
+        font-size: 22px
+
+      &:hover
+        background: rgba(255, 255, 255, 0.1)
+
+      &:active
+        background: rgba(255, 255, 255, 0.2)
+        transform: scale(0.95)
+
+      &.close
+        margin-right: 4px
+
+      &.delete
+        color: #ffebee
+
+        &:hover
+          background: rgba(255, 255, 255, 0.15)
+
+    .selection-info
+      flex: 1
+      display: flex
+      align-items: center
+
+      .selection-count
+        font-size: 16px
+        font-weight: 500
+        letter-spacing: 0.3px
+
+    .selection-actions
+      display: flex
+      gap: 8px
+      align-items: center
+
+// Animation
+@keyframes slideDown
+  from
+    transform: translateY(-100%)
+    opacity: 0
+  to
+    transform: translateY(0)
+    opacity: 1
+
+// Tablet and larger - hide selection navbar
+@media (min-width: 768px)
+  .selection-navbar
+    display: none !important
+
+// Dark mode support
+@media (prefers-color-scheme: dark)
+  .selection-navbar
+    background: #2d5a2d
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3)
+
+// Reduced motion
+@media (prefers-reduced-motion: reduce)
+  .selection-navbar
+    animation: none
+    
+  .selection-action
+    transition: none
+    
+    &:active
+      transform: none
+
+// Safe area support for notched devices
+@supports (padding: env(safe-area-inset-top))
+  .selection-navbar
+    padding-top: env(safe-area-inset-top)
+    height: calc(56px + env(safe-area-inset-top))
+
+// Landscape mode adjustments
+@media (max-width: 767px) and (orientation: landscape)
+  .selection-navbar
+    height: 48px
+
+    .selection-navbar-content
+      padding: 0 12px
+
+      .selection-action
+        svg
+          font-size: 20px
+
+      .selection-info
+        .selection-count
+          font-size: 14px
