@@ -54,6 +54,43 @@ function RoomInfo({ onBack }) {
     }
   }, [room?._id]);
 
+  // Listen for new messages and update media lists in real-time
+  useEffect(() => {
+    if (!messages || messages.length === 0) return;
+
+    const lastMessage = messages[messages.length - 1];
+    
+    // Add new image to the list
+    if (lastMessage.type === 'image' && !lastMessage.isDeleted) {
+      setImageMessages(prev => {
+        // Check if already exists
+        if (prev.some(img => img._id === lastMessage._id)) return prev;
+        return [lastMessage, ...prev];
+      });
+    }
+    
+    // Add new file to the list
+    if (lastMessage.type === 'file' && !lastMessage.isDeleted) {
+      setFileMessages(prev => {
+        // Check if already exists
+        if (prev.some(file => file._id === lastMessage._id)) return prev;
+        return [lastMessage, ...prev];
+      });
+    }
+    
+    // Add new link to the list
+    if (lastMessage.type === 'text' && !lastMessage.isDeleted && lastMessage.content) {
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      if (urlRegex.test(lastMessage.content)) {
+        setLinkMessages(prev => {
+          // Check if already exists
+          if (prev.some(link => link._id === lastMessage._id)) return prev;
+          return [lastMessage, ...prev];
+        });
+      }
+    }
+  }, [messages]);
+
   let other = {
     firstName: 'A',
     lastName: 'A',
