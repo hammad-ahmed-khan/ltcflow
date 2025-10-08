@@ -133,7 +133,7 @@
   </style>
 </head>
 
-<body>
+<body class="hide-crisp">
   <noscript>
     <div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">
       <h2>JavaScript Required</h2>
@@ -285,6 +285,9 @@
       window.dispatchEvent(new CustomEvent('pwainstalled'));
     });
   </script>
+
+  <script
+    type="text/javascript">window.$crisp = []; window.CRISP_WEBSITE_ID = "36ce1f94-cb4b-4374-875a-04694fcf5161"; (function () { d = document; s = d.createElement("script"); s.src = "https://client.crisp.chat/l.js"; s.async = 1; d.getElementsByTagName("head")[0].appendChild(s); })();</script>
 
   <!-- Main application script -->
   <script type="module" src="/src/main.jsx"></script>
