@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1e2e3b">
+  <title>Offline - LTC Flow</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      background: linear-gradient(135deg, #1e2e3b 0%, #2a3f54 100%);
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .offline-container {
+      max-width: 500px;
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .icon {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 30px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 60px;
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #ffffff;
+    }
+
+    p {
+      font-size: 18px;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 30px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 25px;
+      margin-bottom: 30px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ff4444;
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.online {
+      background: #44ff44;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    button {
+      padding: 14px 32px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: #4a90e2;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #357abd;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .info-box {
+      margin-top: 40px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .info-box h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #ffffff;
+    }
+
+    .info-box ul {
+      list-style: none;
+      text-align: left;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .info-box li {
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .info-box li:last-child {
+      border-bottom: none;
+    }
+
+    .info-box li::before {
+      content: "✓ ";
+      color: #4a90e2;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <div class="icon">📡</div>
+    
+    <h1>You're Offline</h1>
+    
+    <p>
+      It looks like you've lost your internet connection. 
+      Don't worry, you can still access previously loaded content.
+    </p>
+
+    <div class="status">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusText">Offline</span>
+    </div>
+
+    <div class="actions">
+      <button class="btn-primary" id="retryBtn" onclick="checkConnection()">
+        Check Connection
+      </button>
+      <button class="btn-secondary" onclick="goBack()">
+        Go Back
+      </button>
+    </div>
+
+    <div class="info-box">
+      <h3>While Offline:</h3>
+      <ul>
+        <li>View previously loaded conversations</li>
+        <li>Access cached messages</li>
+        <li>Messages will sync when reconnected</li>
+        <li>Calls require an active connection</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    let isChecking = false;
+
+    // Check online status on load
+    window.addEventListener('load', () => {
+      updateStatus();
+    });
+
+    // Listen for online/offline events
+    window.addEventListener('online', () => {
+      console.log('[Offline Page] Connection restored');
+      updateStatus();
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1000);
+    });
+
+    window.addEventListener('offline', () => {
+      console.log('[Offline Page] Connection lost');
+      updateStatus();
+    });
+
+    function updateStatus() {
+      const statusDot = document.getElementById('statusDot');
+      const statusText = document.getElementById('statusText');
+      const retryBtn = document.getElementById('retryBtn');
+
+      if (navigator.onLine) {
+        statusDot.classList.add('online');
+        statusText.textContent = 'Back Online!';
+        retryBtn.textContent = 'Return to App';
+      } else {
+        statusDot.classList.remove('online');
+        statusText.textContent = 'Offline';
+        retryBtn.textContent = 'Check Connection';
+      }
+    }
+
+    async function checkConnection() {
+      if (isChecking) return;
+
+      const retryBtn = document.getElementById('retryBtn');
+      isChecking = true;
+      retryBtn.disabled = true;
+      retryBtn.textContent = 'Checking...';
+
+      try {
+        // Try to fetch a small resource
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        await fetch('/', {
+          method: 'HEAD',
+          cache: 'no-cache',
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+        
+        // Success - redirect to app
+        window.location.href = '/';
+      } catch (error) {
+        console.error('[Offline Page] Still offline:', error);
+        retryBtn.textContent = 'Still Offline - Try Again';
+        retryBtn.disabled = false;
+        isChecking = false;
+      }
+    }
+
+    function goBack() {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = '/';
+      }
+    }
+
+    // Auto-check connection every 30 seconds
+    setInterval(() => {
+      if (navigator.onLine && !isChecking) {
+        checkConnection();
+      }
+    }, 30000);
+  </script>
+</body>
+</html>

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FiX, FiChevronLeft, FiChevronRight, FiDownload } from 'react-icons/fi';
 
 const EnhancedLightbox = ({ 
   images, 
@@ -86,15 +85,18 @@ const EnhancedLightbox = ({
       {/* Header with close and download buttons */}
       <div 
         style={{
-          position: 'absolute',
+          position: 'fixed',
           top: 0,
           left: 0,
           right: 0,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '20px',
+          padding: '20px 20px 12px 20px',
+          paddingTop: 'max(20px, env(safe-area-inset-top))',
           zIndex: 10001,
+          WebkitTransform: 'translateZ(0)',
+          transform: 'translateZ(0)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -102,55 +104,70 @@ const EnhancedLightbox = ({
           color: 'white', 
           fontSize: '16px',
           fontWeight: '500',
+          marginTop: '8px',
         }}>
           {currentIndex + 1} / {images.length}
         </div>
         
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
           <button
             onClick={handleDownload}
             style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
+              background: 'rgba(255, 255, 255, 0.25)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
               borderRadius: '8px',
               color: 'white',
               width: '44px',
               height: '44px',
+              minWidth: '44px',
+              minHeight: '44px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               fontSize: '20px',
               transition: 'background 0.2s',
+              WebkitTapHighlightColor: 'transparent',
+              WebkitTransform: 'translateZ(0)',
+              transform: 'translateZ(0)',
             }}
-            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
-            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
+            onTouchStart={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.4)'}
+            onTouchEnd={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.4)'}
+            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.25)'}
             title="Download Image"
           >
-            <FiDownload />
+            <span style={{ fontSize: '22px', lineHeight: '1' }}>↓</span>
           </button>
           
           <button
             onClick={onClose}
             style={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
+              background: 'rgba(255, 255, 255, 0.25)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
               borderRadius: '8px',
               color: 'white',
               width: '44px',
               height: '44px',
+              minWidth: '44px',
+              minHeight: '44px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
               fontSize: '20px',
               transition: 'background 0.2s',
+              WebkitTapHighlightColor: 'transparent',
+              WebkitTransform: 'translateZ(0)',
+              transform: 'translateZ(0)',
             }}
-            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
-            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
+            onTouchStart={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.4)'}
+            onTouchEnd={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.4)'}
+            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.25)'}
             title="Close"
           >
-            <FiX />
+            <span style={{ fontSize: '28px', lineHeight: '1', fontWeight: '300' }}>×</span>
           </button>
         </div>
       </div>
@@ -176,12 +193,14 @@ const EnhancedLightbox = ({
             style={{
               position: 'absolute',
               left: '20px',
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
+              background: 'rgba(255, 255, 255, 0.25)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
               borderRadius: '50%',
               color: 'white',
               width: '50px',
               height: '50px',
+              minWidth: '50px',
+              minHeight: '50px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -189,12 +208,17 @@ const EnhancedLightbox = ({
               fontSize: '24px',
               transition: 'background 0.2s',
               zIndex: 10002,
+              WebkitTapHighlightColor: 'transparent',
+              WebkitTransform: 'translateZ(0)',
+              transform: 'translateZ(0)',
             }}
-            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
-            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
+            onTouchStart={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.4)'}
+            onTouchEnd={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.4)'}
+            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.25)'}
             title="Previous Image"
           >
-            <FiChevronLeft />
+            <span style={{ fontSize: '28px', lineHeight: '1', fontWeight: '300' }}>‹</span>
           </button>
         )}
 
@@ -236,12 +260,14 @@ const EnhancedLightbox = ({
             style={{
               position: 'absolute',
               right: '20px',
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
+              background: 'rgba(255, 255, 255, 0.25)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
               borderRadius: '50%',
               color: 'white',
               width: '50px',
               height: '50px',
+              minWidth: '50px',
+              minHeight: '50px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -249,12 +275,17 @@ const EnhancedLightbox = ({
               fontSize: '24px',
               transition: 'background 0.2s',
               zIndex: 10002,
+              WebkitTapHighlightColor: 'transparent',
+              WebkitTransform: 'translateZ(0)',
+              transform: 'translateZ(0)',
             }}
-            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
-            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.1)'}
+            onTouchStart={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.4)'}
+            onTouchEnd={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)'}
+            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.4)'}
+            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.25)'}
             title="Next Image"
           >
-            <FiChevronRight />
+            <span style={{ fontSize: '28px', lineHeight: '1', fontWeight: '300' }}>›</span>
           </button>
         )}
       </div>
@@ -273,7 +304,7 @@ const EnhancedLightbox = ({
             overflowY: 'hidden',
             display: 'flex',
             gap: '10px',
-            justifyContent: images.length <= 10 ? 'center' : 'flex-start',
+            justifyContent: 'center',
             maxHeight: '140px',
           }}
           onClick={(e) => e.stopPropagation()}

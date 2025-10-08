@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { getGlobal, useGlobal, setGlobal } from 'reactn';
 import './App.sass';
 import {
@@ -22,6 +22,18 @@ import apiClient from './api/apiClient';
 import { usePortraitLock, LandscapeWarning } from './hooks/usePortraitLock';
 import UnreadSyncManager from './components/UnreadSyncManager';
 
+// PWA imports
+import {
+  registerServiceWorker,
+  requestNotificationPermission,
+  setupInstallPrompt,
+  showInstallPrompt,
+  isAppInstalled,
+  setupNetworkStatus
+} from './utils/pwaRegister';
+import InstallPrompt from './components/InstallPrompt';
+import NetworkStatus from './components/NetworkStatus';
+
 function App() {
   const dispatch = useDispatch();
   const { addToast } = useToasts();
@@ -34,7 +46,116 @@ function App() {
   // Portrait lock hook
   const { showWarning } = usePortraitLock();
 
+  // PWA state
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [wasOffline, setWasOffline] = useState(false);
+
   if (!['dark', 'light'].includes(Config.theme)) Config.theme = 'light';
+
+  // PWA initialization
+  useEffect(() => {
+    console.log('🚀 Initializing PWA features...');
+    
+    // Register service worker
+    registerServiceWorker();
+
+    // Setup install prompt
+    setupInstallPrompt(() => {
+      // Only show banner if not already installed
+      if (!isAppInstalled()) {
+        // Check if prompt was dismissed recently
+        const dismissed = localStorage.getItem('installPromptDismissed');
+        if (dismissed) {
+          const dismissedTime = parseInt(dismissed, 10);
+          const daysSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60 * 24);
+          if (daysSinceDismissed < 7) {
+            return; // Don't show if dismissed within last 7 days
+          }
+        }
+        
+        // Wait 30 seconds before showing install prompt
+        setTimeout(() => {
+          setShowInstallBanner(true);
+        }, 30000);
+      }
+    });
+
+    // Request notification permission after user interaction
+    const requestPermission = () => {
+      requestNotificationPermission().then((granted) => {
+        if (granted) {
+          console.log('[PWA] Notification permission granted');
+        }
+      });
+      // Remove listener after first interaction
+      document.removeEventListener('click', requestPermission);
+    };
+    document.addEventListener('click', requestPermission);
+
+    // Setup network status monitoring
+    setupNetworkStatus(
+      () => {
+        console.log('[PWA] Back online');
+        setIsOnline(true);
+        if (wasOffline) {
+          addToast('Connection restored', {
+            appearance: 'success',
+            autoDismiss: true,
+          });
+        }
+        setWasOffline(false);
+      },
+      () => {
+        console.log('[PWA] Gone offline');
+        setIsOnline(false);
+        setWasOffline(true);
+        addToast('You are offline. Some features may be limited.', {
+          appearance: 'warning',
+          autoDismiss: true,
+        });
+      }
+    );
+
+    // Log if app is installed
+    if (isAppInstalled()) {
+      console.log('[PWA] Running as installed app');
+    }
+
+    // Prevent zooming on iOS
+    document.addEventListener('gesturestart', (e) => {
+      e.preventDefault();
+    });
+
+    // Lock orientation to portrait on mobile (if supported)
+    if (window.screen?.orientation?.lock) {
+      window.screen.orientation.lock('portrait').catch((err) => {
+        console.log('[PWA] Orientation lock not supported:', err);
+      });
+    }
+
+    return () => {
+      document.removeEventListener('click', requestPermission);
+    };
+  }, []);
+
+  // PWA install handlers
+  const handleInstall = async () => {
+    const accepted = await showInstallPrompt();
+    if (accepted) {
+      setShowInstallBanner(false);
+      addToast('App installed successfully!', {
+        appearance: 'success',
+        autoDismiss: true,
+      });
+    }
+  };
+
+  const handleDismissInstall = () => {
+    setShowInstallBanner(false);
+    // Don't show again for 7 days
+    localStorage.setItem('installPromptDismissed', Date.now().toString());
+  };
  
   useEffect(() => {
     const initializeCompanyId = async () => {
@@ -97,7 +218,6 @@ function App() {
       if (token) {
         try {
           const decoded = jwtDecode(token, { complete: true });
-          //console.log("TTOKKENN:", decoded);
           const dateNow = new Date();
           const isExpired = decoded.exp * 1000 < dateNow.getTime();
 
@@ -109,7 +229,6 @@ function App() {
           });
 
           if (!isExpired) {
-            // Use static import since apiClient is imported everywhere
             const res = await apiClient.post('/api/check-user', { 
               id: decoded.id 
             });
@@ -240,6 +359,18 @@ function App() {
   return (
     <>
       <UnreadSyncManager />
+      
+      {/* PWA Network Status Indicator */}
+      {!isOnline && <NetworkStatus isOnline={isOnline} />}
+      
+      {/* PWA Install Prompt Banner */}
+      {showInstallBanner && !isAppInstalled() && (
+        <InstallPrompt
+          onInstall={handleInstall}
+          onDismiss={handleDismissInstall}
+        />
+      )}
+      
       {/* Landscape Warning Overlay */}
       <LandscapeWarning />
       

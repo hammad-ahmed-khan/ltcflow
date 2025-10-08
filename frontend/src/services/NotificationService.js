@@ -2,6 +2,7 @@
 // Enterprise-Grade Notification Service
 
 import messageSound from "../assets/message.mp3";
+import PWABadgeService from "./PWABadgeService";
 
 class NotificationService {
   constructor() {
@@ -307,9 +308,15 @@ class NotificationService {
     if (unreadCount > 0) {
       this.setFaviconBadge(unreadCount);
       this.updateDocumentTitle(unreadCount);
+
+      // ✅ NEW: Update PWA app icon badge
+      PWABadgeService.setBadge(unreadCount);
     } else {
       this.clearFaviconBadge();
       this.updateDocumentTitle(0);
+
+      // ✅ NEW: Clear PWA app icon badge
+      PWABadgeService.clearBadge();
     }
   }
 
@@ -436,6 +443,10 @@ class NotificationService {
     this.playedMessageIDs.clear();
     this.clearFaviconBadge();
     this.updateDocumentTitle(0);
+
+    // ✅ NEW: Clear PWA badge on logout
+    PWABadgeService.clearBadge();
+
     console.log("🔄 NotificationService reset");
   }
 
