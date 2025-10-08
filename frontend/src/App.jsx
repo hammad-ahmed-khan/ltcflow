@@ -40,6 +40,7 @@ function App() {
   const io = useSelector((state) => state.io.io);
 
   const { companyId, error } = useSelector((state) => state.company);
+  const [user] = useGlobal('user');
   const token = useGlobal('token')[0];
   const setStartingPoint = useGlobal('entryPath')[1];
 
@@ -52,6 +53,28 @@ function App() {
   const [wasOffline, setWasOffline] = useState(false);
 
   if (!['dark', 'light'].includes(Config.theme)) Config.theme = 'light';
+
+    // 🆕 ADD/REMOVE CSS CLASS BASED ON USER LEVEL
+  useEffect(() => {
+    const body = document.body;
+    
+    if (user && (user.level === 'admin' || user.level === 'root')) {
+      // User is admin or root - SHOW Crisp
+      body.classList.remove('hide-crisp');
+      console.log('✅ Crisp enabled for', user.level, 'user:', user.username);
+    } else {
+      // User is not admin/root or not logged in - HIDE Crisp
+      body.classList.add('hide-crisp');
+      if (user && user.username) {
+        console.log('❌ Crisp hidden for', user.level, 'user:', user.username);
+      }
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      body.classList.remove('hide-crisp');
+    };
+  }, [user, user?.level]);
 
   // PWA initialization
   useEffect(() => {

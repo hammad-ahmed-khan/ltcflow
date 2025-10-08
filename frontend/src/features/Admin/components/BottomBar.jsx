@@ -14,11 +14,6 @@ function BottomBar() {
           {' '}
           v
           {version}
-          {' '}
-          -
-          <a href="https://www.honeyside.it" target="_blank" rel="noreferrer">
-            {Config.brand}
-          </a>
         </div>
       </div>
     </div>

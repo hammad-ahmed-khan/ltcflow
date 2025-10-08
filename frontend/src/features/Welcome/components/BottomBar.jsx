@@ -13,12 +13,7 @@ function BottomBar() {
           {Config.appName}
           {' '}
           v
-          {version}
-          {' '}
-          -
-          <a href="mailto:support@ltcflow.com" target="_blank" rel="noreferrer">
-            Contact Support
-          </a>
+          {version}       
         </div>
       </div>
     </div>
