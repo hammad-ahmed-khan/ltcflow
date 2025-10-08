@@ -1,0 +1,12 @@
+# robots.txt for LTC Flow PWA
+User-agent: *
+Allow: /
+
+# Sitemap (optional - create if you have public pages)
+# Sitemap: https://ltcflow.com/sitemap.xml
+
+# Disallow sensitive areas
+Disallow: /api/
+Disallow: /socket.io/
+Disallow: /admin/
+Disallow: /meeting/*
