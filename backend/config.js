@@ -106,4 +106,11 @@ module.exports = {
     webhookSecret: process.env.OUTSETA_WEBHOOK_SECRET || "",
     apiUrl: process.env.OUTSETA_API_URL || "https://api.outseta.com/v1",
   },
+
+  pushNotifications: {
+    enabled: (process.env.PUSH_ENABLED || "true").toString() === "true",
+    vapidPublicKey: process.env.VAPID_PUBLIC_KEY,
+    vapidPrivateKey: process.env.VAPID_PRIVATE_KEY,
+    vapidEmail: process.env.VAPID_EMAIL || "mailto:admin@ltcflow.com",
+  },
 };

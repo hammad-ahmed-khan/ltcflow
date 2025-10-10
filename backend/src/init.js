@@ -173,6 +173,14 @@ module.exports = () => {
     require("./routes/outseta-webhook")
   );
 
+  // 🆕 ADD THIS: Push Notification Routes (needs JSON parsing, not formidable)
+  store.app.use(
+    "/push",
+    express.json(),
+    passport.authenticate("jwt", { session: false }),
+    require("./routes/pushSubscriptions")
+  );
+
   const mongooseConnect = () => {
     let connecting = setTimeout(
       () => console.log("Connecting to DB...".yellow),

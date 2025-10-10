@@ -21,6 +21,7 @@ import { getSubdomain, verifySubdomain } from './utils/domainUtils';
 import apiClient from './api/apiClient';
 import { usePortraitLock, LandscapeWarning } from './hooks/usePortraitLock';
 import UnreadSyncManager from './components/UnreadSyncManager';
+import UpdateNotification from './components/UpdateNotification';
 
 // PWA imports
 import {
@@ -418,6 +419,10 @@ function App() {
           </Routes>
         </Router>
       </div>
+
+      {/* 🆕 Add this at the root level */}
+      <UpdateNotification />
+
     </>
   );
 }

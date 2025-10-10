@@ -40,3 +40,201 @@
     color: #DA1102
     font-size: 13px
 
+// 🆕 Push Notification Popup Styles
+.popup .box .body
+  
+  .notification-description
+    margin-bottom: 20px
+    
+    p
+      color: #6c757d
+      line-height: 1.6
+      margin: 0
+  
+  .notification-actions
+    button
+      display: flex
+      align-items: center
+      justify-content: center
+      
+      svg
+        margin-right: 8px
+      
+      &.uk-button-primary
+        background-color: #28a745
+        
+        &:hover
+          background-color: #218838
+  
+  .warning-notice
+    padding: 16px
+    background: #fff3cd
+    border: 1px solid #ffc107
+    border-radius: 8px
+    
+    p
+      margin: 0 0 8px 0
+      color: #856404
+      font-size: 14px
+      
+      strong
+        font-weight: 600
+    
+    ol
+      margin: 8px 0 0 0
+      padding-left: 20px
+      color: #856404
+      font-size: 13px
+      
+      li
+        margin-bottom: 6px
+        line-height: 1.4
+  
+  .unsupported-notice
+    padding: 16px
+    background: #f8d7da
+    border: 1px solid #f5c6cb
+    border-radius: 8px
+    
+    p
+      margin: 0 0 8px 0
+      color: #721c24
+      font-size: 14px
+      line-height: 1.5
+      
+      &:last-child
+        margin-bottom: 0
+      
+      strong
+        font-weight: 600
+  
+  .info-section
+    padding: 16px
+    background: #e7f3ff
+    border-radius: 8px
+    
+    h4
+      margin: 0 0 12px 0
+      font-size: 15px
+      font-weight: 600
+      color: #004085
+    
+    ul
+      margin: 0
+      padding-left: 20px
+      color: #004085
+      font-size: 13px
+      
+      li
+        margin-bottom: 8px
+        line-height: 1.4
+        
+        &:last-child
+          margin-bottom: 0
+
+// Animation for spinning icon
+@keyframes spin
+  from
+    transform: rotate(0deg)
+  to
+    transform: rotate(360deg)
+
+.spin
+  animation: spin 1s linear infinite
+
+  // 🆕 Push Notification Popup Styles
+.admin-overlay
+  .data-editor
+    .notification-description
+      margin-bottom: 20px
+      p
+        color: #666
+        line-height: 1.6
+        margin: 0
+        font-size: 14px
+    
+    .notification-actions
+      button
+        display: flex
+        align-items: center
+        justify-content: center
+        
+        svg
+          flex-shrink: 0
+    
+    .warning-notice
+      padding: 16px
+      background: #fff3cd
+      border: 1px solid #ffc107
+      border-radius: 8px
+      
+      p
+        margin: 0 0 8px 0
+        color: #856404
+        font-size: 14px
+        
+        strong
+          font-weight: 600
+      
+      ol
+        margin: 8px 0 0 0
+        padding-left: 20px
+        color: #856404
+        font-size: 13px
+        
+        li
+          margin-bottom: 6px
+          line-height: 1.4
+    
+    .unsupported-notice
+      padding: 16px
+      background: #f8d7da
+      border: 1px solid #f5c6cb
+      border-radius: 8px
+      
+      p
+        margin: 0 0 8px 0
+        color: #721c24
+        font-size: 14px
+        line-height: 1.5
+        
+        &:last-child
+          margin-bottom: 0
+        
+        strong
+          font-weight: 600
+    
+    .info-section
+      padding: 16px
+      background: #e7f3ff
+      border-radius: 8px
+      
+      h4
+        margin: 0 0 12px 0
+        font-size: 15px
+        font-weight: 600
+        color: #004085
+      
+      ul
+        margin: 0
+        padding-left: 20px
+        color: #004085
+        font-size: 13px
+        list-style-type: none
+        
+        li
+          margin-bottom: 8px
+          line-height: 1.4
+          
+          &:last-child
+            margin-bottom: 0
+
+// Animation for spinning icon
+@keyframes spin
+  from
+    transform: rotate(0deg)
+  to
+    transform: rotate(360deg)
+
+.spin
+  animation: spin 1s linear infinite
