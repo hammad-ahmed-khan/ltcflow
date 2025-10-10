@@ -119,17 +119,37 @@ export const subscribeToPushNotifications = async () => {
     let subscription = await registration.pushManager.getSubscription();
 
     if (!subscription) {
-      // Replace with your VAPID public key
-      const vapidPublicKey = "YOUR_VAPID_PUBLIC_KEY_HERE";
-      const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+      // Fetch VAPID public key from backend
+      const response = await fetch(`${Config.API_URL}/push/vapid-public-key`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch VAPID public key");
+      }
+
+      const { publicKey } = await response.json();
+      const convertedVapidKey = urlBase64ToUint8Array(publicKey);
 
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: convertedVapidKey,
       });
+
+      // Send subscription to backend
+      await fetch(`${Config.API_URL}/push/subscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ subscription }),
+      });
     }
 
-    console.log("[PWA] Push subscription:", subscription);
+    console.log("[PWA] Push subscription active:", subscription);
     return subscription;
   } catch (error) {
     console.error("[PWA] Failed to subscribe to push notifications:", error);

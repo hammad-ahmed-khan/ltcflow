@@ -1,8 +1,9 @@
 // frontend/src/services/NotificationService.js
-// Enterprise-Grade Notification Service
+// Enhanced with Push Notification Management
 
 import messageSound from "../assets/message.mp3";
 import PWABadgeService from "./PWABadgeService";
+import Config from "../config";
 
 class NotificationService {
   constructor() {
@@ -15,6 +16,10 @@ class NotificationService {
     this.notificationPermission = "default";
     this.isDocumentVisible = true;
 
+    // 🆕 Push notification state
+    this.pushSubscription = null;
+    this.vapidPublicKey = null;
+
     // Initialize
     this.init();
   }
@@ -24,12 +29,266 @@ class NotificationService {
     await this.requestPermission();
     this.setupVisibilityTracking();
     this.setupFaviconCanvas();
-    this.setupAudioUnlock(); // NEW: Unlock audio on user interaction
+    this.setupAudioUnlock();
+
+    // 🆕 Initialize push notifications if user is logged in
+    if (this.isUserLoggedIn()) {
+      await this.initializePushNotifications();
+    }
 
     console.log("✅ NotificationService initialized");
   }
 
-  // NEW: Setup audio unlock on first user interaction
+  // ============================================
+  // 🆕 PUSH NOTIFICATION MANAGEMENT
+  // ============================================
+
+  /**
+   * Check if user is logged in
+   */
+  isUserLoggedIn() {
+    return !!localStorage.getItem("token");
+  }
+
+  /**
+   * Initialize push notifications
+   */
+  async initializePushNotifications() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      console.log("📱 Push notifications not supported by browser");
+      return;
+    }
+
+    try {
+      // Wait for service worker to be ready
+      const registration = await navigator.serviceWorker.ready;
+
+      // Check existing subscription
+      this.pushSubscription = await registration.pushManager.getSubscription();
+
+      if (this.pushSubscription) {
+        console.log("📱 Existing push subscription found");
+        // Verify subscription is still valid on backend
+        await this.verifySubscriptionWithBackend();
+      } else {
+        console.log("📱 No push subscription found");
+      }
+    } catch (error) {
+      console.error("❌ Failed to initialize push notifications:", error);
+    }
+  }
+
+  /**
+   * Subscribe to push notifications
+   */
+  async subscribeToPush() {
+    if (!this.isUserLoggedIn()) {
+      console.log("⚠️ User not logged in, cannot subscribe to push");
+      return null;
+    }
+
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      console.log("📱 Push notifications not supported");
+      return null;
+    }
+
+    try {
+      // Request notification permission first
+      if (this.notificationPermission !== "granted") {
+        await this.requestPermission();
+        if (this.notificationPermission !== "granted") {
+          console.log("🔕 Notification permission denied");
+          return null;
+        }
+      }
+
+      const registration = await navigator.serviceWorker.ready;
+
+      // Check if already subscribed
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (subscription) {
+        console.log("📱 Already subscribed to push notifications");
+        this.pushSubscription = subscription;
+        return subscription;
+      }
+
+      // Fetch VAPID public key from backend
+      if (!this.vapidPublicKey) {
+        const response = await fetch(`${Config.url}/push/vapid-public-key`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch VAPID public key");
+        }
+
+        const data = await response.json();
+        this.vapidPublicKey = data.publicKey;
+      }
+
+      // Convert VAPID key
+      const convertedVapidKey = this.urlBase64ToUint8Array(this.vapidPublicKey);
+
+      // Subscribe to push
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertedVapidKey,
+      });
+
+      // Send subscription to backend
+      const saveResponse = await fetch(`${Config.url}/push/subscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ subscription }),
+      });
+
+      if (!saveResponse.ok) {
+        throw new Error("Failed to save subscription to backend");
+      }
+
+      this.pushSubscription = subscription;
+      console.log("✅ Successfully subscribed to push notifications");
+      return subscription;
+    } catch (error) {
+      console.error("❌ Failed to subscribe to push notifications:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Unsubscribe from push notifications
+   */
+  async unsubscribeFromPush() {
+    if (!("serviceWorker" in navigator)) {
+      return false;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+
+      if (subscription) {
+        // Remove from backend first
+        await fetch(`${Config.url}/push/unsubscribe`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        });
+
+        // Unsubscribe from push manager
+        await subscription.unsubscribe();
+        this.pushSubscription = null;
+        console.log("✅ Unsubscribed from push notifications");
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error("❌ Failed to unsubscribe:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Check if currently subscribed to push
+   */
+  async isPushSubscribed() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      return false;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      return !!subscription;
+    } catch (error) {
+      console.error("Failed to check push subscription:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Verify subscription with backend
+   */
+  async verifySubscriptionWithBackend() {
+    if (!this.pushSubscription) return;
+
+    try {
+      const response = await fetch(`${Config.url}/push/subscribe`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify({ subscription: this.pushSubscription }),
+      });
+
+      if (response.ok) {
+        console.log("✅ Push subscription verified with backend");
+      }
+    } catch (error) {
+      console.error("⚠️ Failed to verify subscription:", error);
+    }
+  }
+
+  /**
+   * Test push notification (development only)
+   */
+  async testPushNotification() {
+    if (!this.isUserLoggedIn()) {
+      console.log("⚠️ User not logged in");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${Config.url}/push/test`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      if (response.ok) {
+        console.log("✅ Test push notification sent");
+      } else {
+        console.error("❌ Failed to send test notification");
+      }
+    } catch (error) {
+      console.error("❌ Test notification error:", error);
+    }
+  }
+
+  /**
+   * Helper to convert VAPID key
+   */
+  urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+
+    return outputArray;
+  }
+
+  // ============================================
+  // AUDIO SYSTEM (existing code)
+  // ============================================
+
   setupAudioUnlock() {
     const unlockAudio = () => {
       if (this.audioContext && this.audioContext.state === "suspended") {
@@ -38,68 +297,53 @@ class NotificationService {
         });
       }
 
-      // Also create a silent audio element to unlock iOS
       const silentAudio = new Audio();
       silentAudio.src =
         "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
       silentAudio.play().catch(() => {});
     };
 
-    // Listen for first user interaction
     const events = ["click", "touchstart", "keydown"];
     events.forEach((event) => {
       document.addEventListener(event, unlockAudio, { once: true });
     });
 
-    // Also try to unlock on window focus
     window.addEventListener("focus", unlockAudio);
   }
 
-  // ============================================
-  // AUDIO SYSTEM
-  // ============================================
-
   async preloadSound() {
     try {
-      // Create audio context (works in background)
       this.audioContext = new (window.AudioContext ||
         window.webkitAudioContext)();
 
-      // Preload and decode audio
       const response = await fetch(messageSound);
       const arrayBuffer = await response.arrayBuffer();
       this.soundBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
 
-      console.log("🔊 Notification sound preloaded and ready");
+      console.log("🔊 Notification sound preloaded");
     } catch (error) {
       console.error("⚠️ Failed to preload sound:", error);
-      // Will fallback to HTML5 Audio
     }
   }
 
   playSound(messageID) {
-    // Prevent duplicate sounds for same message
     if (this.playedMessageIDs.has(messageID)) {
       console.log("🔇 Sound already played for message:", messageID);
       return false;
     }
 
-    // Mark as played
     this.playedMessageIDs.add(messageID);
 
-    // Try Web Audio API first (best performance, works in background)
     if (this.playSoundWebAudio()) {
       this.cleanupPlayedMessageID(messageID, 10000);
       return true;
     }
 
-    // Fallback to HTML5 Audio
     if (this.playSoundHTML5()) {
       this.cleanupPlayedMessageID(messageID, 10000);
       return true;
     }
 
-    // Last resort: DOM audio element
     if (this.playSoundElement()) {
       this.cleanupPlayedMessageID(messageID, 10000);
       return true;
@@ -114,31 +358,24 @@ class NotificationService {
     if (!this.audioContext || !this.soundBuffer) return false;
 
     try {
-      // Resume audio context if suspended (critical for background tabs)
       if (this.audioContext.state === "suspended") {
         this.audioContext.resume().catch((err) => {
           console.warn("Failed to resume audio context:", err);
         });
       }
 
-      // Create source and connect to destination
       const source = this.audioContext.createBufferSource();
       source.buffer = this.soundBuffer;
 
-      // Add gain node for volume control
       const gainNode = this.audioContext.createGain();
       gainNode.gain.value = 1.0;
 
       source.connect(gainNode);
       gainNode.connect(this.audioContext.destination);
 
-      // Play
       source.start(0);
 
-      console.log(
-        "🔊 Sound played via Web Audio API (state:",
-        this.audioContext.state + ")"
-      );
+      console.log("🔊 Sound played via Web Audio API");
       return true;
     } catch (error) {
       console.warn("⚠️ Web Audio API failed:", error);
@@ -196,7 +433,6 @@ class NotificationService {
     setTimeout(() => {
       this.playedMessageIDs.delete(messageID);
 
-      // Prevent memory leaks - clear old IDs if set gets too large
       if (this.playedMessageIDs.size > 100) {
         this.playedMessageIDs.clear();
       }
@@ -204,7 +440,7 @@ class NotificationService {
   }
 
   // ============================================
-  // BROWSER NOTIFICATIONS
+  // BROWSER NOTIFICATIONS (existing code)
   // ============================================
 
   async requestPermission() {
@@ -222,7 +458,6 @@ class NotificationService {
   }
 
   showBrowserNotification(title, options = {}) {
-    // Only show if app is in background AND permission granted
     if (this.isDocumentVisible) {
       console.log("👀 App is visible, skipping browser notification");
       return;
@@ -238,11 +473,10 @@ class NotificationService {
         icon: "/logo192.png",
         badge: "/logo192.png",
         requireInteraction: false,
-        silent: false, // Play system sound
+        silent: false,
         ...options,
       });
 
-      // Focus app when notification clicked
       notification.onclick = () => {
         window.focus();
         notification.close();
@@ -255,11 +489,10 @@ class NotificationService {
   }
 
   // ============================================
-  // VISIBILITY TRACKING
+  // VISIBILITY TRACKING (existing code)
   // ============================================
 
   setupVisibilityTracking() {
-    // Track if user is viewing the app
     document.addEventListener("visibilitychange", () => {
       this.isDocumentVisible = !document.hidden;
       console.log(
@@ -267,11 +500,9 @@ class NotificationService {
         this.isDocumentVisible ? "visible" : "hidden"
       );
 
-      // Update favicon when visibility changes
       this.updateFaviconBadge();
     });
 
-    // Track if window has focus
     window.addEventListener("focus", () => {
       this.isDocumentVisible = true;
       console.log("👀 Window focused");
@@ -284,7 +515,7 @@ class NotificationService {
   }
 
   // ============================================
-  // FAVICON BADGE
+  // FAVICON BADGE (existing code)
   // ============================================
 
   setupFaviconCanvas() {
@@ -293,7 +524,6 @@ class NotificationService {
     this.faviconCanvas.height = 32;
     this.faviconContext = this.faviconCanvas.getContext("2d");
 
-    // Load original favicon
     this.originalFavicon = document.querySelector("link[rel*='icon']");
     if (!this.originalFavicon) {
       this.originalFavicon = document.createElement("link");
@@ -308,33 +538,26 @@ class NotificationService {
     if (unreadCount > 0) {
       this.setFaviconBadge(unreadCount);
       this.updateDocumentTitle(unreadCount);
-
-      // ✅ NEW: Update PWA app icon badge
       PWABadgeService.setBadge(unreadCount);
     } else {
       this.clearFaviconBadge();
       this.updateDocumentTitle(0);
-
-      // ✅ NEW: Clear PWA app icon badge
       PWABadgeService.clearBadge();
     }
   }
 
   setFaviconBadge(count) {
-    if (!this.faviconContext) return;
+    if (!this.faviconContext || !this.originalFavicon) return;
 
     const ctx = this.faviconContext;
 
-    // Clear canvas
     ctx.clearRect(0, 0, 32, 32);
 
-    // Draw circle background
     ctx.fillStyle = "#ff4444";
     ctx.beginPath();
     ctx.arc(24, 8, 8, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Draw count text
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 14px Arial";
     ctx.textAlign = "center";
@@ -344,12 +567,18 @@ class NotificationService {
     ctx.fillText(text, 24, 8);
 
     // Update favicon
-    this.originalFavicon.href = this.faviconCanvas.toDataURL();
+    try {
+      this.originalFavicon.href = this.faviconCanvas.toDataURL();
+    } catch (error) {
+      console.warn("Failed to update favicon badge:", error);
+    }
   }
 
   clearFaviconBadge() {
     // Reset to default favicon
-    this.originalFavicon.href = "/favicon.ico";
+    if (this.originalFavicon) {
+      this.originalFavicon.href = "/favicon.ico";
+    }
   }
 
   updateDocumentTitle(count) {
@@ -361,7 +590,7 @@ class NotificationService {
   }
 
   // ============================================
-  // UNREAD COUNT
+  // UNREAD COUNT (existing code)
   // ============================================
 
   getUnreadCount() {
@@ -380,7 +609,7 @@ class NotificationService {
   }
 
   // ============================================
-  // MAIN PUBLIC METHOD
+  // MAIN PUBLIC METHOD (existing code)
   // ============================================
 
   notify(message, room, currentUser) {
@@ -388,11 +617,9 @@ class NotificationService {
       message._id ||
       `${message.content}-${message.date}-${message.author?._id}`;
 
-    // Don't notify for own messages
     const currentUserId = currentUser?._id || currentUser?.id;
     const messageAuthorId = message.author?._id || message.author?.id;
 
-    // Don't notify for own messages
     if (currentUserId && messageAuthorId && currentUserId === messageAuthorId) {
       console.log("📤 Skipping notification for own message");
       return;
@@ -401,16 +628,11 @@ class NotificationService {
     console.log("🔔 Processing notification for message:", messageID);
     console.log("📊 Document visible:", this.isDocumentVisible);
 
-    // 1. If app is VISIBLE (foreground) → play sound directly
     if (this.isDocumentVisible) {
       const soundPlayed = this.playSound(messageID);
       console.log("🔊 Foreground sound played:", soundPlayed);
-    }
-    // 2. If app is HIDDEN (background/minimized) → use browser notification with sound
-    else {
-      console.log(
-        "📱 App is in background, using browser notification with sound"
-      );
+    } else {
+      console.log("📱 App is in background, using browser notification");
 
       const senderName = message.author?.name || "Someone";
       const roomName = room.isGroup ? room.name : senderName;
@@ -421,36 +643,33 @@ class NotificationService {
         body: messagePreview,
         tag: room._id,
         requireInteraction: false,
-        silent: false, // CRITICAL: Let browser play system sound
+        silent: false,
       });
 
-      // ALSO try to play sound (some browsers allow it)
       this.playSound(messageID);
     }
 
-    // 3. Always update favicon badge
     this.updateFaviconBadge();
 
     console.log("✅ Notification processing complete");
   }
 
   // ============================================
-  // UTILITY METHODS
+  // UTILITY METHODS (existing code)
   // ============================================
 
-  // Reset notification state (useful for logout)
   reset() {
     this.playedMessageIDs.clear();
     this.clearFaviconBadge();
     this.updateDocumentTitle(0);
-
-    // ✅ NEW: Clear PWA badge on logout
     PWABadgeService.clearBadge();
+
+    // 🆕 Unsubscribe from push notifications on logout
+    this.unsubscribeFromPush();
 
     console.log("🔄 NotificationService reset");
   }
 
-  // Test notification system
   test() {
     console.log("🧪 Testing notification system...");
 

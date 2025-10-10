@@ -1,0 +1,73 @@
+.update-notification
+  position: fixed
+  bottom: 20px
+  right: 20px
+  z-index: 9999
+  animation: slideIn 0.3s ease
+
+  .update-content
+    background: #ffffff
+    border-radius: 12px
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15)
+    padding: 16px 20px
+    display: flex
+    align-items: center
+    gap: 12px
+    max-width: 400px
+
+    .update-icon
+      font-size: 32px
+      animation: rotate 2s linear infinite
+
+    .update-text
+      flex: 1
+
+      strong
+        display: block
+        margin-bottom: 4px
+        color: #212529
+
+      p
+        margin: 0
+        font-size: 14px
+        color: #6c757d
+
+    .update-actions
+      display: flex
+      gap: 8px
+
+      button
+        padding: 8px 16px
+        border: none
+        border-radius: 6px
+        font-weight: 500
+        cursor: pointer
+        transition: all 0.2s
+
+      .update-btn
+        background: #007bff
+        color: white
+
+        &:hover
+          background: #0056b3
+
+      .dismiss-btn
+        background: #e9ecef
+        color: #495057
+
+        &:hover
+          background: #dee2e6
+
+@keyframes slideIn
+  from
+    transform: translateX(400px)
+    opacity: 0
+  to
+    transform: translateX(0)
+    opacity: 1
+
+@keyframes rotate
+  from
+    transform: rotate(0deg)
+  to
+    transform: rotate(360deg)

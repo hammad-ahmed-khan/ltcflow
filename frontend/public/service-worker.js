@@ -1,15 +1,9 @@
 /* eslint-disable no-restricted-globals */
-const CACHE_NAME = "ltc-flow-v2.9.3";
+const CACHE_NAME = "ltc-flow-v2.9.6";
 const RUNTIME_CACHE = "ltc-flow-runtime";
 
 // Assets to cache immediately on install
-const PRECACHE_ASSETS = [
-  "/",
-  "/index.html",
-  "/offline.html",
-  "/flowicon 192.webp",
-  "/logo512.png",
-];
+const PRECACHE_ASSETS = ["/", "/index.html"];
 
 // Install event - precache essential assets
 self.addEventListener("install", (event) => {

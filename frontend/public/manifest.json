@@ -79,15 +79,9 @@
   ],
   "screenshots": [
     {
-      "src": "/screenshots/mobile-portrait.png",
-      "sizes": "320x640",
-      "type": "image/png",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "/screenshots/desktop.png",
-      "sizes": "1280x720",
-      "type": "image/png",
+      "src": "/flowicon 512.webp",
+      "type": "image/webp",
+      "sizes": "512x512",
       "form_factor": "wide"
     }
   ],

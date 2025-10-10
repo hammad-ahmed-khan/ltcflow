@@ -1,22 +1,33 @@
 // backend/src/events/message.js
-// CREATE THIS NEW FILE
+// Complete implementation with Push Notification support
 
 const Message = require("../models/Message");
 const Room = require("../models/Room");
 const User = require("../models/User");
 const store = require("../store");
 
+// 🆕 Import PushNotificationService (graceful fallback if not installed yet)
+let PushNotificationService = null;
+try {
+  PushNotificationService = require("../services/PushNotificationService");
+  console.log("✅ PushNotificationService loaded");
+} catch (error) {
+  console.warn(
+    "⚠️ PushNotificationService not found - push notifications disabled"
+  );
+}
+
 module.exports = async (socket, data) => {
   try {
     // Get user ID from JWT token
     const userId = socket.decoded_token.id;
-    const { roomID, content, tempID } = data;
+    const { roomID, content, tempID, type } = data;
 
     console.log(`📨 NEW MESSAGE from user ${userId} to room ${roomID}`);
 
     // 1. GET USER'S COMPANY
-    const user = await User.findById(userId).select("companyId");
-    if (!user) {
+    const currentUser = await User.findById(userId).select("companyId name");
+    if (!currentUser) {
       console.error(`❌ User ${userId} not found`);
       return socket.emit("message-error", {
         status: 404,
@@ -25,7 +36,7 @@ module.exports = async (socket, data) => {
       });
     }
 
-    const companyId = user.companyId;
+    const companyId = currentUser.companyId;
 
     // 2. VALIDATE ROOM EXISTS AND USER IS MEMBER
     const room = await Room.findOne({
@@ -33,7 +44,13 @@ module.exports = async (socket, data) => {
       companyId: companyId, // Must be same company
       people: { $in: [userId] }, // User must be member
     })
-      .populate("people", "_id name email picture companyId")
+      .populate({
+        path: "people",
+        select: "_id name email picture companyId",
+        populate: {
+          path: "picture",
+        },
+      })
       .lean();
 
     if (!room) {
@@ -45,18 +62,19 @@ module.exports = async (socket, data) => {
       });
     }
 
+    console.log(`✅ Room validated: ${roomID} (${room.people.length} members)`);
+
     // 3. CREATE MESSAGE
     const message = new Message({
       room: roomID,
       author: userId,
-      content: content,
+      content: content || "",
       companyId: companyId, // Important for multi-tenant
       date: new Date(),
-      type: "text", // or detect from content
+      type: type || "text",
     });
 
     await message.save();
-
     console.log(`✅ Message ${message._id} created successfully`);
 
     // 4. POPULATE AUTHOR DETAILS
@@ -71,7 +89,9 @@ module.exports = async (socket, data) => {
     // 5. UPDATE ROOM'S LAST MESSAGE TIMESTAMP
     await Room.findByIdAndUpdate(roomID, {
       lastMessageDate: message.date,
-    }).catch((err) => console.error("Failed to update room timestamp:", err));
+    }).catch((err) =>
+      console.error("⚠️ Failed to update room timestamp:", err)
+    );
 
     // 6. PREPARE BROADCAST PAYLOAD
     const messagePayload = {
@@ -105,6 +125,13 @@ module.exports = async (socket, data) => {
 
     let successCount = 0;
     let failCount = 0;
+    let offlineUserIds = [];
+
+    // Get online user IDs from store
+    const onlineUserIds = Array.from(store.onlineUsers.values()).map(
+      (u) => u.id
+    );
+    console.log(`👥 Currently online users: ${onlineUserIds.length}`);
 
     room.people.forEach((person) => {
       const personId = person._id.toString();
@@ -114,8 +141,24 @@ module.exports = async (socket, data) => {
         // This is the KEY to reliable notifications!
         store.io.to(personId).emit("message-in", messagePayload);
 
-        successCount++;
-        console.log(`  ✓ Broadcasted to ${person.name} (${personId})`);
+        // Check if user is actually online
+        const isOnline = onlineUserIds.includes(personId);
+
+        if (isOnline) {
+          successCount++;
+          console.log(
+            `  ✓ Broadcasted to online user: ${person.name} (${personId})`
+          );
+        } else {
+          // User is offline - queue for push notification
+          if (personId !== userId) {
+            // Don't notify the sender
+            offlineUserIds.push(personId);
+            console.log(
+              `  📱 Queued push for offline user: ${person.name} (${personId})`
+            );
+          }
+        }
       } catch (error) {
         failCount++;
         console.error(`  ✗ Failed to broadcast to ${personId}:`, error.message);
@@ -123,16 +166,68 @@ module.exports = async (socket, data) => {
     });
 
     console.log(
-      `📊 Broadcast complete: ${successCount} success, ${failCount} failed out of ${room.people.length} total`
+      `📊 Broadcast complete: ${successCount} online, ${failCount} failed, ${offlineUserIds.length} offline`
     );
 
-    // 8. SEND ACKNOWLEDGMENT TO SENDER
+    // 8. 🆕 SEND PUSH NOTIFICATIONS TO OFFLINE USERS
+    if (offlineUserIds.length > 0 && PushNotificationService) {
+      console.log(
+        `📤 Sending push notifications to ${offlineUserIds.length} offline users...`
+      );
+
+      try {
+        const senderName = currentUser.name;
+        const roomDisplayName = room.isGroup ? room.name : senderName;
+
+        const pushPayload = {
+          title: `New message from ${roomDisplayName}`,
+          body: content?.substring(0, 100) || "New message",
+          tag: room._id.toString(),
+          roomId: room._id.toString(),
+          url: `/conversation/${room._id}`,
+          icon: "/logo192.png",
+          badge: "/logo192.png",
+          requireInteraction: false,
+          actions: [
+            { action: "open", title: "Open" },
+            { action: "dismiss", title: "Dismiss" },
+          ],
+        };
+
+        // Send push notifications asynchronously (don't block message)
+        PushNotificationService.sendToUsers(offlineUserIds, pushPayload)
+          .then(() => {
+            console.log(
+              `✅ Push notifications sent successfully to ${offlineUserIds.length} users`
+            );
+          })
+          .catch((pushError) => {
+            // Don't fail the message if push fails
+            console.error(
+              "❌ Push notification error (non-critical):",
+              pushError
+            );
+          });
+      } catch (pushError) {
+        // Don't fail the message if push fails
+        console.error("❌ Push setup error (non-critical):", pushError);
+      }
+    } else if (offlineUserIds.length > 0) {
+      console.log(
+        "ℹ️ Push notifications not available - PushNotificationService not loaded"
+      );
+    } else {
+      console.log("ℹ️ No offline users - no push notifications needed");
+    }
+
+    // 9. SEND ACKNOWLEDGMENT TO SENDER
     socket.emit("message-ack", {
       success: true,
       messageID: message._id.toString(),
       tempID: tempID,
       timestamp: Date.now(),
       broadcastCount: successCount,
+      pushNotificationsSent: offlineUserIds.length,
     });
 
     console.log(`✅ Message ${message._id} fully processed and acknowledged`);
