@@ -25,11 +25,11 @@ function TopBar() {
   const location = useLocation();
   const { addToast } = useToasts();
 
-const logout = async () => {
+  const logout = async () => {
     io.disconnect();
     const { username } = user;
     
-    // 🔹 NEW: Clear all authentication-related data including companyId
+    // Clear all authentication-related data including companyId
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('companyId');
@@ -60,6 +60,15 @@ const logout = async () => {
       navigate(`/meeting/${res.data._id}`, { replace: true });
     } catch (e) {
       errorToast('Server error. Unable to initiate call.');
+    }
+  };
+
+  // 🆕 NEW: Open Crisp chat for support
+  const openSupport = () => {
+    if (window.$crisp) {
+      window.$crisp.push(['do', 'chat:open']);
+    } else {
+      errorToast('Support chat is not available at the moment.');
     }
   };
 
@@ -146,6 +155,11 @@ const logout = async () => {
                 Admin Panel
               </div>
             )}
+            {/* 🆕 NEW: Support Link - Opens Crisp Chat */}
+            <div className="divider" />
+            <div className="link" onClick={openSupport}>
+              Support
+            </div>
             <div className="divider" />
             <div className="link" onClick={logout}>
               Logout
