@@ -1,0 +1,151 @@
+// frontend/src/components/AutoPushPrompt.sass
+
+.auto-push-prompt
+  position: fixed
+  top: 50%
+  left: 50%
+  transform: translate(-50%, -50%)
+  z-index: 10000
+  animation: fadeInScale 0.3s ease-out
+
+  @keyframes fadeInScale
+    from
+      opacity: 0
+      transform: translate(-50%, -50%) scale(0.9)
+    to
+      opacity: 1
+      transform: translate(-50%, -50%) scale(1)
+
+.prompt-content
+  background: white
+  border-radius: 16px
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3)
+  padding: 32px
+  max-width: 450px
+  width: 90vw
+  position: relative
+
+  @media (max-width: 640px)
+    padding: 24px
+    max-width: 90vw
+
+.prompt-icon
+  display: flex
+  align-items: center
+  justify-content: center
+  width: 64px
+  height: 64px
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)
+  border-radius: 50%
+  margin: 0 auto 20px
+  color: white
+
+  svg
+    width: 32px
+    height: 32px
+
+.prompt-text
+  text-align: center
+  margin-bottom: 24px
+
+  h3
+    font-size: 24px
+    font-weight: 600
+    color: #1a202c
+    margin: 0 0 12px 0
+
+    @media (max-width: 640px)
+      font-size: 20px
+
+  p
+    font-size: 16px
+    line-height: 1.6
+    color: #4a5568
+    margin: 0
+
+    @media (max-width: 640px)
+      font-size: 14px
+
+.prompt-actions
+  display: flex
+  flex-direction: column
+  gap: 12px
+
+  button
+    padding: 14px 24px
+    font-size: 16px
+    font-weight: 600
+    border: none
+    border-radius: 8px
+    cursor: pointer
+    transition: all 0.2s ease
+    font-family: inherit
+    width: 100%
+
+    &:disabled
+      opacity: 0.6
+      cursor: not-allowed
+
+.enable-btn
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)
+  color: white
+
+  &:hover:not(:disabled)
+    transform: translateY(-2px)
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4)
+
+  &:active:not(:disabled)
+    transform: translateY(0)
+
+.dismiss-btn
+  background: #e2e8f0
+  color: #4a5568
+
+  &:hover:not(:disabled)
+    background: #cbd5e0
+
+.close-btn
+  position: absolute
+  top: 12px
+  right: 12px
+  background: transparent
+  border: none
+  color: #a0aec0
+  cursor: pointer
+  padding: 8px
+  display: flex
+  align-items: center
+  justify-content: center
+  border-radius: 4px
+  transition: all 0.2s ease
+
+  &:hover
+    background: #f7fafc
+    color: #4a5568
+
+// Dark mode support
+.theme.dark
+  .prompt-content
+    background: #2d3748
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6)
+
+  .prompt-text
+    h3
+      color: #f7fafc
+
+    p
+      color: #e2e8f0
+
+  .dismiss-btn
+    background: #4a5568
+    color: #e2e8f0
+
+    &:hover
+      background: #5a6c7d
+
+  .close-btn
+    color: #a0aec0
+
+    &:hover
+      background: #374151
+      color: #e2e8f0

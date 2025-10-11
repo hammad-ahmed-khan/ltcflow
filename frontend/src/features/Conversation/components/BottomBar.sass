@@ -1,14 +1,16 @@
 .bottom-bar-conversation
   width: 100%
   min-height: 54px
-  max-height: 160px  // Allow expansion for multi-line text
+  max-height: 160px
   border-top: 1px solid rgba(218, 220, 224, 0.5)
   background: #f2f2f2
   display: flex
   flex-direction: row
-  align-items: flex-end  // Changed from center to flex-end
-  padding: 0 8px
-  transition: max-height 0.2s ease  // Smooth height transition
+  align-items: flex-end
+  padding: 0 12px
+  transition: max-height 0.2s ease
+  position: relative
+  z-index: 10  // Ensure it stays below Crisp but above messages
    
   .profile
     overflow: visible
@@ -32,29 +34,40 @@
     flex: 0 0 auto
     width: 36px
     height: 36px
-    margin: 0 0 7px 0  // Add bottom margin to align with textarea
-    font-size: 24px
+    margin: 0 0 9px 0  // Consistent bottom margin for all buttons
+    font-size: 22px  // Slightly smaller for better visual balance
     display: flex
     justify-content: center
     align-items: center
     cursor: pointer
+    color: #666
+    transition: all 0.2s ease
+    border-radius: 4px  // Add subtle border radius
     
-  // Left side buttons (emoji, image, paperclip)
+    &:hover
+      color: #000
+      background: rgba(0, 0, 0, 0.05)
+    
+    &:active
+      transform: scale(0.95)
+    
+  // Left side buttons with proper spacing
   .smile
     order: 1
-    margin-left: 4px
-    margin-right: 2px
+    margin-left: 0
+    margin-right: 4px
     
   .image-attach
     order: 2
-    margin: 0 2px
+    margin-left: 0
+    margin-right: 4px
     
   .attach
     order: 3
-    margin-left: 2px
-    margin-right: 8px
+    margin-left: 0
+    margin-right: 12px  // More space before input
     
-  // Text input in the middle - NOW SUPPORTS TEXTAREA
+  // Text input in the middle
   > textarea.search-input
     order: 4
     flex: 1 1 auto
@@ -63,7 +76,7 @@
     max-height: 120px
     font-size: 16px !important
     padding: 10px 12px
-    margin: 7px 0
+    margin: 9px 0  // Increased top/bottom margin
     border: none
     background-image: none
     background-color: transparent
@@ -78,7 +91,6 @@
     word-wrap: break-word
     white-space: pre-wrap
     
-    // Smooth scrolling for overflow
     &::-webkit-scrollbar
       width: 4px
       
@@ -100,7 +112,7 @@
     height: 40px
     font-size: 16px !important
     padding: 0 12px
-    margin: 7px 0
+    margin: 9px 0
     border: none
     background-image: none
     background-color: transparent
@@ -108,19 +120,60 @@
     -moz-box-shadow: none
     box-shadow: none
     
-  // Send button on the right
-  .button:last-of-type
+  // Send button on the right with proper padding
+  > .button:last-of-type
     order: 5
-    margin-left: 8px
-    margin-right: 4px
+    margin-left: 12px  // Space from input
+    margin-right: 0
+    padding: 0 4px  // Add horizontal padding
+    color: #557d53  // Make it stand out with theme color
+    
+    &:hover
+      color: #3a5737
+      background: rgba(85, 125, 83, 0.1)
 
 // Mobile responsive adjustments
 @media screen and (max-width: 768px)
   .bottom-bar-conversation
+    padding: 0 8px  // Slightly less padding on mobile
+    
     > textarea.search-input,
     > input.search-input
       font-size: 16px !important  // Prevent iOS zoom
       
+    .button
+      font-size: 20px  // Slightly smaller on mobile
+      width: 34px
+      height: 34px
+
+// Emoji picker
+.picker
+  position: absolute
+  width: 0
+  height: 0
+  bottom: 60px  // Position above the bottom bar
+  left: 12px
+  z-index: 100  // High enough to appear above messages, but below Crisp (10000+)
+  
+.emoji-mart
+  border: none !important
+  border-radius: 8px !important
+  z-index: 100 !important
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important
+
+.file-input
+  visibility: hidden
+  width: 0
+  height: 0
+  flex-grow: 0 !important
+  padding: 0 !important
+  margin: 0 !important
+  position: absolute
+
+.emoji-mart-preview-shortnames,
+.emoji-mart-preview-emoticons
+  display: none !important
+
 // Dark theme support
 .theme.dark .bottom-bar-conversation
   background: #2a2e35
@@ -132,36 +185,20 @@
     
     &::placeholder
       color: #888
-
-// Add this to your BottomBar.sass file to fix emoji picker z-index
-.picker
-  position: relative
-  width: 0
-  height: 0
-  bottom: 410px + 1px
-  left: 0
-  z-index: 100 !important  // Ensure picker appears above messages and scroll button
+      
+  .button
+    color: #aaa
+    
+    &:hover
+      color: #fff
+      background: rgba(255, 255, 255, 0.1)
   
-.emoji-mart
-  border: none !important
-  border-radius: 0 !important
-  z-index: 100 !important  // Match picker z-index
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important  // Add shadow for better visibility
-  
-.file-input
-  visibility: hidden
-  width: 0
-  height: 0
-  flex-grow: 0 !important
-  padding: 0 !important
-  margin: 0 !important
-  position: absolute
-
-.emoji-mart-preview-shortnames
-  display: none !important
-  
-.emoji-mart-preview-emoticons
-  display: none !important
+  > .button:last-of-type
+    color: #7aad77
+    
+    &:hover
+      color: #92c48f
+      background: rgba(122, 173, 119, 0.15)
 
 // iOS PWA specific styles
 body.ios-pwa
@@ -170,7 +207,7 @@ body.ios-pwa
     bottom: 0
     left: 0
     right: 0
-    z-index: 1000
+    z-index: 10  // Keep it below Crisp
     
   .main.uk-flex.uk-flex-column.over
     @supports (padding: max(0px))

@@ -34,6 +34,7 @@ import {
 } from './utils/pwaRegister';
 import InstallPrompt from './components/InstallPrompt';
 import NetworkStatus from './components/NetworkStatus';
+import AutoPushPrompt from './components/AutoPushPrompt';
 
 function App() {
   const dispatch = useDispatch();
@@ -54,28 +55,6 @@ function App() {
   const [wasOffline, setWasOffline] = useState(false);
 
   if (!['dark', 'light'].includes(Config.theme)) Config.theme = 'light';
-
-    // 🆕 ADD/REMOVE CSS CLASS BASED ON USER LEVEL
-  useEffect(() => {
-    const body = document.body;
-    
-    if (user && (user.level === 'admin' || user.level === 'root')) {
-      // User is admin or root - SHOW Crisp
-      body.classList.remove('hide-crisp');
-      console.log('✅ Crisp enabled for', user.level, 'user:', user.username);
-    } else {
-      // User is not admin/root or not logged in - HIDE Crisp
-      body.classList.add('hide-crisp');
-      if (user && user.username) {
-        console.log('❌ Crisp hidden for', user.level, 'user:', user.username);
-      }
-    }
-    
-    // Cleanup on unmount
-    return () => {
-      body.classList.remove('hide-crisp');
-    };
-  }, [user, user?.level]);
 
   // PWA initialization
   useEffect(() => {
@@ -394,6 +373,9 @@ function App() {
           onDismiss={handleDismissInstall}
         />
       )}
+
+     {/* 👇 ADD THIS LINE - Push Notification Prompt */}
+    {token && <AutoPushPrompt />}
       
       {/* Landscape Warning Overlay */}
       <LandscapeWarning />
@@ -420,8 +402,7 @@ function App() {
         </Router>
       </div>
 
-      {/* 🆕 Add this at the root level */}
-      <UpdateNotification />
+      {/* 🆕 Add this at the root level */}      
 
     </>
   );
