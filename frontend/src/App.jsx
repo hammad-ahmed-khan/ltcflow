@@ -374,8 +374,7 @@ function App() {
         />
       )}
 
-     {/* 👇 ADD THIS LINE - Push Notification Prompt */}
-    {token && <AutoPushPrompt />}
+      {token && <AutoPushPrompt />} 
       
       {/* Landscape Warning Overlay */}
       <LandscapeWarning />

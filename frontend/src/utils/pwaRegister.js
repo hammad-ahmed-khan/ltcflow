@@ -7,13 +7,13 @@ export const registerServiceWorker = () => {
         .register("/service-worker.js")
         .then((registration) => {
           console.log("[PWA] Service Worker registered:", registration);
-
           // Check for updates periodically
+          /*
           setInterval(() => {
             registration.update();
           }, 60 * 60 * 1000); // Check every hour
 
-          // Handle updates
+          // Handle updates          
           registration.addEventListener("updatefound", () => {
             const newWorker = registration.installing;
             console.log("[PWA] New Service Worker installing...");
@@ -38,6 +38,7 @@ export const registerServiceWorker = () => {
               }
             });
           });
+          */
         })
         .catch((error) => {
           console.error("[PWA] Service Worker registration failed:", error);
@@ -120,7 +121,7 @@ export const subscribeToPushNotifications = async () => {
 
     if (!subscription) {
       // Fetch VAPID public key from backend
-      const response = await fetch(`${Config.API_URL}/push/vapid-public-key`, {
+      const response = await fetch(`${Config.url}/push/vapid-public-key`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
@@ -139,7 +140,7 @@ export const subscribeToPushNotifications = async () => {
       });
 
       // Send subscription to backend
-      await fetch(`${Config.API_URL}/push/subscribe`, {
+      await fetch(`${Config.url}/push/subscribe`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

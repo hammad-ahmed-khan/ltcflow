@@ -123,6 +123,11 @@ console.log("🔄 Messages reducer initialized with unread state:", {
 // ============================================
 
 const reducer = (state = initialState, action) => {
+  if (!state) {
+    console.warn("⚠️ Reducer called with undefined state, using initialState");
+    state = initialState;
+  }
+
   let newState = state;
 
   switch (action.type) {
@@ -216,48 +221,6 @@ const reducer = (state = initialState, action) => {
         newState.roomsWithNewMessages,
         newState.groupsWithNewMessages
       );
-
-      return newState;
-    }
-
-    case Actions.SYNC_UNREAD_STATE: {
-      console.log("📡 Syncing unread state from another tab");
-
-      newState = {
-        ...state,
-        roomsWithNewMessages: action.rooms || [],
-        groupsWithNewMessages: action.groups || [],
-      };
-
-      if (NotificationService) {
-        NotificationService.updateFaviconBadge();
-      }
-
-      return newState;
-    }
-
-    // 🆕 NEW: Sync from server (overrides local state - server is source of truth)
-    case Actions.SYNC_UNREAD_FROM_SERVER: {
-      console.log(
-        "🔄 Syncing unread state from server (SERVER IS SOURCE OF TRUTH)"
-      );
-
-      newState = {
-        ...state,
-        roomsWithNewMessages: action.unreadRooms || [],
-        groupsWithNewMessages: action.unreadGroups || [],
-      };
-
-      // Update localStorage to match server
-      saveUnreadState(
-        newState.roomsWithNewMessages,
-        newState.groupsWithNewMessages
-      );
-
-      console.log("✅ Unread state synced from server:", {
-        rooms: newState.roomsWithNewMessages.length,
-        groups: newState.groupsWithNewMessages.length,
-      });
 
       return newState;
     }
