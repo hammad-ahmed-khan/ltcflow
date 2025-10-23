@@ -119,13 +119,7 @@ $global-link-color: #557d53
   color: #ffffff
 
 // 🔒 CRISP CHAT - HIDE FOR NON-ADMIN USERS
-#crisp-chatbox-button
-  display: none !important
-
-// Ensure Crisp is visible for admin/root users (when hide-crisp class is NOT present)
-//body:not(.hide-crisp)
-//  .crisp-client
-//    display: block !important
-//  
-//  #crisp-chatbox
-//    display: block !important
+#crisp-chatbox
+  > div
+    > div[role="button"]
+      display: none !important  

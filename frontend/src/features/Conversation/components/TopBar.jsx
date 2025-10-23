@@ -37,15 +37,6 @@ function TopBar({ back, loading }) {
     '_blank',
   );
 
-  // 🆕 NEW: Open Crisp chat for support
-  const openSupport = () => {
-    if (window.$crisp) {
-      window.$crisp.push(['do', 'chat:open']);
-    } else {
-      errorToast('Support chat is not available at the moment.');
-    }
-  };
-
   let other = {};
 
   if (room.people) {
@@ -58,8 +49,7 @@ function TopBar({ back, loading }) {
     other = { ...other, firstName: 'Deleted', lastName: 'User' };
   }
 
-  const title = (room.isGroup ?
-    room.title : `${other.firstName} ${other.lastName}`).substr(0, 22);
+  const title = (room.isGroup ? room.title : `${other.firstName} ${other.lastName}`).substr(0, 22);
 
   const warningToast = (content) => {
     addToast(content, {
@@ -110,12 +100,12 @@ function TopBar({ back, loading }) {
     return false;
   };
 
-  const roomInfo = () => {
-    setShowRoomInfo(true);
-  };
-
-  const mediaFiles = () => {
-    setShowRoomInfo(true);
+  const openSupport = () => {
+    if (window.$crisp) {
+      window.$crisp.push(['do', 'chat:open']);
+    } else {
+      errorToast('Support chat is not available at the moment.');
+    }
   };
 
   const Online = ({ other }) => {
@@ -132,38 +122,59 @@ function TopBar({ back, loading }) {
     if (onlineUsers.filter((u) => u.id === other._id && u.status === 'online').length > 0) return 'online';
     if (onlineUsers.filter((u) => u.id === other._id && u.status === 'away').length > 0) return 'away';
     if (lastOnline) return `Last online: ${moment(lastOnline).fromNow()}`;
-    return `Last online: ${other.lastOnline ? moment(other.lastOnline).fromNow() : 'a while ago'}`;
+    return `Last online: ${other.lastOnline ? moment(other.lastOnline).fromNow() : 'Never'}`;
+  };
+
+  const getStatus = () => {
+    if (room.isGroup) return null;
+    if (onlineUsers.filter((u) => u.id === other._id && u.status === 'busy').length > 0) return 'busy';
+    if (onlineUsers.filter((u) => u.id === other._id && u.status === 'online').length > 0) return 'online';
+    if (onlineUsers.filter((u) => u.id === other._id && u.status === 'away').length > 0) return 'away';
+    return null;
+  };
+
+  const roomInfo = () => {
+    setShowRoomInfo(true);
+  };
+
+  const mediaFiles = () => {
+    setShowRoomInfo(true);
   };
 
   return (
     <div className="top-bar uk-flex uk-flex-between uk-flex-middle">
-      <div className="uk-flex uk-flex-middle">
+      <div className="nav uk-flex uk-flex-middle">
         <div className="button mobile" onClick={back}>
           <FiArrowLeft />
         </div>
-        <div className="profile conversation" onClick={roomInfo}>
-          <Picture user={other} group={room.isGroup} picture={room.picture} title={room.title} />
-        </div>
-        {!room.isGroup && <div className={`dot ${Online({ other })}`} />}
-        <div className="text" onClick={roomInfo}>
-          <div className="title">{title}</div>
-          <div className="message">
-            {room.isGroup ? `${room.people.length} members` : <Online other={other} />}
+        {!loading && (
+          <div className="uk-flex uk-flex-middle">
+            <div className="profile conversation">
+              <Picture user={other} group={room.isGroup} picture={room.picture} title={room.title} />
+            </div>
+            {getStatus() && <div className={`dot ${getStatus()}`} />}
           </div>
-        </div>
+        )}
+        {!loading && (
+          <div className="text">
+            <div className="title">
+              {title}
+              {title.length > 22 && '...'}
+            </div>
+            <div className="message">
+              {room.isGroup ? `Group: ${room.people.length} members` : <Online other={other} />}
+            </div>
+          </div>
+        )}
       </div>
       <div className="nav">
-        {!room.isGroup && (
-          <div className="button" onClick={() => call(false)}>
-            <FiPhone />
-          </div>
-        )}
-        {!room.isGroup && (
-          <div className="button" onClick={() => call(true)}>
-            <FiVideo />
-          </div>
-        )}
-        <div className={`button${isFavorite() ? ' active' : ''}`} onClick={favorite}>
+        <div className="button" onClick={() => call(true)}>
+          <FiVideo />
+        </div>
+        <div className="button" onClick={() => call(false)}>
+          <FiPhone />
+        </div>
+         <div className={`button${isFavorite() ? ' active' : ''}`} onClick={favorite}>
           <FiStar />
         </div>
         <div className="uk-inline">
@@ -183,7 +194,6 @@ function TopBar({ back, loading }) {
                 <FiImage />
               </div>
             </div>
-            {/* 🆕 NEW: Support Link */}
             <div className="divider" />
             <div className="link" onClick={openSupport}>
               Support

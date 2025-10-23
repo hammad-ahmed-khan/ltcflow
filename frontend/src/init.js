@@ -34,7 +34,7 @@ const init = async () => {
     console.log("⏰ Scheduling unread sync in 3 seconds...");
 
     //setTimeout(async () => {
-    console.log("📬 Starting unread sync from server...");
+    //      console.log("📬 Starting unread sync from server...");
 
     try {
       const result = await store.dispatch(syncUnreadFromServer());
@@ -49,7 +49,7 @@ const init = async () => {
     } catch (error) {
       console.error("❌ Unread sync threw error:", error);
     }
-    //}, 3000); // 3 seconds to ensure socket is connected
+    //  }, 100); // 3 seconds to ensure socket is connected
   }
 
   const state = {

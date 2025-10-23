@@ -180,13 +180,13 @@ module.exports = async (socket, data) => {
         const roomDisplayName = room.isGroup ? room.name : senderName;
 
         const pushPayload = {
-          title: `New message from ${roomDisplayName}`,
+          title: `New message from ${senderName}`,
           body: content?.substring(0, 100) || "New message",
           tag: room._id.toString(),
           roomId: room._id.toString(),
           url: `/conversation/${room._id}`,
-          icon: "/logo192.png",
-          badge: "/logo192.png",
+          icon: "/flowicon192.webp",
+          badge: "/flowicon192.webp",
           requireInteraction: false,
           actions: [
             { action: "open", title: "Open" },
