@@ -1,26 +1,37 @@
-import './TopBar.sass';
-import { FiArrowLeft } from 'react-icons/fi';
+import React from 'react';
 import { useGlobal } from 'reactn';
-import Picture from '../../../../components/Picture';
+import { FiArrowLeft, FiX } from 'react-icons/fi';
 
 function TopBar() {
   const setPanel = useGlobal('panel')[1];
-  const room = { title: 'Group', isGroup: true };
-  const title = useGlobal('groupTitle')[0];
+
+  const handleBack = () => {
+    setPanel('standard');
+  };
 
   return (
-    <div className="top-bar-group uk-flex uk-flex-between uk-flex-middle">
-      <div className="nav">
-        <div className="button" onClick={() => setPanel('standard')}>
-          <FiArrowLeft />
+    <div className="top-bar">
+      <div className="top-bar-content">
+        <button 
+          className="back-button"
+          onClick={handleBack}
+          title="Go back"
+        >
+          <FiArrowLeft size={20} />
+        </button>
+        
+        <div className="top-bar-title">
+          <h2>Create Group</h2>
+          <span className="subtitle">Add members and create your group</span>
         </div>
-        <div className="profile conversation">
-          <Picture user={room} group={room.isGroup} picture={room.picture} title={room.title} />
-        </div>
-        <div className="text">
-          <div className="title">Create Group</div>
-          <div className="message">{title || 'Type a group name...'}</div>
-        </div>
+        
+        <button 
+          className="close-button"
+          onClick={handleBack}
+          title="Close"
+        >
+          <FiX size={20} />
+        </button>
       </div>
     </div>
   );

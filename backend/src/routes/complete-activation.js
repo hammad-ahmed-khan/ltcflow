@@ -1,4 +1,4 @@
-// backend/src/routes/complete-activation.js (Updated for root user company setup)
+// backend/src/routes/complete-activation.js (Updated with MAU tracking)
 const User = require("../models/User");
 const Company = require("../models/Company");
 const AuthCode = require("../models/AuthCode");
@@ -9,6 +9,9 @@ const moment = require("moment");
 const isEmpty = require("../utils/isEmpty");
 const mongoose = require("mongoose");
 const outsetaApi = require("../services/outsetaApi");
+
+// 🔥 NEW: Import MAU tracking
+const UserActivationTracker = require("../services/UserActivationTracker");
 
 module.exports = async (req, res) => {
   try {
@@ -192,6 +195,21 @@ module.exports = async (req, res) => {
       user.updatedAt = new Date();
 
       await user.save({ session });
+
+      // 🔥 NEW: Log user to monthly active users for billing
+      try {
+        await UserActivationTracker.logUserActivation(user);
+        console.log(
+          `📊 User ${user.email} added to monthly active users for billing`
+        );
+      } catch (mauError) {
+        // Don't fail the activation if MAU logging fails
+        console.error(
+          `⚠️ Failed to log user to monthly active users:`,
+          mauError
+        );
+        // Could send an alert here for manual review if needed
+      }
 
       // Clean up any remaining auth codes for this user
       await AuthCode.updateMany(

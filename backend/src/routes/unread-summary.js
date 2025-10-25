@@ -10,15 +10,15 @@ module.exports = async (req, res) => {
     const userId = req.user.id;
     const companyId = req.headers["x-company-id"];
 
-    console.log(`\n============================================`);
-    console.log(`📊 UNREAD SUMMARY REQUEST`);
-    console.log(`User ID: ${userId}`);
-    console.log(`Company ID: ${companyId}`);
-    console.log(`📅 Cut-off Date: ${UNREAD_CUTOFF_DATE.toISOString()}`); // 🆕 LOG CUT-OFF
-    console.log(`============================================\n`);
+    //console.log(`\n============================================`);
+    //console.log(`📊 UNREAD SUMMARY REQUEST`);
+    //console.log(`User ID: ${userId}`);
+    //console.log(`Company ID: ${companyId}`);
+    //console.log(`📅 Cut-off Date: ${UNREAD_CUTOFF_DATE.toISOString()}`); // 🆕 LOG CUT-OFF
+    //console.log(`============================================\n`);
 
     if (!companyId) {
-      console.log("❌ No company ID provided");
+      //console.log("❌ No company ID provided");
       return res.status(400).json({ error: "Company ID required." });
     }
 
@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
       .select("_id isGroup lastReadByUser people title")
       .lean();
 
-    console.log(`📦 Found ${rooms.length} total rooms for user`);
+    //console.log(`📦 Found ${rooms.length} total rooms for user`);
 
     const unreadRooms = [];
     const unreadGroups = [];
@@ -39,20 +39,20 @@ module.exports = async (req, res) => {
     for (const room of rooms) {
       totalChecked++;
 
-      console.log(`\n--- Checking Room ${totalChecked}/${rooms.length} ---`);
-      console.log(`Room ID: ${room._id}`);
-      console.log(`Title: ${room.title || "Direct Message"}`);
-      console.log(`Is Group: ${room.isGroup}`);
+      //console.log(`\n--- Checking Room ${totalChecked}/${rooms.length} ---`);
+      //console.log(`Room ID: ${room._id}`);
+      //console.log(`Title: ${room.title || "Direct Message"}`);
+      //console.log(`Is Group: ${room.isGroup}`);
 
       // Check if user is a member
       const isMember = room.people.some(
         (personId) => personId.toString() === userId.toString()
       );
 
-      console.log(`Is Member: ${isMember}`);
+      //console.log(`Is Member: ${isMember}`);
 
       if (!isMember) {
-        console.log(`⏭️  Skipping - not a member`);
+        //console.log(`⏭️  Skipping - not a member`);
         continue;
       }
 
@@ -69,8 +69,8 @@ module.exports = async (req, res) => {
       const effectiveReadTime =
         lastReadTime > UNREAD_CUTOFF_DATE ? lastReadTime : UNREAD_CUTOFF_DATE;
 
-      console.log(`User Last Read: ${lastReadTime}`);
-      console.log(`Effective Read Time (with cut-off): ${effectiveReadTime}`);
+      //console.log(`User Last Read: ${lastReadTime}`);
+      //console.log(`Effective Read Time (with cut-off): ${effectiveReadTime}`);
 
       // 🆕 Only count messages from others AFTER the effective read time
       const newMessageCount = await Message.countDocuments({
@@ -79,12 +79,12 @@ module.exports = async (req, res) => {
         createdAt: { $gt: effectiveReadTime }, // Uses cut-off if lastReadTime is older
       });
 
-      console.log(
-        `New Messages from Others (after cut-off): ${newMessageCount}`
-      );
+      //console.log(
+      //  `New Messages from Others (after cut-off): ${newMessageCount}`
+      //);
 
       if (newMessageCount > 0) {
-        console.log(`🔔 UNREAD DETECTED!`);
+        //console.log(`🔔 UNREAD DETECTED!`);
 
         if (room.isGroup) {
           unreadGroups.push(room._id.toString());
@@ -92,21 +92,21 @@ module.exports = async (req, res) => {
           unreadRooms.push(room._id.toString());
         }
       } else {
-        console.log(`✅ No unread messages`);
+        //console.log(`✅ No unread messages`);
       }
     }
 
-    console.log(`\n============================================`);
-    console.log(`📊 FINAL RESULTS:`);
-    console.log(`Total Rooms Checked: ${totalChecked}`);
-    console.log(`Unread Direct Chats: ${unreadRooms.length}`);
-    console.log(`Unread Groups: ${unreadGroups.length}`);
-    console.log(`Unread Room IDs:`, unreadRooms);
-    console.log(`Unread Group IDs:`, unreadGroups);
-    console.log(
-      `📅 Cut-off Protected: Messages before ${UNREAD_CUTOFF_DATE.toISOString()} ignored`
-    );
-    console.log(`============================================\n`);
+    //console.log(`\n============================================`);
+    //console.log(`📊 FINAL RESULTS:`);
+    //console.log(`Total Rooms Checked: ${totalChecked}`);
+    //console.log(`Unread Direct Chats: ${unreadRooms.length}`);
+    //console.log(`Unread Groups: ${unreadGroups.length}`);
+    //console.log(`Unread Room IDs:`, unreadRooms);
+    //console.log(`Unread Group IDs:`, unreadGroups);
+    //console.log(
+    //  `📅 Cut-off Protected: Messages before ${UNREAD_CUTOFF_DATE.toISOString()} ignored`
+    //);
+    //console.log(`============================================\n`);
 
     res.json({
       success: true,

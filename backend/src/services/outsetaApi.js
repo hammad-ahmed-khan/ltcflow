@@ -466,6 +466,56 @@ class OutsetaApiService {
       };
     }
   }
+
+  // Record usage for a specific account
+  async recordUsage(outsetaAccountId, quantity = 1, note = "") {
+    if (!this.isConfigured() || !outsetaAccountId) {
+      console.warn(
+        "Outseta not configured or missing account ID - skipping usage record"
+      );
+      return null;
+    }
+
+    try {
+      const addonUid = process.env.OUTSETA_ADDON_UID;
+
+      if (!addonUid) {
+        throw new Error("Missing OUTSETA_ADDON_UID in environment variables");
+      }
+
+      console.log(
+        `🔄 Recording usage for account ${outsetaAccountId} [Addon: ${addonUid}]`
+      );
+
+      const payload = {
+        Account: { Uid: outsetaAccountId },
+        AddOn: { Uid: addonUid },
+        Quantity: quantity,
+        Note: note,
+      };
+
+      const response = await this.client.post("/billing/usage", payload);
+
+      console.log(
+        `✅ Usage recorded successfully for account ${outsetaAccountId}`
+      );
+
+      return {
+        success: true,
+        data: response.data,
+      };
+    } catch (error) {
+      console.error(
+        "❌ Failed to record usage in Outseta:",
+        error.response?.data || error.message
+      );
+
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message,
+      };
+    }
+  }
 }
 
 // Export singleton instance
