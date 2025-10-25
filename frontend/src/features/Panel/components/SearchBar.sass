@@ -3,17 +3,150 @@
   height: 40px
   border-bottom: 1px solid rgba(218, 220, 224, 0.5)
   background: rgba(60, 60, 60, .05)
+  display: flex
+  align-items: center
+  
   .icon
     font-size: 18px
     padding: 0 2px 5px 13px
     color: #666
     cursor: pointer
-  .icon:hover
-    color: #000
+    transition: color 0.2s ease
+    flex-shrink: 0
+    
+    &:hover
+      color: #000
+      
   .search
-    flex-grow: 1
+    flex: 1
+    position: relative
+    display: flex
+    align-items: center
+    min-width: 0
+    
     input
       background: transparent
       border: 0
       border-radius: 0
       font-size: 16px !important  // Prevent iOS zoom
+      padding: 8px 35px 8px 8px    // Right padding for clear button
+      width: 100%
+      height: 100%
+      box-sizing: border-box
+      outline: none
+      
+      &:focus
+        outline: none
+        background: rgba(255, 255, 255, 0.1)
+        
+      &::placeholder
+        color: #999
+        opacity: 1
+        
+    .clear-search
+      position: absolute
+      right: 8px
+      top: 50%
+      transform: translateY(-50%)
+      cursor: pointer
+      color: #666
+      font-size: 14px
+      z-index: 2
+      padding: 4px
+      border-radius: 50%
+      transition: all 0.2s ease
+      display: flex
+      align-items: center
+      justify-content: center
+      width: 20px
+      height: 20px
+      flex-shrink: 0
+      background: rgba(255, 255, 255, 0.8)
+      
+      &:hover
+        color: #000
+        background: rgba(255, 255, 255, 1)
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2)
+
+// Search result highlighting styles
+.search-highlight
+  background: #ffeb3b
+  color: #000
+  font-weight: 500
+  padding: 1px 2px
+  border-radius: 2px
+
+// Dark mode support
+@media (prefers-color-scheme: dark)
+  .search-bar
+    background: rgba(255, 255, 255, 0.05)
+    border-bottom-color: rgba(255, 255, 255, 0.1)
+    
+    .icon
+      color: #aaa
+      
+      &:hover
+        color: #fff
+        
+    .search
+      input
+        color: #fff
+        
+        &:focus
+          background: rgba(255, 255, 255, 0.05)
+          
+        &::placeholder
+          color: #666
+          
+      .clear-search
+        color: #aaa
+        background: rgba(0, 0, 0, 0.6)
+        
+        &:hover
+          color: #fff
+          background: rgba(0, 0, 0, 0.8)
+
+// Mobile responsive adjustments
+@media screen and (max-width: 699px)
+  .search-bar
+    height: 44px // Slightly taller for better touch targets
+    
+    .icon
+      font-size: 20px
+      padding: 0 4px 8px 16px
+      
+    .search
+      input
+        font-size: 16px !important // Prevent zoom on iOS
+        padding: 10px 40px 10px 12px
+        
+      .clear-search
+        right: 12px
+        width: 24px
+        height: 24px
+        font-size: 16px
+
+// High contrast mode support
+@media (prefers-contrast: high)
+  .search-bar
+    border-bottom: 2px solid #000
+    
+    .icon
+      color: #000
+      
+    .search
+      input
+        &::placeholder
+          color: #666
+          
+      .clear-search
+        color: #000
+        background: #fff
+        border: 1px solid #000
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce)
+  .search-bar
+    .icon,
+    .clear-search
+      transition: none

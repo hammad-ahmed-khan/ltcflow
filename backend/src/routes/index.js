@@ -3,6 +3,8 @@ const router = require("express").Router();
 const passport = require("passport");
 const jwt = require("express-jwt");
 const Config = require("../../config");
+const BillingHelper = require("../services/BillingHelper");
+const UserActivationTracker = require("../services/UserActivationTracker");
 
 router.get("/images/:id", require("./images"));
 router.get("/files/:id", require("./files"));
@@ -259,5 +261,248 @@ router.post(
   passport.authenticate("jwt", { session: false }, null),
   require("./get-room-media")
 );
+router.get(
+  "/billing/company/current",
+  passport.authenticate("jwt", { session: false }),
+  async (req, res) => {
+    try {
+      const companyId = req.user.companyId;
+
+      console.log("=== BILLING DEBUG START ===");
+      console.log("User ID:", req.user.id);
+      console.log("Company ID:", companyId);
+
+      // Get detailed monthly stats including active vs deactivated users
+      const MonthlyActiveUser = require("../models/MonthlyActiveUser");
+      const dayjs = require("dayjs");
+      const currentMonth = dayjs().format("YYYY-MM");
+
+      console.log("Current month:", currentMonth);
+
+      // Get detailed stats for current month
+      const detailedStats = await MonthlyActiveUser.getDetailedMonthlyStats(
+        companyId,
+        currentMonth
+      );
+
+      // 🔥 FIX: detailedStats is an object, not an array
+      if (
+        !detailedStats ||
+        (typeof detailedStats === "object" &&
+          Object.keys(detailedStats).length === 0)
+      ) {
+        console.log("No detailedStats found, returning empty structure");
+
+        // If no data, return empty structure
+        return res.json({
+          success: true,
+          data: {
+            companyId,
+            month: currentMonth,
+            activeUsers: detailedStats.activeRecords,
+          },
+        });
+      }
+
+      console.log("=== BILLING DEBUG END ===");
+
+      res.json({
+        success: true,
+        data: detailedStats, // 🔥 FIX: Use responseData instead of detailedStats[0]
+      });
+    } catch (error) {
+      console.error("=== BILLING ERROR ===");
+      console.error("Error getting current month billing:", error);
+      console.error("Error stack:", error.stack);
+      console.error("=== BILLING ERROR END ===");
+
+      res.status(500).json({
+        success: false,
+        error: "Failed to get billing data",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// Get billing for specific month
+router.get(
+  "/billing/company/month/:month",
+  passport.authenticate("jwt", { session: false }),
+  async (req, res) => {
+    try {
+      const companyId = req.user.companyId;
+      const { month } = req.params;
+
+      // Validate month format (YYYY-MM)
+      if (!/^\d{4}-\d{2}$/.test(month)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid month format. Use YYYY-MM",
+        });
+      }
+
+      const billingData = await BillingHelper.getCompanyBillingData(
+        companyId,
+        month
+      );
+
+      res.json({
+        success: true,
+        data: billingData,
+      });
+    } catch (error) {
+      console.error("Error getting billing data for month:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get billing data",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// Get current month stats for a company (simpler version)
+router.get(
+  "/billing/company/stats",
+  passport.authenticate("jwt", { session: false }),
+  async (req, res) => {
+    try {
+      const companyId = req.user.companyId;
+
+      const stats = await UserActivationTracker.getCurrentMonthStats(companyId);
+
+      res.json({
+        success: true,
+        data: stats,
+      });
+    } catch (error) {
+      console.error("Error getting company stats:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get company stats",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// Admin-only route to get all companies billing (if needed)
+router.get(
+  "/billing/admin/all",
+  passport.authenticate("jwt", { session: false }),
+  async (req, res) => {
+    try {
+      // Check if user is admin or root
+      if (!["admin", "root"].includes(req.user.level)) {
+        return res.status(403).json({
+          success: false,
+          error: "Unauthorized. Admin access required.",
+        });
+      }
+
+      const month = req.query.month; // optional
+
+      const allBilling = await BillingHelper.getAllCompaniesBillingData(month);
+
+      res.json({
+        success: true,
+        data: allBilling,
+        summary: {
+          totalCompanies: allBilling.length,
+          totalUsers: allBilling.reduce(
+            (sum, company) => sum + company.totalBillableUsers,
+            0
+          ),
+          totalRevenue: allBilling.reduce(
+            (sum, company) => sum + (company.billing?.totalAmount || 0),
+            0
+          ),
+        },
+      });
+    } catch (error) {
+      console.error("Error getting all companies billing:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get billing data",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// Get billing configuration for the authenticated user's company
+router.get(
+  "/billing/config",
+  passport.authenticate("jwt", { session: false }),
+  async (req, res) => {
+    try {
+      // Get company details if needed for custom pricing
+      const Company = require("../models/Company");
+      const company = await Company.findById(req.user.companyId);
+
+      if (!company) {
+        return res.status(404).json({
+          success: false,
+          error: "Company not found",
+        });
+      }
+
+      // Billing configuration - you can customize this per company or use defaults
+      const billingConfig = {
+        // Plan information
+        planName:
+          company.planName || process.env.DEFAULT_PLAN_NAME || "Connect",
+
+        // Billing constants (moved from frontend env)
+        baseUserLimit:
+          company.baseUserLimit || parseInt(process.env.BASE_USER_LIMIT) || 20,
+        perUserRate:
+          company.perUserRate || parseFloat(process.env.PER_USER_RATE) || 2.97,
+
+        // Currency info
+        currency: company.currency || process.env.DEFAULT_CURRENCY || "USD",
+        currencySymbol: getCurrencySymbol(company.currency || "USD"),
+
+        // Additional plan details
+        planDescription:
+          company.planDescription ||
+          "Advanced messaging and video conferencing",
+
+        // Company-specific overrides
+        isCustomPricing: company.isCustomPricing || false,
+        planTier: company.planTier || "professional",
+      };
+
+      res.json({
+        success: true,
+        data: billingConfig,
+      });
+    } catch (error) {
+      console.error("Error getting billing config:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to get billing configuration",
+        message: error.message,
+      });
+    }
+  }
+);
+
+// Helper function to get currency symbol
+function getCurrencySymbol(currency) {
+  const symbols = {
+    USD: "$",
+    EUR: "€",
+    GBP: "£",
+    CAD: "C$",
+    AUD: "A$",
+    JPY: "¥",
+    CNY: "¥",
+    INR: "₹",
+  };
+
+  return symbols[currency?.toUpperCase()] || "$";
+}
 
 module.exports = router;
