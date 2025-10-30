@@ -221,10 +221,17 @@ const Message = memo(({
 
   const convertUrls = useCallback((text) => {
     if (!text) return '';
+    
+    // First preserve line breaks by converting them to <br> tags
+    let processedText = text.replace(/\n/g, '<br>');
+    
+    // Then convert URLs
     const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi;
-    return text.replace(urlRegex, (url) => {
+    processedText = processedText.replace(urlRegex, (url) => {
       return `<a href="${url}" target="_blank">${url}</a>`;
     });
+    
+    return processedText;
   }, []);
 
   const ContentComponent = useMemo(() => {
