@@ -47,7 +47,7 @@ export const registerServiceWorker = () => {
       // Handle controller change
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         console.log("[PWA] Service Worker controller changed");
-        window.location.reload();
+        //window.location.reload();
       });
     });
   }
