@@ -6,6 +6,8 @@ import store from "../store";
 import getRooms from "./getRooms";
 import messageSound from "../assets/message.mp3";
 import socketPromise from "../lib/socket.io-promise";
+import apiClient from "../api/apiClient";
+import syncUnreadFromServer from "./syncUnreadFromServer"; // ✅ ADD THIS IMPORT
 
 // Track played sounds to prevent duplicates
 let playedSounds = new Set();
@@ -134,11 +136,34 @@ const initIO = (token) => (dispatch) => {
         `📬 Adding unread badge for ${room.isGroup ? "group" : "room"}:`,
         room._id
       );
-      store.dispatch({
-        type: Actions.MESSAGES_ADD_ROOM_UNREAD,
-        roomID: room._id,
-        isGroup: room.isGroup,
-      });
+      setTimeout(() => {
+        store.dispatch(syncUnreadFromServer());
+        console.log("✅ MESSAGE-IN: Synced unread state with server");
+      }, 500);
+    } else if (isViewingThisRoom && !isOwnMessage) {
+      // ✅ IS viewing room → Auto-mark as read
+      console.log(
+        `👀 User is viewing ${
+          room.isGroup ? "group" : "room"
+        }, auto-marking new message as read:`,
+        room._id
+      );
+
+      apiClient
+        .post("/api/mark-room-read", { roomId: room._id })
+        .then(() => {
+          console.log("✅ MESSAGE-IN: Auto-marked room as read");
+          // Optionally sync to ensure counts are accurate
+          setTimeout(() => {
+            store.dispatch(syncUnreadFromServer());
+          }, 300);
+        })
+        .catch((err) => {
+          console.error(
+            "❌ MESSAGE-IN: Failed to auto-mark room as read:",
+            err
+          );
+        });
     } else if (isOwnMessage) {
       console.log(`📤 Own message from another device, not marking as unread`);
     } else {
@@ -200,15 +225,17 @@ const initIO = (token) => (dispatch) => {
 
   io.on("call", (data) => {
     console.log("call", data);
+    /*
     store.dispatch({
       type: Actions.RTC_SET_COUNTERPART,
       counterpart: data.counterpart,
     });
+    */
     store.dispatch({ type: Actions.RTC_CALL, data });
   });
 
   io.on("close", (data) => {
-    console.log("close", data);
+    console.log("close received: ", data);
     store.dispatch({ type: Actions.RTC_CLOSE, data });
   });
 
@@ -368,6 +395,15 @@ const initIO = (token) => (dispatch) => {
         store.dispatch({ type: Actions.SET_ROOMS, rooms: res.data.rooms })
       )
       .catch((err) => console.error("❌ Error updating rooms list:", err));
+  });
+
+  io.on("missed-calls-badge-update", (data) => {
+    console.log("📞 📊 Badge update received:", data.unreadMissedCalls);
+
+    dispatch({
+      type: Actions.UPDATE_MISSED_CALLS_BADGE,
+      unreadMissedCalls: data.unreadMissedCalls,
+    });
   });
 
   // Enhanced beforeunload with retry logic

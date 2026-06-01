@@ -279,7 +279,7 @@ const sendImages = async (images) => {
             };
           });
         },
-        'square', // crop parameter for images
+        null, // crop parameter for images
         controller.signal // abort signal
       );
       
@@ -897,7 +897,7 @@ const handleKeyPress = (event) => {
 };
 // Then in your return statement, add the progress display:
 return (
-  <div className="bottom-bar-conversation uk-flex uk-flex-middle" style={{ position: 'relative' }}>
+  <div className="bottom-bar-conversation uk-flex uk-flex-middle">
     {/* Render both image and file progress bars */}
     {renderImageUploadProgress()}
     {renderUploadProgress()}

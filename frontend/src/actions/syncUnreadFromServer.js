@@ -6,28 +6,34 @@ const syncUnreadFromServer = () => {
   return async (dispatch) => {
     try {
       console.log(
-        "?? [syncUnreadFromServer] Making API call to /api/unread-summary"
+        "📊 [syncUnreadFromServer] Making API call to /api/unread-summary"
       );
 
       const response = await apiClient.post("/api/unread-summary");
+      console.log("📊 [syncUnreadFromServer] API Response:", response.data);
 
-      console.log("?? [syncUnreadFromServer] API Response:", response.data);
+      // ✅ SIMPLE: Just the badge counts, not the list
+      const {
+        unreadRooms,
+        unreadGroups,
+        unreadMissedCalls,
+        totalUnread, // ✅ ADD: Was missing
+      } = response.data;
 
-      const { unreadRooms, unreadGroups, totalUnread } = response.data;
-
-      console.log("? [syncUnreadFromServer] Server returned unread state:", {
+      console.log("📊 [syncUnreadFromServer] Server returned unread state:", {
         rooms: unreadRooms.length,
         groups: unreadGroups.length,
-        total: totalUnread,
-        roomIds: unreadRooms,
-        groupIds: unreadGroups,
+        missedCalls: unreadMissedCalls || 0,
+        total: totalUnread, // ✅ ADD
       });
 
-      // Dispatch to Redux
+      // ✅ SIMPLE: Just include totalUnread
       dispatch({
         type: Actions.SYNC_UNREAD_FROM_SERVER,
         unreadRooms,
         unreadGroups,
+        unreadMissedCalls,
+        totalUnread, // ✅ ADD: Was the only thing missing
       });
 
       console.log(

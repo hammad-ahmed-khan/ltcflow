@@ -15,6 +15,9 @@ const { AsyncNedb } = require("nedb-async");
 const mediasoup = require("./mediasoup");
 const Meeting = require("./models/Meeting");
 
+// ✅ ADD: Import call handlers
+const { handleCallEvents } = require("./socket/callHandlers");
+
 module.exports = () => {
   store.rooms = new AsyncNedb();
   store.peers = new AsyncNedb();
@@ -31,15 +34,6 @@ module.exports = () => {
       const { email, id } = socket.decoded_token;
       console.log(`Socket connected: ${email}`.cyan);
 
-      // ADD THIS: Enhanced connection logging
-      console.log(
-        `🔌 Socket ${socket.id} authenticated for user ${id} (${email})`
-      );
-
-      // JOIN USER TO THEIR OWN ROOM (important for message deletion notifications)
-      socket.join(id);
-      console.log(`👤 Socket ${socket.id} joined personal room: ${id}`);
-
       mediasoup.initSocket(socket);
 
       socket.join(id);
@@ -47,6 +41,9 @@ module.exports = () => {
       events.forEach((event) =>
         socket.on(event.tag, (data) => event.callback(socket, data))
       );
+
+      // ✅ ADD: Initialize call event handlers
+      handleCallEvents(socket, store.io);
 
       store.socketIds.push(socket.id);
       store.sockets[socket.id] = socket;
@@ -114,20 +111,6 @@ module.exports = () => {
         store.onlineUsers.delete(socket);
         store.io.emit("onlineUsers", Array.from(store.onlineUsers.values()));
       });
-
-      // ADD THIS: Log when socket joins/leaves rooms
-      const originalJoin = socket.join;
-      const originalLeave = socket.leave;
-
-      socket.join = function (room) {
-        console.log(`🚪 Socket ${socket.id} joining room: ${room}`);
-        return originalJoin.call(this, room);
-      };
-
-      socket.leave = function (room) {
-        console.log(`🚪 Socket ${socket.id} leaving room: ${room}`);
-        return originalLeave.call(this, room);
-      };
     });
 
   store.app.use(cors());
@@ -180,7 +163,6 @@ module.exports = () => {
     passport.authenticate("jwt", { session: false }),
     require("./routes/pushSubscriptions")
   );
-
   const mongooseConnect = () => {
     let connecting = setTimeout(
       () => console.log("Connecting to DB...".yellow),
@@ -209,15 +191,15 @@ module.exports = () => {
         clearTimeout(connecting);
 
         // 1️⃣ Ensure default company exists
-        let company = await Company.findOne({ subdomain: "demo" });
+        let company = await Company.findOne({ subdomain: "staging" });
         if (!company) {
           company = await new Company({
             name: "Demo LTC Flow Account",
-            subdomain: "demo",
+            subdomain: "staging",
           }).save();
-          console.log("Default company created: demo".green);
+          console.log("Default company created: staging".green);
         } else {
-          console.log("Default company already exists: demo".yellow);
+          console.log("Default company already exists: staging".yellow);
         }
 
         // 2️⃣ Create or update root user with the company's _id

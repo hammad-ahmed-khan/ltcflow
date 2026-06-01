@@ -10,10 +10,15 @@ import './GroupList.sass';
 
 function GroupList() {
   const rooms = useSelector((state) => state.io.rooms);
-  const groupsWithNewMessages = useSelector((state) => state.messages.groupsWithNewMessages);
-  const [user] = useGlobal('user');
+   const [user] = useGlobal('user');
   const setPanel = useGlobal('panel')[1];
   const navigate = useNavigate();
+
+  const groupsWithNewMessages = useSelector((state) => 
+    state.unread?.unreadGroups || 
+    state.unread?.groupsWithNewMessages || 
+    []
+  );
 
   // Updated filter: Include groups where user is either a member OR the creator
   const userGroups = rooms.filter(room => 

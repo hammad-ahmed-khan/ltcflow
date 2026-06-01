@@ -361,8 +361,7 @@ function App() {
 
   return (
     <>
-      <UnreadSyncManager />
-      
+     
       {/* PWA Network Status Indicator */}
       {!isOnline && <NetworkStatus isOnline={isOnline} />}
       

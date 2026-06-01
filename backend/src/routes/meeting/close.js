@@ -4,6 +4,15 @@ const xss = require("xss");
 const store = require("../../store");
 
 module.exports = async (req, res, next) => {
+  console.log("=== MEETING CLOSE DEBUG ===");
+  console.log("Request fields:", req.fields);
+  console.log("Request body:", req.body);
+  console.log("Request params:", req.params);
+  console.log("Request query:", req.query);
+  console.log("Headers:", req.headers);
+  console.log("Stack trace:", new Error().stack);
+  console.log("========================");
+
   let { userID, meetingID } = req.fields;
 
   // Extract companyId from header

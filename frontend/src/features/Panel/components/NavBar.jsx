@@ -2,27 +2,31 @@ import { useGlobal } from 'reactn';
 import { useSelector } from 'react-redux';
 import './NavBar.sass';
 import {
-  FiMessageCircle, FiStar, FiUsers, FiSearch,
+  FiMessageCircle, FiStar, FiUsers, FiSearch, FiPhoneMissed,
 } from 'react-icons/fi';
 
 function NavBar() {
   const [nav, setNav] = useGlobal('nav');
-  const roomsWithNewMessages = useSelector((state) => state.messages.roomsWithNewMessages);
-  const groupsWithNewMessages = useSelector((state) => state.messages.groupsWithNewMessages); // NEW
   
-  // Calculate total unread counts
-  const totalUnreadChats = roomsWithNewMessages.length;
-  const totalUnreadGroups = groupsWithNewMessages.length; // NEW
+  // ✅ SERVER-SIDE ONLY: Clean and simple
+  const unreadState = useSelector((state) => state.unread);
+  
+  const totalUnreadChats = unreadState?.unreadRooms?.length || 0;
+  const totalUnreadGroups = unreadState?.unreadGroups?.length || 0;
+  const totalMissedCalls = unreadState?.unreadMissedCalls || 0;
 
-  console.log("NavBar - Unread chats:", roomsWithNewMessages, "Count:", totalUnreadChats);
-  console.log("NavBar - Unread groups:", groupsWithNewMessages, "Count:", totalUnreadGroups); // NEW
+  console.log("unreadState:", unreadState);
+  console.log("Badge counts (server-only):", { 
+    chats: totalUnreadChats, 
+    groups: totalUnreadGroups, 
+    missedCalls: totalMissedCalls 
+  });
 
   return (
     <div className="nav-bar uk-flex">
       <div className={`item${nav === 'rooms' ? ' active' : ''}`} onClick={() => setNav('rooms')}>
         <div className="icon icon-with-badge">
           <FiMessageCircle />
-          {/* Show badge for direct messages */}
           {totalUnreadChats > 0 && (
             <div className="nav-unread-badge">
               {totalUnreadChats > 99 ? '99+' : totalUnreadChats}
@@ -43,16 +47,12 @@ function NavBar() {
         </div>
         <div className="text">Favorites</div>
       </div>
-      {/* ENHANCED: Groups with unread badge */}
       <div
         className={`item${nav === 'groups' ? ' active' : ''}`}
-        onClick={() => {
-          setNav('groups');
-        }}
+        onClick={() => setNav('groups')}
       >
         <div className="icon icon-with-badge">
           <FiUsers />
-          {/* NEW: Show badge for group messages */}
           {totalUnreadGroups > 0 && (
             <div className="nav-unread-badge">
               {totalUnreadGroups > 99 ? '99+' : totalUnreadGroups}
@@ -60,6 +60,20 @@ function NavBar() {
           )}
         </div>
         <div className="text">Groups</div>
+      </div>
+      <div
+        className={`item${nav === 'missed-calls' ? ' active' : ''}`}
+        onClick={() => setNav('missed-calls')}
+      >
+        <div className="icon icon-with-badge">
+          <FiPhoneMissed />
+          {totalMissedCalls > 0 && (
+            <div className="nav-unread-badge">
+              {totalMissedCalls > 99 ? '99+' : totalMissedCalls}
+            </div>
+          )}
+        </div>
+        <div className="text">Missed</div>
       </div>
     </div>
   );

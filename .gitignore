@@ -32,4 +32,10 @@ info.txt
 
 # Logs
 *.log
-logs/
+logs/node_modules/
+frontend/.env
+*.zip
+node_modules/
+frontend/.env
+*.zip
+info.txt

@@ -1,0 +1,706 @@
+// CreateGroup.sass - Complete styling for group creation with scrollbar fix
+
+// Main container
+.group-create
+  height: 100%
+  display: flex
+  flex-direction: column
+  background: #fff
+  border-right: 1px solid rgba(218, 220, 224, 0.5)
+
+// ===== TOP BAR STYLES =====
+.top-bar
+  flex-shrink: 0
+  background: #fff
+  border-bottom: 1px solid #eee
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1)
+  z-index: 10
+
+.top-bar-content
+  display: flex
+  align-items: center
+  justify-content: space-between
+  padding: 0px 16px
+  min-height: 56px
+
+.back-button,
+.close-button
+  background: transparent
+  border: none
+  color: #666
+  cursor: pointer
+  padding: 8px
+  border-radius: 6px
+  display: flex
+  align-items: center
+  justify-content: center
+  transition: all 0.2s ease
+  
+  &:hover
+    background: #f5f5f5
+    color: #333
+  
+  &:active
+    transform: scale(0.95)
+
+.top-bar-title
+  flex: 1
+  text-align: center
+  margin: 0 16px
+  
+  h2
+    margin: 0
+    font-size: 18px
+    font-weight: 600
+    color: #333
+    line-height: 1.2
+  
+  .subtitle
+    font-size: 12px
+    color: #666
+    display: block
+    margin-top: 2px
+
+// Group info section - Fixed header
+.group-info-section
+  flex-shrink: 0
+  padding: 10px 16px 0
+  border-bottom: 1px solid #eee
+  background: #fff
+
+// Group picture section
+.group-picture-section
+  display: flex
+  flex-direction: column
+  align-items: center
+  gap: 16px
+  margin-bottom: 20px
+
+.group-picture-upload
+  position: relative
+  width: 80px
+  height: 80px
+  border-radius: 50%
+  cursor: pointer
+  transition: all 0.2s ease
+  border: 3px solid #e9ecef  
+  
+  &:hover
+    transform: scale(1.05)
+    border-color: #557d53
+    box-shadow: 0 4px 12px rgba(85, 125, 83, 0.2)
+
+.group-picture-image
+  width: 100%
+  height: 100%
+  object-fit: cover
+  border-radius: 50%
+
+.group-picture-placeholder
+  width: 100%
+  height: 100%
+  background: #666
+  color: white
+  display: flex
+  align-items: center
+  justify-content: center
+  border-radius: 50%
+
+.edit-overlay
+  position: absolute
+  bottom: 0
+  right: 0
+  background: #557d53
+  border-radius: 50%
+  width: 24px
+  height: 24px
+  display: flex
+  align-items: center
+  justify-content: center
+  border: 2px solid white
+  color: white
+
+// Group title section
+.group-title-section
+  width: 100%
+
+.group-title-input
+  width: 100%
+  text-align: center
+  font-size: 16px
+  font-weight: 500
+  border: 1px solid #ddd
+  border-radius: 8px
+  padding: 12px 0px
+  transition: all 0.2s ease
+  background: #fff
+  
+  &:focus
+    outline: none
+    border-color: #557d53
+    box-shadow: 0 0 0 3px rgba(85, 125, 83, 0.1)
+  
+  &.error
+    border-color: #c62828
+    box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.1)
+  
+  &::placeholder
+    color: #999
+
+// Member selection summary
+.member-selection-summary
+  padding: 16px
+  border-radius: 8px
+  background: #f8f9fa
+  border: 1px solid #eee
+  transition: all 0.2s ease
+  
+  &.error
+    background: #ffebee
+    border-color: #c62828
+
+.summary-header
+  display: flex
+  justify-content: space-between
+  align-items: flex-start
+  margin-bottom: 12px
+
+.summary-info
+  flex: 1
+
+.summary-title
+  font-size: 14px
+  font-weight: 500
+  margin-bottom: 4px
+  color: #333
+
+.summary-count
+  font-size: 12px
+  color: #666
+  line-height: 1.4
+  
+  strong
+    color: #007bff
+
+.clear-selection-btn
+  background: transparent
+  border: 1px solid #ddd
+  color: #666
+  padding: 4px 8px
+  border-radius: 4px
+  font-size: 11px
+  cursor: pointer
+  transition: all 0.2s ease
+  
+  &:hover
+    background: #f5f5f5
+    border-color: #ccc
+
+// Creator inclusion checkbox
+.creator-inclusion
+  margin-top: 12px
+
+.checkbox-label
+  display: flex
+  align-items: center
+  gap: 8px
+  cursor: pointer
+  font-size: 14px
+  color: #333
+  
+  input[type="checkbox"]
+    margin: 0
+
+.checkbox-description
+  font-size: 12px
+  color: #666
+  margin-top: 4px
+  line-height: 1.4
+
+// Member count summary
+.member-count-summary
+  background: #e3f2fd
+  padding: 8px 12px
+  border-radius: 4px
+  font-size: 12px
+  margin-top: 8px
+  border: 1px solid #bbdefb
+  
+  strong
+    color: #1976d2
+  
+  .warning
+    color: #c62828
+
+// Member search section - Main scrollable area
+.member-search-section
+  flex: 1
+  display: flex
+  flex-direction: column
+  min-height: 0 // Critical for flex children
+  overflow: hidden
+
+// ===== SEARCH BAR STYLES =====
+// Search bar container - Fixed
+.search-bar-container
+  flex-shrink: 0
+  padding: 12px 16px
+  background: #fff
+  border-bottom: 1px solid #eee
+
+.search-input-wrapper
+  position: relative
+  display: flex
+  align-items: center
+
+.search-icon
+  position: absolute
+  left: 12px
+  color: #666
+  z-index: 2
+
+.search-input
+  width: 100%
+  padding: 10px 12px 10px 40px
+  border: 1px solid #ddd
+  border-radius: 6px
+  font-size: 14px
+  background: #f8f9fa
+  transition: all 0.2s ease
+  
+  &:focus
+    outline: none
+    border-color: #557d53
+    background: #fff
+    box-shadow: 0 0 0 3px rgba(85, 125, 83, 0.1)
+  
+  &::placeholder
+    color: #999
+
+.clear-search-btn
+  position: absolute
+  right: 8px
+  background: transparent
+  border: none
+  color: #666
+  cursor: pointer
+  padding: 4px
+  border-radius: 4px
+  display: flex
+  align-items: center
+  justify-content: center
+  
+  &:hover
+    background: #f0f0f0
+    color: #333
+
+// Scrollable search results container
+.search-results-container
+  flex: 1
+  overflow-y: auto
+  overflow-x: hidden
+  padding: 8px 16px
+  min-height: 200px
+  max-height: 400px
+  
+  // Custom scrollbar for WebKit browsers
+  &::-webkit-scrollbar
+    width: 8px
+  
+  &::-webkit-scrollbar-track
+    background: #f1f1f1
+    border-radius: 4px
+  
+  &::-webkit-scrollbar-thumb
+    background: #c1c1c1
+    border-radius: 4px
+    
+    &:hover
+      background: #a8a8a8
+  
+  // Firefox scrollbar
+  scrollbar-width: thin
+  scrollbar-color: #c1c1c1 #f1f1f1
+
+// ===== USER COMPONENT STYLES =====
+// User item styling - Compact layout matching original
+.search-result-item
+  transition: background-color 0.2s ease
+  border-bottom: 1px solid #eee
+  cursor: pointer
+  
+  &:hover
+    background: #f8f9fa !important
+  
+  &.selected
+    background: #e3f2fd !important
+    
+    &:hover
+      background: #bbdefb !important
+  
+  &:last-child
+    border-bottom: none
+  
+  &:focus
+    outline: 2px solid #557d53
+    outline-offset: 2px
+
+// User avatar in compact layout
+.search-result-item .user-avatar
+  width: 32px
+  height: 32px
+  border-radius: 50%
+  overflow: hidden
+  flex-shrink: 0
+  
+  img
+    width: 100%
+    height: 100%
+    object-fit: cover
+    border-radius: 50%
+
+// Empty state
+.empty-state
+  display: flex
+  flex-direction: column
+  align-items: center
+  justify-content: center
+  padding: 48px 24px
+  text-align: center
+  min-height: 200px
+
+.empty-icon
+  margin-bottom: 16px
+  opacity: 0.5
+  color: #666
+
+.empty-title
+  font-size: 16px
+  font-weight: 500
+  color: #333
+  margin-bottom: 8px
+
+.empty-description
+  font-size: 14px
+  color: #666
+  line-height: 1.4
+
+// Error messages
+.error-message
+  color: #c62828
+  font-size: 12px
+  margin-top: 4px
+  text-align: center
+
+.submit-error
+  flex-shrink: 0
+  padding: 12px 16px
+  background: #ffebee
+  color: #c62828
+  font-size: 14px
+  text-align: center
+  border-top: 1px solid #ffcdd2
+
+// Create button footer - Fixed
+.create-button-footer
+  flex-shrink: 0
+  padding: 16px
+  background: #fff
+  border-top: 1px solid #eee
+
+.create-button
+  width: 100%
+  height: 48px
+  font-size: 16px
+  font-weight: 500
+  border-radius: 8px
+  border: none
+  cursor: pointer
+  transition: all 0.2s ease
+  display: flex
+  align-items: center
+  justify-content: center
+  gap: 8px
+  
+  &.enabled
+    background: #557d53
+    color: white
+    
+    &:hover
+      background: #4a6e48
+      transform: translateY(-1px)
+      box-shadow: 0 4px 8px rgba(85, 125, 83, 0.3)
+    
+    &:active
+      transform: translateY(0)
+  
+  &.disabled
+    background: #e0e0e0
+    color: #999
+    cursor: not-allowed
+
+.loading-content
+  display: flex
+  align-items: center
+  gap: 8px
+
+.spinner
+  width: 16px
+  height: 16px
+  border: 2px solid transparent
+  border-top: 2px solid currentColor
+  border-radius: 50%
+  animation: spin 1s linear infinite
+
+@keyframes spin
+  0%
+    transform: rotate(0deg)
+  100%
+    transform: rotate(360deg)
+
+// Responsive design
+@media screen and (max-width: 699px)
+  .group-create
+    width: 100%
+  
+  .group-info-section
+    padding: 16px 12px
+  
+  .search-results-container
+    max-height: 300px
+    padding: 8px 12px
+  
+  .create-button-footer
+    padding: 12px
+  
+  .create-button
+    height: 44px
+    font-size: 15px
+  
+  .top-bar-content
+    padding: 8px 12px
+    min-height: 48px
+  
+  .top-bar-title
+    margin: 0 8px
+    
+    h2
+      font-size: 16px
+    
+    .subtitle
+      font-size: 11px
+  
+  .search-input
+    padding: 10px 14px 10px 36px
+    font-size: 13px
+  
+  .search-result-item
+    padding: 6px 8px !important
+    
+    .user-avatar
+      width: 28px !important
+      height: 28px !important
+    
+    .uk-button
+      padding: 4px 6px !important
+      font-size: 10px !important
+
+@media screen and (min-width: 700px) and (max-width: 1199px)
+  .group-create
+    max-width: 300px
+    min-width: 300px
+  
+  .search-results-container
+    max-height: 350px
+
+@media screen and (min-width: 1200px)
+  .group-create
+    max-width: 360px
+    min-width: 360px
+  
+  .search-results-container
+    max-height: 400px
+
+// Theme support
+.theme.light .group-create
+  background: #f2f2f2
+  
+  .group-info-section,
+  .search-bar-container,
+  .create-button-footer,
+  .top-bar
+    background: #fff
+
+.theme.dark .group-create
+  background: #303841
+  color: #fff
+  border-color: #444
+  
+  .group-info-section,
+  .search-bar-container,
+  .create-button-footer
+    background: #2a2f36
+    border-color: #444
+    color: #fff
+  
+  .top-bar
+    background: #2a2f36
+    border-color: #444
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3)
+  
+  .top-bar-title
+    h2
+      color: #fff
+    
+    .subtitle
+      color: #ccc
+  
+  .back-button,
+  .close-button
+    color: #ccc
+    
+    &:hover
+      background: #3a3f46
+      color: #fff
+  
+  .group-picture-upload
+    border-color: #555
+    
+    &:hover
+      border-color: #557d53
+  
+  .group-title-input
+    background: #3a3f46
+    border-color: #555
+    color: #fff
+    
+    &:focus
+      border-color: #557d53
+      background: #404954
+    
+    &::placeholder
+      color: #aaa
+  
+  .member-selection-summary
+    background: #363c47
+    border-color: #555
+    
+    &.error
+      background: #4a2c2c
+      border-color: #c62828
+  
+  .summary-title
+    color: #fff
+  
+  .summary-count
+    color: #ccc
+  
+  .checkbox-label
+    color: #fff
+  
+  .checkbox-description
+    color: #ccc
+  
+  .member-count-summary
+    background: #2a4d3a
+    border-color: #557d53
+  
+  .search-input
+    background: #3a3f46
+    border-color: #555
+    color: #fff
+    
+    &:focus
+      background: #404954
+      border-color: #557d53
+    
+    &::placeholder
+      color: #aaa
+  
+  .clear-search-btn
+    color: #ccc
+    
+    &:hover
+      background: #4a4f56
+      color: #fff
+  
+  .search-results-container
+    &::-webkit-scrollbar-track
+      background: #3a3f46
+    
+    &::-webkit-scrollbar-thumb
+      background: #555
+      
+      &:hover
+        background: #666
+  
+  .search-result-item
+    border-color: #444
+    
+    &:hover
+      background: #3a3f46 !important
+    
+    &.selected
+      background: #2a4d3a !important
+      
+      &:hover
+        background: #345a3b !important
+  
+  .empty-state
+    color: #ccc
+  
+  .empty-icon
+    color: #666
+  
+  .empty-title
+    color: #fff
+
+// Accessibility improvements
+@media (prefers-reduced-motion: reduce)
+  .group-create *
+    transition: none !important
+    animation: none !important
+
+// Focus states for keyboard navigation
+.group-create
+  .search-result-item:focus
+    outline: 2px solid #557d53
+    outline-offset: 2px
+  
+  .create-button:focus
+    outline: 2px solid #557d53
+    outline-offset: 2px
+  
+  .group-title-input:focus,
+  .search-input:focus
+    outline: none // Custom focus styling already provided
+
+.back-button:focus,
+.close-button:focus,
+.clear-search-btn:focus
+  outline: 2px solid #557d53
+  outline-offset: 2px
+
+// High contrast mode support
+@media (prefers-contrast: high)
+  .search-result-item
+    border: 2px solid #000
+    
+    &.selected
+      border-color: #0066cc
+      background: #e6f3ff
+    
+    &:hover
+      border-color: #333
+      background: #f0f0f0
+
+// Print styles
+@media print
+  .top-bar,
+  .search-bar-container
+    display: none
+  
+  .search-result-item
+    background: transparent !important
+    border: 1px solid #000
+    break-inside: avoid

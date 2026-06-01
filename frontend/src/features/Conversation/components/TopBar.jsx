@@ -18,6 +18,8 @@ import Config from '../../../config';
 function TopBar({ back, loading }) {
   const onlineUsers = useSelector((state) => state.io.onlineUsers);
   const room = useSelector((state) => state.io.room) || {};
+  // ✅ ADD: Get socket instance from Redux
+  const io = useSelector((state) => state.io.io);
   const user = useGlobal('user')[0];
   const [favorites, setFavorites] = useGlobal('favorites');
   const setNav = useGlobal('nav')[1];
@@ -66,23 +68,68 @@ function TopBar({ back, loading }) {
   };
 
   const call = async (isVideo) => {
-    if (onlineUsers.filter((u) => u.id === other._id).length === 0 && !room.isGroup) return warningToast("Can't call user because user is offline");
+    if (onlineUsers.filter((u) => u.id === other._id).length === 0 && !room.isGroup) {
+      return warningToast("Can't call user because user is offline");
+    }
+    
     await setAudio(true);
     await setVideo(isVideo);
     await setCallDirection('outgoing');
-    dispatch({ type: Actions.RTC_SET_COUNTERPART, counterpart: other });
+
+     // ✅ FIX: Set different counterpart for group vs individual calls
+  let counterpart;
+  if (room.isGroup) {
+    // For group calls, create a group counterpart object
+    counterpart = {
+      _id: room._id,
+      firstName: room.title || 'Group',
+      lastName: 'Call',
+      isGroup: true,
+      groupId: room._id,
+      groupName: room.title,
+      // Don't include individual picture for groups
+    };
+    console.log(`📞 ✅ Setting GROUP counterpart:`, counterpart);
+  } else {
+    // For individual calls, use the other person
+    counterpart = other;
+    console.log(`📞 ✅ Setting INDIVIDUAL counterpart:`, counterpart);
+  }
+
+     dispatch({ type: Actions.RTC_SET_COUNTERPART, counterpart });
+
+    
     try {
       const res = await getMeetingRoom({
         startedAsCall: true,
         caller: user.id,
-        callee: other._id,
-        callToGroup: room.isGroup,
+        callee: room.isGroup ? null : other._id,
+        callToGroup: room.isGroup, 
         group: room._id,
       });
+      
       await setMeeting(res.data);
+      
+      // ✅ ADD: Emit call initiated event to backend
+      if (io) {
+        console.log(`📞 Emitting call-initiated event for meeting ${res.data._id}`);
+        io.emit('call-initiated', {
+          callerId: user.id,
+          calleeId: room.isGroup ? null : other._id,
+          callType: isVideo ? 'video' : 'voice',
+          meetingId: res.data._id,
+          isGroup: room.isGroup,
+          groupId: room.isGroup ? room._id : null
+        });
+      } else {
+        console.warn('📞 Socket not available for call-initiated event');
+      }
+      
       navigate(`/meeting/${res.data._id}`, { replace: true });
       await postCall({ roomID: room._id, meetingID: res.data._id });
+      
     } catch (e) {
+      console.error('📞 Error initiating call:', e);
       errorToast('Server error. Unable to initiate call.');
     }
   };

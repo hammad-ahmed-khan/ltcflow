@@ -1,15 +1,24 @@
+// Meeting.sass - Complete styles with reconnection banner
+
 $nav-background: #303841
 $panel-background: #363e47
+
+.meeting
+  width: 100%
+  height: 100%
+  position: relative
+  background: #1a1a2e
 
 .meeting-controls
   position: absolute
   width: 100%
   bottom: 0
-  z-index: 1
+  z-index: 100
   display: flex
   justify-content: center
   align-items: center
   padding-bottom: 18px
+  
   .close
     max-width: 80px
     width: 7vw
@@ -22,21 +31,27 @@ $panel-background: #363e47
     justify-content: center
     align-items: center
     border: 1px solid #eb1819
+    border-radius: 4px
+    transition: background 0.2s ease
+    
   .close:hover
     background: #d61314
     border-color: #d61314
+    
   .control
     max-width: 80px
     width: 7vw
     min-width: 50px
     height: 50px
     background: $panel-background
-    // border: 1px solid rgba(0,0,0,0.2)
     display: flex
     justify-content: center
     align-items: center
     color: white
     cursor: pointer
+    border-radius: 4px
+    transition: background 0.2s ease
+    
   .control:hover
     background: $nav-background
 
@@ -46,6 +61,7 @@ $panel-background: #363e47
   display: flex
   justify-content: space-between
   z-index: 1000
+  
   .panel-control
     position: relative
     color: #f7f7f7
@@ -57,6 +73,7 @@ $panel-background: #363e47
     justify-content: center
     align-items: center
     cursor: pointer
+    
   .videos
     position: relative
     video
@@ -69,15 +86,17 @@ $panel-background: #363e47
   width: 100%
   flex-grow: 1
   background: $panel-background
-  z-index: 1
+  z-index: 100
   display: flex
   justify-content: flex-start
   align-items: center
   height: 95px
   min-height: 95px
   max-width: 100%
+  
   .videos::-webkit-scrollbar
     display: none
+    
   .videos
     flex-grow: 1
     display: flex
@@ -85,16 +104,19 @@ $panel-background: #363e47
     overflow-x: auto
     -ms-overflow-style: none
     scrollbar-width: none
+    
     .video
       min-width: 135px
       width: 135px
       height: 95px
       cursor: pointer
       margin: 0 1px
+      
     .rotated
       transform: rotateY(180deg)
       -webkit-transform: rotateY(180deg)
       -moz-transform: rotateY(180deg)
+      
   .panel-control
     color: #f7f7f7
     font-size: 20px
@@ -106,6 +128,8 @@ $panel-background: #363e47
     align-items: center
     cursor: pointer
     background: $panel-background
+    transition: background 0.2s ease
+    
   .panel-control:hover
     background: $nav-background
 
@@ -113,16 +137,56 @@ $panel-background: #363e47
   width: 100%
   height: 100%
 
+// ✅ Reconnection banners
+.reconnect-banner
+  position: fixed
+  top: 20px
+  left: 50%
+  transform: translateX(-50%)
+  padding: 12px 24px
+  border-radius: 8px
+  z-index: 2000
+  font-size: 14px
+  font-weight: 500
+  color: white
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3)
+  animation: slideDown 0.3s ease-out
+  
+  &.reconnecting
+    background: linear-gradient(135deg, #e67e22 0%, #d35400 100%)
+    
+  &.reconnected
+    background: linear-gradient(135deg, #27ae60 0%, #1e8449 100%)
+    animation: slideDown 0.3s ease-out, fadeOut 0.5s ease-in 2.5s forwards
+
+@keyframes slideDown
+  0%
+    transform: translateX(-50%) translateY(-100%)
+    opacity: 0
+  100%
+    transform: translateX(-50%) translateY(0)
+    opacity: 1
+
+@keyframes fadeOut
+  0%
+    opacity: 1
+  100%
+    opacity: 0
+
+// Mobile responsive styles
 @media screen and (max-width: 700px)
   .meeting-controls
     padding-bottom: 12px
+    
     .close
       font-size: 14px
       max-width: 13.5vw
       min-width: 40px
       width: 13.5vw
+      
     .close:hover
       background: #d61314
+      
     .control
       max-width: 13.5vw
       min-width: 40px
@@ -133,29 +197,16 @@ $panel-background: #363e47
   .meeting-top-controls
     min-height: 85px
     height: 85px
+    
     .videos
       .video
         width: 110px
         height: 85px
+        
       .remote-video
         height: 100%
+        
     .panel-control
       font-size: 14px
       width: 50px
       min-width: 50px
-      
-.reconnect-banner
-  position: fixed
-  top: 0
-  left: 50%
-  transform: translateX(-50%)
-  padding: 8px 16px
-  border-radius: 6px
-  z-index: 2000
-  font-size: 14px
-  font-weight: 500
-  color: white
-  &.reconnecting
-    background: #e67e22 // orange
-  &.reconnected
-    background: #27ae60 // green

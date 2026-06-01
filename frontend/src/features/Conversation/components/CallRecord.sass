@@ -1,0 +1,78 @@
+
+.call-record
+  display: flex
+  align-items: center
+  gap: 8px
+  padding: 12px 16px
+  margin: 8px 0
+  border-radius: 12px
+  font-size: 14px
+  max-width: 200px
+  
+  &.incoming
+    background: #f3f4f6
+    color: #374151
+    margin-right: auto
+    
+  &.outgoing
+    background: #dbeafe
+    color: #1e40af
+    margin-left: auto
+    
+  &.missed
+    &.incoming
+      background: #fee2e2
+      color: #dc2626
+      
+    &.outgoing
+      background: #fee2e2
+      color: #dc2626
+      
+  &.cancelled
+    opacity: 0.7
+    
+    &.incoming, &.outgoing
+      background: #f9fafb
+      color: #6b7280
+
+.call-record-icon
+  display: flex
+  align-items: center
+  justify-content: center
+  
+  .call-icon
+    font-size: 16px
+    
+    &.missed
+      color: #dc2626
+      
+    &.ended
+      color: #059669
+      
+    &.cancelled
+      color: #6b7280
+
+.call-record-text
+  font-weight: 500
+  white-space: nowrap
+
+// Dark theme
+.theme.dark
+  .call-record
+    &.incoming
+      background: #374151
+      color: #f9fafb
+      
+    &.outgoing
+      background: #1e3a8a
+      color: #bfdbfe
+      
+    &.missed
+      &.incoming, &.outgoing
+        background: #7f1d1d
+        color: #fca5a5
+        
+    &.cancelled
+      &.incoming, &.outgoing
+        background: #1f2937
+        color: #9ca3af

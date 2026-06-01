@@ -1,0 +1,144 @@
+/* ======================================
+   MISSED CALL RECORD COMPONENT STYLES
+   ====================================== */
+
+.missed-call-record
+  padding: 12px 16px
+  border-radius: 12px
+  background: linear-gradient(135deg, rgba(255, 107, 107, 0.1), rgba(238, 90, 82, 0.2))
+  border: 1px solid rgba(255, 107, 107, 0.3)
+  max-width: 280px
+  position: relative
+
+  &.outgoing
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.15), rgba(238, 90, 82, 0.25))
+    border-color: rgba(255, 107, 107, 0.4)
+
+  &.incoming
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.08), rgba(238, 90, 82, 0.15))
+    border-color: rgba(255, 107, 107, 0.25)
+
+  .call-header
+    display: flex
+    justify-content: space-between
+    align-items: flex-start
+    margin-bottom: 8px
+
+    .call-info
+      display: flex
+      align-items: center
+      flex: 1
+      min-width: 0
+
+      .call-icon
+        width: 20px
+        height: 20px
+        margin-right: 10px
+        flex-shrink: 0
+
+        &.missed
+          color: #ff6b6b
+
+        &.video
+          color: #ff6b6b
+
+      .call-details
+        flex: 1
+        min-width: 0
+
+        .call-type
+          font-weight: 500
+          font-size: 14px
+          color: #333
+          display: flex
+          align-items: center
+          margin-bottom: 2px
+
+          .group-icon
+            width: 14px
+            height: 14px
+            margin-right: 4px
+            color: #666
+
+        .call-status
+          font-size: 12px
+          font-weight: 400
+
+          &.missed
+            color: #ff6b6b
+
+    .call-time
+      font-size: 11px
+      color: #888
+      font-weight: 400
+      margin-left: 8px
+      flex-shrink: 0
+
+  .call-reason
+    font-size: 11px
+    color: #666
+    font-style: italic
+    margin-top: 4px
+    padding-top: 4px
+    border-top: 1px solid rgba(255, 107, 107, 0.2)
+
+  // Dark mode support
+  @media (prefers-color-scheme: dark)
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.15), rgba(238, 90, 82, 0.3))
+    border-color: rgba(255, 107, 107, 0.4)
+
+    .call-header
+      .call-info
+        .call-details
+          .call-type
+            color: #fff
+
+      .call-time
+        color: #bbb
+
+    .call-reason
+      color: #aaa
+      border-top-color: rgba(255, 107, 107, 0.3)
+
+  // Mobile responsiveness
+  @media (max-width: 768px)
+    max-width: 260px
+    padding: 10px 12px
+
+    .call-header
+      margin-bottom: 6px
+
+      .call-info
+        .call-icon
+          width: 18px
+          height: 18px
+          margin-right: 8px
+
+        .call-details
+          .call-type
+            font-size: 13px
+
+            .group-icon
+              width: 12px
+              height: 12px
+
+          .call-status
+            font-size: 11px
+
+      .call-time
+        font-size: 10px
+
+    .call-reason
+      font-size: 10px
+
+// Animation on appear
+.missed-call-record
+  animation: missedCallAppear 0.3s ease-out
+
+@keyframes missedCallAppear
+  from
+    opacity: 0
+    transform: translateY(10px) scale(0.95)
+  to
+    opacity: 1
+    transform: translateY(0) scale(1)

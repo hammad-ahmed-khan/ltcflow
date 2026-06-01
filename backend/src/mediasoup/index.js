@@ -1,17 +1,37 @@
+/**
+ * Mediasoup Server Module
+ * 
+ * Handles WebRTC media routing via mediasoup SFU.
+ * 
+ * ✅ FIXES:
+ * - Producer state validation before consuming
+ * - Proper resume error handling
+ * - getProducers handler for reconnection support
+ * - Improved cleanup on disconnect
+ * - Better error messages for debugging
+ */
+
 const mediasoup = require("mediasoup");
-config = require("../../config");
+const config = require("../../config");
 const store = require("../store");
 const User = require("../models/User");
 const Meeting = require("../models/Meeting");
 const mongoose = require("mongoose");
 
+// ============================================================================
+// STATE
+// ============================================================================
 let worker;
 let mediasoupRouter;
-let producerTransports = {};
-let consumerTransports = {};
-let producers = {};
-let consumers = {};
-let consumersObjects = {};
+const producerTransports = {};
+const consumerTransports = {};
+const producers = {};
+const consumers = {};
+const consumersObjects = {};
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
 
 const init = async () => {
   worker = await mediasoup.createWorker({
@@ -34,6 +54,10 @@ const init = async () => {
   console.log(`mediasoup ip is ${config.ipAddress.ip}`.green);
 };
 
+// ============================================================================
+// TRANSPORT CREATION
+// ============================================================================
+
 async function createWebRtcTransport() {
   const transport = await mediasoupRouter.createWebRtcTransport({
     listenInfos: [
@@ -49,10 +73,15 @@ async function createWebRtcTransport() {
       },
     ],
     initialAvailableOutgoingBitrate: 1000000,
+    enableScalabilityModes: true,
   });
+
   try {
     await transport.setMaxIncomingBitrate(1500000);
-  } catch (error) {}
+  } catch (error) {
+    // Ignore - not critical
+  }
+
   return {
     transport,
     params: {
@@ -64,33 +93,45 @@ async function createWebRtcTransport() {
   };
 }
 
+// ============================================================================
+// CONSUMER CREATION
+// ============================================================================
+
 async function createConsumer(producer, rtpCapabilities, consumerTransport) {
+  // ✅ FIX: Validate producer state before consuming
+  if (!producer || producer.closed) {
+    console.error("Cannot create consumer: producer is closed or invalid");
+    return null;
+  }
+
   if (
     !mediasoupRouter.canConsume({
       producerId: producer.id,
       rtpCapabilities,
     })
   ) {
-    console.error("can not consume");
+    console.error("Router cannot consume producer:", producer.id);
     return null;
   }
+
   let consumer;
   try {
     consumer = await consumerTransport.consume({
       producerId: producer.id,
       rtpCapabilities,
-      paused: producer.kind === "video",
+      paused: producer.kind === "video", // Video starts paused, needs resume
     });
   } catch (error) {
-    console.error("consume failed", error);
+    console.error("consume failed:", error);
     return null;
   }
 
+  // Configure simulcast preferences
   if (consumer.type === "simulcast") {
     try {
       await consumer.setPreferredLayers({ spatialLayer: 2, temporalLayer: 2 });
     } catch (e) {
-      // ignore
+      // Ignore - not critical
     }
   }
 
@@ -107,11 +148,21 @@ async function createConsumer(producer, rtpCapabilities, consumerTransport) {
   };
 }
 
+// ============================================================================
+// SOCKET HANDLERS
+// ============================================================================
+
 const initSocket = (socket) => {
+  /**
+   * Get router RTP capabilities
+   */
   socket.on("getRouterRtpCapabilities", (data, callback) => {
     callback(mediasoupRouter.rtpCapabilities);
   });
 
+  /**
+   * Create producer transport
+   */
   socket.on("createProducerTransport", async (data, callback) => {
     try {
       const { transport, params } = await createWebRtcTransport();
@@ -123,6 +174,9 @@ const initSocket = (socket) => {
     }
   });
 
+  /**
+   * Create consumer transport
+   */
   socket.on("createConsumerTransport", async (data, callback) => {
     try {
       const { transport, params } = await createWebRtcTransport();
@@ -134,14 +188,14 @@ const initSocket = (socket) => {
     }
   });
 
+  /**
+   * Connect producer transport
+   */
   socket.on("connectProducerTransport", async (data, callback) => {
     try {
       const transport = producerTransports[socket.id];
       if (!transport) {
-        console.error(
-          "connectProducerTransport: no transport for socket",
-          socket.id
-        );
+        console.error("connectProducerTransport: no transport for socket", socket.id);
         return callback({ error: "producer transport not found" });
       }
       await transport.connect({ dtlsParameters: data.dtlsParameters });
@@ -152,14 +206,14 @@ const initSocket = (socket) => {
     }
   });
 
+  /**
+   * Connect consumer transport
+   */
   socket.on("connectConsumerTransport", async (data, callback) => {
     try {
       const transport = consumerTransports[socket.id];
       if (!transport) {
-        console.error(
-          "connectConsumerTransport: no transport for socket",
-          socket.id
-        );
+        console.error("connectConsumerTransport: no transport for socket", socket.id);
         return callback({ error: "consumer transport not found" });
       }
       await transport.connect({ dtlsParameters: data.dtlsParameters });
@@ -170,16 +224,20 @@ const initSocket = (socket) => {
     }
   });
 
+  /**
+   * Produce media
+   */
   socket.on("produce", async (data, callback) => {
     try {
       const { kind, rtpParameters, isScreen } = data;
       const pTransport = producerTransports[socket.id];
+      
       if (!pTransport) {
         console.error("produce: no producer transport for socket", socket.id);
         return callback({ error: "producer transport not found" });
       }
 
-      let producer = await pTransport.produce({
+      const producer = await pTransport.produce({
         kind,
         rtpParameters,
       });
@@ -188,11 +246,13 @@ const initSocket = (socket) => {
         console.log("producer's transport closed", producer.id);
         closeProducer(producer, socket.id);
       });
+
       producer.observer.on("close", () => {
         console.log("producer closed", producer.id);
         closeProducer(producer, socket.id);
       });
 
+      // Store in peers database
       await store.peers.asyncInsert({
         type: "producer",
         socketID: socket.id,
@@ -202,10 +262,13 @@ const initSocket = (socket) => {
         isScreen,
       });
 
-      !producers[socket.id] && (producers[socket.id] = {});
+      // Store producer reference
+      if (!producers[socket.id]) {
+        producers[socket.id] = {};
+      }
       producers[socket.id][producer.id] = producer;
 
-      // notify peers there's a new producer
+      // Notify peers of new producer
       socket.to(data.roomID).emit("newProducer", {
         userID: socket.decoded_token.id,
         roomID: data.roomID || "general",
@@ -221,19 +284,30 @@ const initSocket = (socket) => {
     }
   });
 
+  /**
+   * Consume media - ✅ FIX: Added producer state validation
+   */
   socket.on("consume", async (data, callback) => {
     try {
-      // Ensure requested producer exists
-      if (
-        !producers[data.socketID] ||
-        !producers[data.socketID][data.producerID]
-      ) {
-        console.error(
-          "consume: requested producer not found",
-          data.socketID,
-          data.producerID
-        );
+      const { socketID, producerID, rtpCapabilities } = data;
+
+      // ✅ FIX: Validate producer exists
+      if (!producers[socketID] || !producers[socketID][producerID]) {
+        console.error("consume: producer not found", socketID, producerID);
         return callback({ error: "producer not found" });
+      }
+
+      const producer = producers[socketID][producerID];
+
+      // ✅ FIX: Validate producer state
+      if (producer.closed) {
+        console.error("consume: producer is closed", producerID);
+        return callback({ error: "producer is closed" });
+      }
+
+      // ✅ FIX: Check if producer is paused (informational)
+      if (producer.paused) {
+        console.log("consume: producer is paused", producerID);
       }
 
       const cTransport = consumerTransports[socket.id];
@@ -242,29 +316,36 @@ const initSocket = (socket) => {
         return callback({ error: "consumer transport not found" });
       }
 
-      const obj = await createConsumer(
-        producers[data.socketID][data.producerID],
-        data.rtpCapabilities,
-        cTransport
-      );
-
-      if (!obj) {
-        return callback({ error: "createConsumer failed" });
+      // ✅ FIX: Validate consumer transport state
+      if (cTransport.closed) {
+        console.error("consume: consumer transport is closed", socket.id);
+        return callback({ error: "consumer transport is closed" });
       }
 
+      const obj = await createConsumer(producer, rtpCapabilities, cTransport);
+
+      if (!obj) {
+        return callback({ error: "createConsumer failed - check server logs" });
+      }
+
+      // Handle consumer lifecycle events
       obj.consumer.on("transportclose", () => {
-        closeConsumer(socket.id, data.producerID);
-      });
-      obj.consumer.on("producerclose", () => {
-        // inform client to remove the producer tile
-        try {
-          socket.emit("producer-closed", { producerID: data.producerID });
-        } catch (e) {}
-        closeConsumer(socket.id, data.producerID);
+        closeConsumer(socket.id, producerID);
       });
 
-      !consumers[socket.id] && (consumers[socket.id] = {});
-      consumers[socket.id][data.producerID] = obj.consumer;
+      obj.consumer.on("producerclose", () => {
+        // Inform client to remove the producer tile
+        try {
+          socket.emit("producer-closed", { producerID });
+        } catch (e) {}
+        closeConsumer(socket.id, producerID);
+      });
+
+      // Store consumer reference
+      if (!consumers[socket.id]) {
+        consumers[socket.id] = {};
+      }
+      consumers[socket.id][producerID] = obj.consumer;
 
       callback(obj.response);
     } catch (err) {
@@ -273,30 +354,35 @@ const initSocket = (socket) => {
     }
   });
 
+  /**
+   * Resume consumer - ✅ FIX: Improved error handling
+   */
   socket.on("resume", async (data, callback) => {
     try {
-      if (!consumers[socket.id] || !consumers[socket.id][data.producerID]) {
-        console.error(
-          "Resume failed: consumer not found",
-          data.producerID,
-          socket.id
-        );
+      const { producerID } = data;
+
+      // ✅ FIX: Validate consumer exists
+      if (!consumers[socket.id] || !consumers[socket.id][producerID]) {
+        console.error("Resume failed: consumer not found", producerID, socket.id);
         return callback({ error: "consumer not found" });
       }
 
-      const consumer = consumers[socket.id][data.producerID];
+      const consumer = consumers[socket.id][producerID];
+
+      // ✅ FIX: Validate consumer state
       if (consumer.closed) {
-        console.error("Cannot resume closed consumer:", data.producerID);
-        return callback({ error: "consumer closed" });
+        console.error("Cannot resume closed consumer:", producerID);
+        return callback({ error: "consumer is closed" });
+      }
+
+      // ✅ FIX: Check if already resumed
+      if (!consumer.paused) {
+        console.log("Consumer already resumed:", producerID);
+        return callback(); // Success - already in desired state
       }
 
       await consumer.resume();
-      console.log(
-        "Successfully resumed consumer:",
-        data.producerID,
-        "for socket:",
-        socket.id
-      );
+      console.log("Successfully resumed consumer:", producerID, "for socket:", socket.id);
       callback();
     } catch (error) {
       console.error("Resume failed:", error);
@@ -304,16 +390,58 @@ const initSocket = (socket) => {
     }
   });
 
+  /**
+   * ✅ NEW: Get all producers in a room - for reconnection support
+   */
+  socket.on("getProducers", async (data, callback) => {
+    try {
+      const { roomID } = data;
+
+      if (!roomID) {
+        return callback({ error: "roomID required" });
+      }
+
+      const roomProducers = await store.peers.asyncFind({
+        type: "producer",
+        roomID: roomID,
+      });
+
+      // Filter out own producers and validate they still exist
+      const validProducers = roomProducers.filter(p => {
+        // Skip own producers
+        if (p.socketID === socket.id) return false;
+        
+        // ✅ FIX: Validate producer still exists and is not closed
+        if (!producers[p.socketID] || !producers[p.socketID][p.producerID]) {
+          return false;
+        }
+        
+        if (producers[p.socketID][p.producerID].closed) {
+          return false;
+        }
+        
+        return true;
+      });
+
+      callback({ producers: validProducers });
+    } catch (err) {
+      console.error("getProducers error:", err);
+      callback({ error: err.message });
+    }
+  });
+
+  /**
+   * Create room
+   */
   socket.on("create", async (data, callback) => {
     const room = await store.rooms.asyncInsert({ lastJoin: Date.now() });
     callback(room);
   });
 
+  /**
+   * Join room
+   */
   socket.on("join", async (data, callback) => {
-    const User = require("../models/User");
-    const Meeting = require("../models/Meeting");
-    const mongoose = require("mongoose");
-
     try {
       const userId = socket.decoded_token.id;
 
@@ -329,12 +457,14 @@ const initSocket = (socket) => {
 
       const companyId = currentUser.companyId;
 
+      // Notify existing peers of new participant
       socket.to(data.roomID).emit("newPeer", {
         userID: userId,
         socketID: socket.id,
         user: currentUser,
       });
 
+      // Store peer info
       consumersObjects[data.roomID] = {
         ...(consumersObjects[data.roomID] || {}),
         [socket.id]: {
@@ -345,6 +475,7 @@ const initSocket = (socket) => {
       };
 
       await socket.join(data.roomID || "general");
+      
       if (data.roomID) {
         await store.rooms.asyncUpdate(
           { _id: data.roomID },
@@ -352,13 +483,24 @@ const initSocket = (socket) => {
         );
       }
 
+      // Get existing producers in room
       const peers = await store.peers.asyncFind({
         type: "producer",
         roomID: data.roomID || "general",
       });
 
-      if (!store.consumerUserIDs[data.roomID])
+      // ✅ FIX: Filter out invalid producers
+      const validPeers = peers.filter(p => {
+        if (!producers[p.socketID] || !producers[p.socketID][p.producerID]) {
+          return false;
+        }
+        return !producers[p.socketID][p.producerID].closed;
+      });
+
+      // Track consumers in room
+      if (!store.consumerUserIDs[data.roomID]) {
         store.consumerUserIDs[data.roomID] = [];
+      }
       store.consumerUserIDs[data.roomID].push(socket.id);
 
       socket.to(data.roomID).emit("consumers", {
@@ -366,11 +508,11 @@ const initSocket = (socket) => {
         timestamp: Date.now(),
       });
 
-      // Update meeting with company filtering
+      // Update meeting record
       await Meeting.findOneAndUpdate(
         {
           _id: data.roomID,
-          companyId, // Ensure meeting belongs to user's company
+          companyId,
         },
         {
           lastEnter: Date.now(),
@@ -391,8 +533,7 @@ const initSocket = (socket) => {
 
       store.roomIDs[socket.id] = data.roomID;
 
-      // Track online users by socket reference and also emit values array
-      // (Keep existing behavior but guard delete/emit elsewhere)
+      // Update online status
       store.onlineUsers.delete(socket);
       store.onlineUsers.set(socket, {
         id: userId,
@@ -401,7 +542,7 @@ const initSocket = (socket) => {
       store.io.emit("onlineUsers", Array.from(store.onlineUsers.values()));
 
       callback({
-        producers: peers,
+        producers: validPeers,
         consumers: {
           content: store.consumerUserIDs[data.roomID],
           timestamp: Date.now(),
@@ -414,21 +555,31 @@ const initSocket = (socket) => {
     }
   });
 
+  /**
+   * Leave room
+   */
   socket.on("leave", async (data, callback) => {
     try {
       const userId = socket.decoded_token.id;
       const currentUser = await User.findById(userId).select("companyId");
       const companyId = currentUser?.companyId;
 
+      // Validate roomID
+      if (!data?.roomID || data.roomID === "undefined" || data.roomID === "null") {
+        console.warn("⚠️ Invalid roomID in leave event:", data?.roomID);
+      } else {
+        console.log("📞 Leaving room:", data.roomID);
+      }
+
       await socket.leave(data.roomID || "general");
       await store.peers.asyncRemove({ socketID: socket.id }, { multi: true });
 
-      // Notify other users that this user left
+      // Notify other users
       socket.to(data.roomID || "general").emit("leave", {
         socketID: socket.id,
       });
 
-      // Also emit remove events for all producers owned by this socket so clients clear by producerID
+      // Emit remove events for all producers owned by this socket
       if (producers[socket.id]) {
         Object.keys(producers[socket.id]).forEach((pid) => {
           try {
@@ -441,12 +592,12 @@ const initSocket = (socket) => {
 
       // Close transports
       try {
-        producerTransports[socket.id] && producerTransports[socket.id].close();
+        producerTransports[socket.id]?.close();
       } catch (e) {}
       delete producerTransports[socket.id];
 
       try {
-        consumerTransports[socket.id] && consumerTransports[socket.id].close();
+        consumerTransports[socket.id]?.close();
       } catch (e) {}
       delete consumerTransports[socket.id];
 
@@ -459,6 +610,7 @@ const initSocket = (socket) => {
         });
         delete producers[socket.id];
       }
+
       if (consumers[socket.id]) {
         Object.values(consumers[socket.id]).forEach((consumer) => {
           try {
@@ -470,25 +622,31 @@ const initSocket = (socket) => {
 
       store.roomIDs[socket.id] = null;
 
-      // Update meeting
-      await Meeting.findOneAndUpdate(
-        { _id: data.roomID, companyId },
-        { lastLeave: Date.now(), $pull: { peers: socket.id } }
-      ).catch((err) => console.log("Meeting leave update error:", err));
+      // Update meeting if roomID is valid
+      if (data?.roomID && data.roomID !== "undefined" && data.roomID !== "null" && companyId) {
+        try {
+          await Meeting.findOneAndUpdate(
+            { _id: data.roomID, companyId },
+            { lastLeave: Date.now(), $pull: { peers: socket.id } }
+          );
+          console.log("✅ Meeting updated successfully for room:", data.roomID);
+        } catch (err) {
+          console.error("Meeting leave update error:", err);
+        }
+      }
 
       // Update consumer tracking
-      if (store.consumerUserIDs[data.roomID]) {
+      if (data?.roomID && store.consumerUserIDs[data.roomID]) {
         const index = store.consumerUserIDs[data.roomID].indexOf(socket.id);
         if (index > -1) {
           store.consumerUserIDs[data.roomID].splice(index, 1);
         }
-      }
 
-      // Emit updated consumer list to remaining users
-      socket.to(data.roomID).emit("consumers", {
-        content: store.consumerUserIDs[data.roomID] || [],
-        timestamp: Date.now(),
-      });
+        socket.to(data.roomID).emit("consumers", {
+          content: store.consumerUserIDs[data.roomID] || [],
+          timestamp: Date.now(),
+        });
+      }
 
       // Update online status
       store.onlineUsers.delete(socket);
@@ -505,6 +663,9 @@ const initSocket = (socket) => {
     }
   });
 
+  /**
+   * Remove producer
+   */
   socket.on("remove", async (data, callback) => {
     try {
       await store.peers.asyncRemove(
@@ -524,7 +685,9 @@ const initSocket = (socket) => {
     if (callback) callback();
   });
 
-  // Notify peers before socket is fully torn down so socket.to(room) still works
+  /**
+   * Handle disconnecting (before socket fully disconnects)
+   */
   socket.on("disconnecting", () => {
     try {
       const roomID = store.roomIDs[socket.id];
@@ -537,13 +700,16 @@ const initSocket = (socket) => {
     }
   });
 
+  /**
+   * Handle disconnect
+   */
   socket.on("disconnect", () => {
     try {
       console.log("Socket disconnected:", socket.id);
 
       const roomID = store.roomIDs[socket.id];
       if (roomID) {
-        // Also ensure consumer tracking is cleaned
+        // Clean consumer tracking
         if (store.consumerUserIDs[roomID]) {
           const index = store.consumerUserIDs[roomID].indexOf(socket.id);
           if (index > -1) {
@@ -564,14 +730,14 @@ const initSocket = (socket) => {
         });
       }
 
-      // Clean up all resources (safe guards)
+      // Clean up all resources
       try {
-        producerTransports[socket.id] && producerTransports[socket.id].close();
+        producerTransports[socket.id]?.close();
       } catch (e) {}
       delete producerTransports[socket.id];
 
       try {
-        consumerTransports[socket.id] && consumerTransports[socket.id].close();
+        consumerTransports[socket.id]?.close();
       } catch (e) {}
       delete consumerTransports[socket.id];
 
@@ -583,6 +749,7 @@ const initSocket = (socket) => {
         });
         delete producers[socket.id];
       }
+
       if (consumers[socket.id]) {
         Object.values(consumers[socket.id]).forEach((consumer) => {
           try {
@@ -594,12 +761,9 @@ const initSocket = (socket) => {
 
       delete store.roomIDs[socket.id];
 
-      // Try both deletion methods for onlineUsers to be robust
+      // Update online users
       try {
         store.onlineUsers.delete(socket);
-      } catch (e) {}
-      try {
-        store.onlineUsers.delete(socket.id);
       } catch (e) {}
       store.io.emit("onlineUsers", Array.from(store.onlineUsers.values()));
     } catch (err) {
@@ -608,19 +772,21 @@ const initSocket = (socket) => {
   });
 };
 
+// ============================================================================
+// CLEANUP FUNCTIONS
+// ============================================================================
+
+/**
+ * Close producer and notify all consumers
+ */
 async function closeProducer(producer, socketID) {
   try {
-    await producers[socketID][producer.id].close();
-    /*
     const producerID = producer.id;
     const roomID = store.roomIDs[socketID] || "general";
 
     // Close all consumers that were consuming this producer
     Object.keys(consumers).forEach((consumerSocketID) => {
-      if (
-        consumers[consumerSocketID] &&
-        consumers[consumerSocketID][producerID]
-      ) {
+      if (consumers[consumerSocketID]?.[producerID]) {
         console.log(
           `Closing consumer for producer ${producerID} on socket ${consumerSocketID}`
         );
@@ -629,7 +795,7 @@ async function closeProducer(producer, socketID) {
         } catch (e) {}
         delete consumers[consumerSocketID][producerID];
 
-        // Notify the client that their consumer is closed
+        // Notify the client
         try {
           store.io.to(consumerSocketID).emit("producer-closed", { producerID });
         } catch (e) {}
@@ -642,7 +808,7 @@ async function closeProducer(producer, socketID) {
     } catch (e) {}
 
     // Close and cleanup producer
-    if (producers[socketID] && producers[socketID][producerID]) {
+    if (producers[socketID]?.[producerID]) {
       try {
         await producers[socketID][producerID].close();
       } catch (e) {}
@@ -652,23 +818,30 @@ async function closeProducer(producer, socketID) {
         delete producers[socketID];
       }
     }
-      */
   } catch (e) {
     console.log("closeProducer error:", e);
   }
 }
 
+/**
+ * Close consumer
+ */
 async function closeConsumer(socketID, producerID) {
   try {
-    if (consumers[socketID] && consumers[socketID][producerID]) {
+    if (consumers[socketID]?.[producerID]) {
       try {
         await consumers[socketID][producerID].close();
       } catch (e) {}
+      delete consumers[socketID][producerID];
     }
   } catch (e) {
-    // console.log(e);
+    // Ignore
   }
 }
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
 
 module.exports = {
   init,

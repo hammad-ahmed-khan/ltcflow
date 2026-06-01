@@ -15,7 +15,9 @@ import getRooms from '../../../actions/getRooms';
 import getRoom from '../../../actions/getRoom';
 
 function Room({ room }) {
-  const roomsWithNewMessages = useSelector((state) => state.messages.roomsWithNewMessages);
+  // ✅ SERVER-SIDE ONLY: Clean and simple
+  const unreadRooms = useSelector((state) => state.unread?.unreadRooms || []);
+  
   const onlineUsers = useSelector((state) => state.io.onlineUsers);
   const currentRoom = useSelector((state) => state.io.room);
   const [hover, setHover] = useState(false);
@@ -67,9 +69,8 @@ function Room({ room }) {
   const date = lastMessage ? moment(lastMessage.date).format('MMM D') : '';
   const time = lastMessage ? moment(lastMessage.date).format('h:mm A') : '';
 
-  // Check if this room has unread messages
-  const hasUnreadMessages = roomsWithNewMessages.includes(room._id);
-  const unreadCount = roomsWithNewMessages.filter((r) => room._id === r).length;
+  // ✅ SERVER-SIDE ONLY: Check unread status
+  const hasUnreadMessages = unreadRooms.includes(room._id);
 
   const popup = (content, type) => {
     addToast(content, {
@@ -97,9 +98,8 @@ function Room({ room }) {
     }
   };
 
-  // NEW: Enhanced click handler with deletion check
+  // ✅ SIMPLIFIED: No client-side unread removal
   const handleRoomClick = async () => {
-    // Check if room still exists before navigating
     try {
       await getRoom(room._id);
       const target = `/room/${room._id}`;
@@ -108,9 +108,6 @@ function Room({ room }) {
       // Room was deleted
       setIsDeleted(true);
       popup('This conversation has been deleted by the other user.', 'warning');
-      
-      // Remove from unread messages if it was there
-      dispatch({ type: Actions.MESSAGES_REMOVE_ROOM_UNREAD, roomID: room._id });
       
       // Refresh rooms list to remove deleted room
       setTimeout(() => {
@@ -139,11 +136,41 @@ function Room({ room }) {
   };
 
   const call = async (callee, isVideo) => {
-    if (onlineUsers.filter((u) => u.id === other._id).length === 0 && !room.isGroup) return warningToast("Can't call user because user is offline");
+    console.log(`📞 🔍 ROOM CALL DEBUG:`);
+    console.log(`📞 🔍 room.isGroup:`, room.isGroup);
+    console.log(`📞 🔍 room.title:`, room.title);
+    console.log(`📞 🔍 room._id:`, room._id);
+    console.log(`📞 🔍 callee (other):`, callee);
+
+    if (onlineUsers.filter((u) => u.id === other._id).length === 0 && !room.isGroup) {
+      return warningToast("Can't call user because user is offline");
+    }
+    
     await setAudio(true);
     await setVideo(isVideo);
     await setCallDirection('outgoing');
-    dispatch({ type: Actions.RTC_SET_COUNTERPART, counterpart: callee });
+    
+    // ✅ FIX: Set different counterpart for group vs individual calls
+    let counterpart;
+    if (room.isGroup) {
+      // For group calls, create a group counterpart object
+      counterpart = {
+        _id: room._id,
+        firstName: room.title || 'Group',
+        lastName: 'Call',
+        isGroup: true,
+        groupId: room._id,
+        groupName: room.title,
+      };
+      console.log(`📞 ✅ Setting GROUP counterpart from Room:`, counterpart);
+    } else {
+      // For individual calls, use the other person
+      counterpart = callee; // This is the `other` user
+      console.log(`📞 ✅ Setting INDIVIDUAL counterpart from Room:`, counterpart);
+    }
+    
+    dispatch({ type: Actions.RTC_SET_COUNTERPART, counterpart });
+    
     try {
       const res = await getMeetingRoom({
         startedAsCall: true,
@@ -152,10 +179,28 @@ function Room({ room }) {
         callToGroup: room.isGroup,
         group: room._id,
       });
+      
       await setMeeting(res.data);
+      
+      // ✅ ADD: Get socket and emit call-initiated event
+      const io = useSelector((state) => state.io.io);
+      if (io) {
+        console.log(`📞 Emitting call-initiated from Room for meeting ${res.data._id}`);
+        io.emit('call-initiated', {
+          callerId: user.id,
+          calleeId: room.isGroup ? null : other._id,
+          callType: isVideo ? 'video' : 'voice',
+          meetingId: res.data._id,
+          isGroup: room.isGroup,
+          groupId: room.isGroup ? room._id : null
+        });
+      }
+      
       navigate(`/meeting/${res.data._id}`, { replace: true });
       await postCall({ roomID: room._id, meetingID: res.data._id });
+      
     } catch (e) {
+      console.error('📞 Error in Room call:', e);
       errorToast('Server error. Unable to initiate call.');
     }
   };

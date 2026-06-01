@@ -1,134 +1,38 @@
 // frontend/src/reducers/messages.js
-// Enhanced with multi-tab synchronization and persistent storage
+// Simplified: Only handles message content and typing - NO unread logic
 
 import Actions from "../constants/Actions";
-import NotificationService from "../services/NotificationService";
 
 // ============================================
-// MULTI-TAB SYNCHRONIZATION
+// INITIAL STATE - MESSAGES ONLY
 // ============================================
-
-let unreadChannel = null;
-
-// Initialize BroadcastChannel for multi-tab sync
-if (typeof window !== "undefined" && "BroadcastChannel" in window) {
-  try {
-    unreadChannel = new BroadcastChannel("unread_messages_sync");
-    console.log("✅ BroadcastChannel initialized for multi-tab sync");
-  } catch (error) {
-    console.warn("⚠️ BroadcastChannel not supported:", error);
-  }
-}
-
-// ============================================
-// PERSISTENT STORAGE
-// ============================================
-
-const loadPersistedUnreadState = () => {
-  try {
-    const persistedRooms = localStorage.getItem("unreadRooms");
-    const persistedGroups = localStorage.getItem("unreadGroups");
-
-    const state = {
-      roomsWithNewMessages: persistedRooms ? JSON.parse(persistedRooms) : [],
-      groupsWithNewMessages: persistedGroups ? JSON.parse(persistedGroups) : [],
-    };
-
-    console.log("📂 Loaded persisted unread state:", {
-      rooms: state.roomsWithNewMessages.length,
-      groups: state.groupsWithNewMessages.length,
-    });
-
-    return state;
-  } catch (error) {
-    console.error("❌ Failed to load persisted unread state:", error);
-    return {
-      roomsWithNewMessages: [],
-      groupsWithNewMessages: [],
-    };
-  }
-};
-
-const saveUnreadState = (roomsWithNewMessages, groupsWithNewMessages) => {
-  try {
-    // Save to localStorage
-    localStorage.setItem("unreadRooms", JSON.stringify(roomsWithNewMessages));
-    localStorage.setItem("unreadGroups", JSON.stringify(groupsWithNewMessages));
-
-    console.log("💾 Saved unread state:", {
-      rooms: roomsWithNewMessages.length,
-      groups: groupsWithNewMessages.length,
-    });
-
-    // Broadcast to other tabs
-    if (unreadChannel) {
-      unreadChannel.postMessage({
-        type: "unread_update",
-        rooms: roomsWithNewMessages,
-        groups: groupsWithNewMessages,
-        timestamp: Date.now(),
-      });
-    }
-
-    // Update favicon and title
-    if (NotificationService) {
-      NotificationService.updateFaviconBadge();
-    }
-  } catch (error) {
-    console.error("❌ Failed to save unread state:", error);
-  }
-};
-
-// ============================================
-// LISTEN FOR UPDATES FROM OTHER TABS
-// ============================================
-
-if (unreadChannel) {
-  unreadChannel.onmessage = (event) => {
-    if (event.data.type === "unread_update") {
-      console.log("📡 Received unread update from another tab");
-
-      // Import store dynamically to avoid circular dependency
-      import("../store").then(({ default: store }) => {
-        store.dispatch({
-          type: Actions.SYNC_UNREAD_STATE,
-          rooms: event.data.rooms,
-          groups: event.data.groups,
-        });
-      });
-    }
-  };
-}
-
-// ============================================
-// INITIAL STATE
-// ============================================
-
-const persistedState = loadPersistedUnreadState();
 
 const initialState = {
-  roomsWithNewMessages: persistedState.roomsWithNewMessages,
-  groupsWithNewMessages: persistedState.groupsWithNewMessages,
-  typing: null, // Legacy - keep for backward compatibility
-  typingUsers: [], // Array of users currently typing
+  // Message content and interactions
+  messages: [],
+
+  // Typing indicators
+  typing: null,
+  typingUsers: [],
+
+  // Message status
+  lastMessageId: null,
+  lastMessageTimestamp: null,
 };
 
-console.log("🔄 Messages reducer initialized with unread state:", {
-  rooms: initialState.roomsWithNewMessages.length,
-  groups: initialState.groupsWithNewMessages.length,
-});
+console.log("🔄 Messages reducer initialized (content only)");
 
 // ============================================
-// REDUCER
+// REDUCER - MESSAGE CONTENT ONLY
 // ============================================
 
 const reducer = (state = initialState, action) => {
   if (!state) {
-    console.warn("⚠️ Reducer called with undefined state, using initialState");
+    console.warn(
+      "⚠️ Messages reducer called with undefined state, using initialState"
+    );
     state = initialState;
   }
-
-  let newState = state;
 
   switch (action.type) {
     // ============================================
@@ -144,99 +48,55 @@ const reducer = (state = initialState, action) => {
     case Actions.SET_TYPING_USERS:
       return {
         ...state,
-        typingUsers: action.typingUsers,
+        typingUsers: action.typingUsers || [],
       };
 
-    case Actions.MESSAGES_ADD_ROOM_UNREAD: {
-      const { roomID, isGroup } = action;
+    // ============================================
+    // MESSAGE CONTENT MANAGEMENT
+    // ============================================
 
-      if (!roomID) {
-        console.warn("⚠️ MESSAGES_ADD_ROOM_UNREAD: No roomID provided");
-        return state;
-      }
+    case Actions.MESSAGES_SET: {
+      console.log("💬 Setting messages:", action.messages?.length || 0);
 
-      if (isGroup) {
-        if (state.groupsWithNewMessages.includes(roomID)) {
-          console.log("ℹ️ Group already marked as unread:", roomID);
-          return state;
-        }
-
-        console.log("📬 Adding unread indicator for group:", roomID);
-
-        newState = {
-          ...state,
-          groupsWithNewMessages: [...state.groupsWithNewMessages, roomID],
-        };
-      } else {
-        if (state.roomsWithNewMessages.includes(roomID)) {
-          console.log("ℹ️ Room already marked as unread:", roomID);
-          return state;
-        }
-
-        console.log("📬 Adding unread indicator for room:", roomID);
-
-        newState = {
-          ...state,
-          roomsWithNewMessages: [...state.roomsWithNewMessages, roomID],
-        };
-      }
-
-      saveUnreadState(
-        newState.roomsWithNewMessages,
-        newState.groupsWithNewMessages
-      );
-
-      return newState;
-    }
-
-    case Actions.MESSAGES_REMOVE_ROOM_UNREAD: {
-      const { roomID, isGroup } = action;
-
-      if (!roomID) {
-        console.warn("⚠️ MESSAGES_REMOVE_ROOM_UNREAD: No roomID provided");
-        return state;
-      }
-
-      if (isGroup) {
-        console.log("✅ Removing unread indicator for group:", roomID);
-
-        newState = {
-          ...state,
-          groupsWithNewMessages: state.groupsWithNewMessages.filter(
-            (id) => id !== roomID
-          ),
-        };
-      } else {
-        console.log("✅ Removing unread indicator for room:", roomID);
-
-        newState = {
-          ...state,
-          roomsWithNewMessages: state.roomsWithNewMessages.filter(
-            (id) => id !== roomID
-          ),
-        };
-      }
-
-      saveUnreadState(
-        newState.roomsWithNewMessages,
-        newState.groupsWithNewMessages
-      );
-
-      return newState;
-    }
-
-    case Actions.CLEAR_ALL_UNREAD: {
-      console.log("🧹 Clearing all unread indicators");
-
-      newState = {
+      return {
         ...state,
-        roomsWithNewMessages: [],
-        groupsWithNewMessages: [],
+        messages: action.messages || [],
+        lastMessageTimestamp: Date.now(),
       };
+    }
 
-      saveUnreadState([], []);
+    case Actions.MESSAGES_ADD: {
+      console.log("💬 Adding new message:", action.message?._id);
 
-      return newState;
+      const newMessage = action.message;
+      if (!newMessage) return state;
+
+      // Avoid duplicates
+      const messageExists = state.messages?.some(
+        (msg) => msg._id === newMessage._id
+      );
+      if (messageExists) {
+        console.log("ℹ️ Message already exists:", newMessage._id);
+        return state;
+      }
+
+      return {
+        ...state,
+        messages: [...(state.messages || []), newMessage],
+        lastMessageId: newMessage._id,
+        lastMessageTimestamp: Date.now(),
+      };
+    }
+
+    case Actions.MESSAGES_UPDATE: {
+      console.log("💬 Updating message:", action.messageId);
+
+      return {
+        ...state,
+        messages: (state.messages || []).map((msg) =>
+          msg._id === action.messageId ? { ...msg, ...action.updates } : msg
+        ),
+      };
     }
 
     case Actions.MESSAGE_DELETED: {
@@ -244,11 +104,70 @@ const reducer = (state = initialState, action) => {
 
       return {
         ...state,
-        messages: state.messages?.map((msg) =>
+        messages: (state.messages || []).map((msg) =>
           msg._id === action.messageId
-            ? { ...msg, isDeleted: true, deletedAt: new Date(), content: null }
+            ? {
+                ...msg,
+                isDeleted: true,
+                deletedAt: new Date(),
+                content: null,
+                deletedBy: action.deletedBy || null,
+              }
             : msg
         ),
+      };
+    }
+
+    case Actions.MESSAGES_CLEAR: {
+      console.log("🧹 Clearing all messages");
+
+      return {
+        ...state,
+        messages: [],
+        lastMessageId: null,
+        lastMessageTimestamp: null,
+      };
+    }
+
+    // ============================================
+    // MESSAGE STATUS UPDATES
+    // ============================================
+
+    case Actions.MESSAGE_MARK_READ: {
+      console.log("👁️ Marking message as read:", action.messageId);
+
+      return {
+        ...state,
+        messages: (state.messages || []).map((msg) =>
+          msg._id === action.messageId
+            ? { ...msg, isRead: true, readAt: new Date() }
+            : msg
+        ),
+      };
+    }
+
+    case Actions.MESSAGE_MARK_DELIVERED: {
+      console.log("📨 Marking message as delivered:", action.messageId);
+
+      return {
+        ...state,
+        messages: (state.messages || []).map((msg) =>
+          msg._id === action.messageId
+            ? { ...msg, isDelivered: true, deliveredAt: new Date() }
+            : msg
+        ),
+      };
+    }
+
+    // ============================================
+    // CLEANUP
+    // ============================================
+
+    case Actions.RESET_MESSAGES: {
+      console.log("🔄 Resetting messages state");
+
+      return {
+        ...initialState,
       };
     }
 
@@ -256,17 +175,5 @@ const reducer = (state = initialState, action) => {
       return state;
   }
 };
-
-// ============================================
-// CLEANUP ON MODULE UNLOAD
-// ============================================
-
-if (typeof window !== "undefined") {
-  window.addEventListener("beforeunload", () => {
-    if (unreadChannel) {
-      unreadChannel.close();
-    }
-  });
-}
 
 export default reducer;

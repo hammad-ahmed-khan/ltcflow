@@ -1,0 +1,281 @@
+// BillingDashboard.sass - Simplified Version
+
+.billing-dashboard
+  background: white
+  border-radius: 12px
+  padding: 20px
+  margin: 16px
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1)
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif
+  max-width: 400px
+  position: relative
+
+// Month Navigation (now in header)
+.billing-dashboard .header .month-navigation
+  display: flex
+  align-items: center
+  gap: 1px
+  background: #f8f9fa
+  border-radius: 6px
+  padding: 4px 8px
+
+.month-nav-btn
+  background: none
+  border: none
+  padding: 4px 6px
+  border-radius: 4px
+  cursor: pointer
+  display: flex
+  align-items: center
+  color: #666
+  transition: all 0.2s ease
+
+  &:hover
+    background: #e9ecef
+    color: #333
+
+  &:disabled
+    opacity: 0.5
+    cursor: not-allowed
+
+.current-month-indicator
+  font-size: 12px
+  font-weight: 600
+  color: #333
+  display: flex
+  align-items: center
+  gap: 4px
+
+// Header Section
+.billing-dashboard .header
+  display: flex
+  align-items: flex-start
+  justify-content: space-between
+  margin-bottom: 16px
+
+.billing-dashboard .title-section
+  display: flex
+  flex-direction: column
+  align-items: flex-start
+
+.billing-dashboard .title
+  display: flex
+  align-items: center
+  gap: 8px
+  font-size: 16px
+  font-weight: 600
+  color: #333
+
+.billing-dashboard .subtitle
+  font-size: 10px
+  color: #666
+  text-transform: uppercase
+  letter-spacing: 0.5px
+  margin-top: 2px
+
+// Main Content
+.billing-dashboard .content
+  display: flex
+  flex-direction: column
+  gap: 16px
+
+// Plan Information
+.plan-info
+  text-align: center
+  padding: 12px
+  background: #f8f9fa
+  border-radius: 8px
+  border: 1px solid #e9ecef
+
+.plan-name
+  font-size: 14px
+  font-weight: 600
+  color: #333
+  margin-bottom: 4px
+
+.plan-pricing
+  font-size: 11px
+  color: #666
+  line-height: 1.4
+
+// Chart Section
+.chart-section
+  display: flex
+  flex-direction: column
+  align-items: center
+  margin-bottom: 16px
+
+.chart-container
+  position: relative
+
+.chart-center
+  position: absolute
+  top: 50%
+  left: 50%
+  transform: translate(-50%, -50%)
+  text-align: center
+
+.chart-total
+  font-size: 20px
+  font-weight: bold
+  color: #333
+  line-height: 1
+
+.chart-label
+  font-size: 9px
+  color: #666
+  text-transform: uppercase
+  letter-spacing: 0.3px
+  margin-top: 2px
+
+.chart-legend
+  display: flex
+  flex-direction: column
+  gap: 6px
+  margin-top: 12px
+  width: 100%
+
+.legend-item
+  display: flex
+  align-items: center
+  gap: 8px
+  font-size: 11px
+
+.legend-color
+  width: 10px
+  height: 10px
+  border-radius: 2px
+  flex-shrink: 0
+
+.legend-label
+  flex: 1
+  color: #555
+
+.legend-value
+  font-weight: 500
+  color: #333
+
+// Metrics Grid
+.billing-dashboard .metrics
+  display: grid
+  grid-template-columns: 1fr 1fr
+  gap: 10px
+  margin-bottom: 16px
+
+.billing-dashboard .metric
+  background: #f8f9fa
+  border: 1px solid #e9ecef
+  border-radius: 8px
+  padding: 10px
+  text-align: center
+
+.metric-number
+  font-size: 16px
+  font-weight: bold
+  color: #333
+  margin-bottom: 3px
+
+.metric-label
+  font-size: 9px
+  color: #666
+  text-transform: uppercase
+  letter-spacing: 0.3px
+
+// Billing Breakdown
+.billing-dashboard .breakdown
+  background: #f8f9fa
+  border: 1px solid #e9ecef
+  border-radius: 8px
+  padding: 12px
+
+.breakdown-title
+  font-size: 13px
+  font-weight: 600
+  color: #333
+  margin-bottom: 10px
+
+.breakdown-list
+  list-style: none
+  padding: 0
+  margin: 0
+
+.breakdown-item
+  display: flex
+  justify-content: space-between
+  align-items: center
+  padding: 3px 0
+  font-size: 11px
+  color: #666
+
+  span:last-child
+    font-weight: 500
+    color: #333
+
+// Loading State
+.billing-dashboard .loading
+  display: flex
+  flex-direction: column
+  align-items: center
+  justify-content: center
+  padding: 20px
+  color: #666
+  gap: 8px
+  font-size: 12px
+
+// Responsive Design
+@media (max-width: 480px)
+  .billing-dashboard
+    margin: 8px
+    padding: 16px
+
+  .billing-dashboard .metrics
+    grid-template-columns: 1fr
+
+  .billing-dashboard .header
+    flex-direction: column
+    gap: 12px
+    align-items: stretch
+
+  .billing-dashboard .header .month-navigation
+    justify-content: center
+
+@media (max-width: 320px)
+  .billing-dashboard
+    margin: 4px
+    padding: 12px
+
+  .chart-container
+    transform: scale(0.9)
+
+  .billing-dashboard .metric
+    padding: 8px
+
+  .current-month-indicator
+    font-size: 11px
+
+// Focus states for accessibility
+.month-nav-btn:focus
+  outline: 2px solid #007bff
+  outline-offset: 2px
+
+// Simple animations
+.billing-dashboard .content > *
+  animation: fadeIn 0.3s ease-out
+
+@keyframes fadeIn
+  from
+    opacity: 0
+    transform: translateY(10px)
+  to
+    opacity: 1
+    transform: translateY(0)
+
+// Loading spinner animation
+@keyframes spin
+  0%
+    transform: rotate(0deg)
+  100%
+    transform: rotate(360deg)
+
+.loading svg
+  animation: spin 1s linear infinite

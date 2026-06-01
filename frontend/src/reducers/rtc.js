@@ -17,6 +17,8 @@ const initialState = {
   counterpart: null,
   closingState: false,
   closed: true,
+  missedCalls: [], // ✅ ADDED
+  unreadMissedCallsCount: 0,
 };
 
 const reducer = (state = initialState, action) => {
@@ -27,7 +29,6 @@ const reducer = (state = initialState, action) => {
         closingState: !state.closed,
       };
 
-    // 🔧 FIXED: Enhanced RTC_PRODUCER to handle duplicates and replacements
     case Actions.RTC_PRODUCER:
       return {
         ...state,
@@ -47,7 +48,6 @@ const reducer = (state = initialState, action) => {
         closed: false,
       };
 
-    // 🔧 ENHANCED: Better logging for RTC_RESET_PRODUCERS
     case Actions.RTC_RESET_PRODUCERS:
       console.log("🔄 RTC_RESET_PRODUCERS:", {
         reason: action.lastLeaveType,
@@ -132,11 +132,65 @@ const reducer = (state = initialState, action) => {
         closed: false,
       };
 
-    /*
+    case Actions.RTC_SET_CALL_DATA:
+      console.log("🔄 RTC_SET_CALL_DATA:", action.callData);
+      return {
+        ...state,
+        callData: action.callData,
+        closed: false,
+      };
+
+    // ✅ MISSED CALLS CASES (ADD THESE):
+    case Actions.ADD_MISSED_CALL:
+      const existingCall = state.missedCalls.find(
+        (call) => call._id === action.call._id
+      );
+      if (existingCall) {
+        console.log(
+          `📞 🚨 REDUX DUPLICATE PREVENTED: ${action.call._id} already exists`
+        );
+        return state; // Don't add duplicate
+      }
+      console.log(
+        `📞 ✅ REDUX ADDING NEW: ${action.call._id} (total will be: ${
+          state.missedCalls.length + 1
+        })`
+      );
+      return {
+        ...state,
+        missedCalls: [action.call, ...state.missedCalls],
+      };
+
+    case Actions.SET_MISSED_CALLS:
+      console.log("📞 Setting missed calls in Redux:", action.calls.length);
+      return {
+        ...state,
+        missedCalls: action.calls,
+      };
+
+    case Actions.CLEAR_MISSED_CALLS:
+      console.log("📞 Clearing all missed calls from Redux");
+      return {
+        ...state,
+        missedCalls: [],
+      };
+
+    case Actions.REMOVE_MISSED_CALL:
+      console.log("📞 Removing missed call from Redux:", action.callId);
+      return {
+        ...state,
+        missedCalls: state.missedCalls.filter(
+          (call) => call._id !== action.callId
+        ),
+      };
+
     case Actions.RTC_LEAVE:
       console.log("🔄 RTC_LEAVE: Resetting to initial state");
-      return initialState;
-      */
+      return {
+        ...initialState,
+        closed: true,
+        missedCalls: state.missedCalls, // Preserve missed calls
+      };
 
     default:
       return state;

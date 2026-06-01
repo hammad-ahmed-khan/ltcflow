@@ -257,8 +257,8 @@ router.get("/check-subdomain", async (req, res) => {
       );
     }
 
-    // Exception for demo subdomain - always allow access
-    if (normalizedSubdomain === "demo") {
+    // Exception for staging subdomain - always allow access
+    if (normalizedSubdomain === "staging") {
       console.log(`✅ Demo subdomain access granted: ${normalizedSubdomain}`);
       return res.json(
         createResponse(true, company, {

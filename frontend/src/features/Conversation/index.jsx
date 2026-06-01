@@ -11,6 +11,7 @@ import getRoom from '../../actions/getRoom';
 import Messages from './components/Messages';
 import Actions from '../../constants/Actions';
 import apiClient from '../../api/apiClient';
+import syncUnreadFromServer from '../../actions/syncUnreadFromServer'; // ✅ ADD THIS IMPORT
 
 function Conversation() {
   const room = useSelector((state) => state.io.room);
@@ -70,7 +71,7 @@ function Conversation() {
         setLoading(false);
         setError(false);
         
-        // Mark room as read on the SERVER first
+        // ✅ SERVER-SIDE ONLY: Mark room as read and sync with server
         const isGroup = roomData.isGroup;
         console.log(`📖 CONVERSATION: Marking room as read on server (${isGroup ? 'group' : 'room'}):`, id);
         
@@ -78,25 +79,21 @@ function Conversation() {
           .then(() => {
             console.log('✅ CONVERSATION: Server confirmed room marked as read');
             
-            // THEN remove unread indicator from Redux
-            dispatch({ 
-              type: Actions.MESSAGES_REMOVE_ROOM_UNREAD, 
-              roomID: id,
-              isGroup: isGroup 
-            });
-            
-            console.log('✅ CONVERSATION: Unread badge removed from Redux');
+            // ✅ SYNC with server to get updated unread counts
+            setTimeout(() => {
+              dispatch(syncUnreadFromServer());
+              console.log('✅ CONVERSATION: Synced unread state with server');
+            }, 500);
           })
           .catch(err => {
             console.error('❌ CONVERSATION: Failed to mark room as read on server:', err);
             console.error('❌ CONVERSATION: Error response:', err.response?.data);
             
-            // Still remove badge locally for better UX
-            dispatch({ 
-              type: Actions.MESSAGES_REMOVE_ROOM_UNREAD, 
-              roomID: id,
-              isGroup: isGroup 
-            });
+            // ✅ STILL SYNC even if mark-as-read failed (for current state)
+            setTimeout(() => {
+              dispatch(syncUnreadFromServer());
+              console.log('✅ CONVERSATION: Synced unread state with server (after error)');
+            }, 500);
           });
         
         console.log('✅ CONVERSATION: Room loaded successfully!');

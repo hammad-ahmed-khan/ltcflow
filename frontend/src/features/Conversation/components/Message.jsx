@@ -12,11 +12,13 @@ import { useToasts } from 'react-toast-notifications';
 import deleteMessage from '../../../actions/deleteMessage';
 import { useDispatch } from 'react-redux';
 import Actions from '../../../constants/Actions';
+import CallRecord from './CallRecord';
+import MissedCallRecord from './MissedCallRecord';
 
 const Message = memo(({
   message, previous, next, onOpen,
 }) => {
-  const { content, date } = message;
+  const { content, date, type } = message; // ✅ ADD 'type' to destructuring
   let { author } = message;
 
   const user = useGlobal('user')[0];
@@ -219,15 +221,44 @@ const Message = memo(({
     return ' bubble-left left';
   }, [attachPrevious, isOnlyEmoji, isMine]);
 
-  const convertUrls = useCallback((text) => {
+  const convertUrls = useCallback((text) =>  {
     if (!text) return '';
+    
+    // First preserve line breaks by converting them to <br> tags
+    let processedText = text.replace(/\n/g, '<br>');
+    
+    // Then convert URLs
     const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi;
-    return text.replace(urlRegex, (url) => {
+    processedText = processedText.replace(urlRegex, (url) => {
       return `<a href="${url}" target="_blank">${url}</a>`;
     });
+    
+    return processedText;
   }, []);
 
   const ContentComponent = useMemo(() => {
+    // ✅ FIXED: Handle call records first, before the switch statement
+    if (type === 'call-record') {
+      try {
+        const callData = JSON.parse(content);
+        return <CallRecord call={callData} isMine={isMine} />;
+      } catch (error) {
+        console.error('Error parsing call record:', error);
+        return <div className="error-message">Call record unavailable</div>;
+      }
+    }
+
+    // ✅ NEW: Handle missed call records
+    if (type === 'call-missed-record') {
+      try {
+        const missedCallData = JSON.parse(content);
+        return <MissedCallRecord call={missedCallData} isMine={isMine} />;
+      } catch (error) {
+        console.error('Error parsing missed call record:', error);
+        return <div className="error-message">Missed call record unavailable</div>;
+      }
+    }
+
     switch (message.type) {
       case 'image':
         return (
@@ -266,7 +297,7 @@ const Message = memo(({
           />
         );
     }
-  }, [message._id, message.type, message.content, message.file, convertUrls, content, onOpen]);
+  }, [message._id, message.type, message.content, message.file, convertUrls, content, onOpen, type, isMine]);
 
   const getBubbleClass = useCallback(() => {
     if (message.type === 'image') return 'bubble-image';
