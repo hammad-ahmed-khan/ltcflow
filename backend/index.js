@@ -50,6 +50,26 @@ const listen = () =>
 
       dailyUsageJobScheduler.start();
       console.log("📅 Daily Outseta usage job scheduler started".green);
+
+      // 🔥 NEW: Trigger monthly snapshot once on app initialization
+      /*
+      setTimeout(async () => {
+        try {
+          console.log(
+            "🚀 Triggering initial monthly snapshot on app startup...".cyan
+          );
+          await dailyUsageJobScheduler.triggerNow();
+          console.log(
+            "✅ Initial monthly snapshot completed successfully".green
+          );
+        } catch (error) {
+          console.error(
+            "❌ Initial monthly snapshot failed:".red,
+            error.message
+          );
+        }
+      }, 5000); // Wait 5 seconds for database to be fully initialized
+      */
     } catch (error) {
       console.error("❌ Failed to start job schedulers:".red, error);
     }

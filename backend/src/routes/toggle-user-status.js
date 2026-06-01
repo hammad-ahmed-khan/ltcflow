@@ -1,6 +1,8 @@
 ﻿const User = require("../models/User");
+const Room = require("../models/Room"); // 🆕 NEW: For group removal
 const Company = require("../models/Company");
 const outsetaApi = require("../services/outsetaApi");
+const store = require("../store"); // 🆕 NEW: For socket operations
 
 // 🔥 NEW: Import MAU tracking
 const UserActivationTracker = require("../services/UserActivationTracker");
@@ -70,6 +72,136 @@ module.exports = async (req, res, next) => {
       // Don't fail the status change if MAU tracking fails
     }
 
+    // ========================================
+    // 🆕 NEW: HANDLE DEACTIVATION
+    // ========================================
+    let deactivationResults = null;
+    if (newStatus === "deactivated") {
+      console.log(`🚫 Processing deactivation for user ${updatedUser.email}`);
+      deactivationResults = {
+        socketsDisconnected: 0,
+        groupsRemoved: 0,
+      };
+
+      // 1. FORCE LOGOUT - Emit socket event to disconnect user everywhere
+      if (store.socketsByUserID && store.socketsByUserID[userId]) {
+        const userSockets = store.socketsByUserID[userId];
+        if (userSockets && userSockets.length > 0) {
+          console.log(
+            `📡 Force disconnecting ${userSockets.length} sessions for user ${userId}`
+          );
+
+          // Emit deactivation event to all user's sockets
+          userSockets.forEach((socket) => {
+            if (socket && socket.emit) {
+              socket.emit("user-deactivated", {
+                id: userId,
+                message:
+                  "Your account has been deactivated by an administrator.",
+                reason: "deactivated",
+              });
+
+              // Force disconnect the socket after short delay
+              setTimeout(() => {
+                if (socket.disconnect) {
+                  socket.disconnect(true);
+                }
+              }, 1000);
+
+              deactivationResults.socketsDisconnected++;
+            }
+          });
+        }
+      }
+
+      // Also emit to the user's ID room (backup method)
+      if (store.io) {
+        store.io.to(userId).emit("user-deactivated", {
+          id: userId,
+          message: "Your account has been deactivated by an administrator.",
+          reason: "deactivated",
+        });
+      }
+
+      // 2. REMOVE FROM ALL GROUPS
+      try {
+        const groupsUpdated = await Room.updateMany(
+          {
+            companyId: companyId,
+            isGroup: true,
+            people: userId,
+          },
+          {
+            $pull: { people: userId },
+          }
+        );
+        deactivationResults.groupsRemoved = groupsUpdated.modifiedCount;
+        console.log(
+          `👥 Removed deactivated user from ${groupsUpdated.modifiedCount} groups`
+        );
+
+        // Notify group members about the removal
+        if (store.io && groupsUpdated.modifiedCount > 0) {
+          // Get the groups that were modified to notify remaining members
+          const affectedGroups = await Room.find({
+            companyId: companyId,
+            isGroup: true,
+          })
+            .select("_id people title")
+            .lean();
+
+          // Emit update to remaining members
+          affectedGroups.forEach((group) => {
+            group.people.forEach((memberId) => {
+              store.io.to(memberId.toString()).emit("group-member-removed", {
+                groupId: group._id,
+                removedUserId: userId,
+                reason: "user_deactivated",
+              });
+            });
+          });
+        }
+      } catch (groupError) {
+        console.error(`⚠️ Error removing user from groups:`, groupError);
+      }
+
+      // 3. UPDATE ONLINE USERS LIST
+      if (store.onlineUsers) {
+        store.onlineUsers.forEach((onlineUser, socket) => {
+          if (onlineUser && onlineUser.id === userId) {
+            store.onlineUsers.delete(socket);
+          }
+        });
+
+        // Broadcast updated online users list
+        if (store.io) {
+          store.io.emit("onlineUsers", Array.from(store.onlineUsers.values()));
+        }
+      }
+
+      // 4. LOG DEACTIVATION IN MAU (mark as deactivated but still billable)
+      try {
+        if (UserActivationTracker.removeUserFromCurrentMonth) {
+          await UserActivationTracker.removeUserFromCurrentMonth(updatedUser);
+        }
+      } catch (mauError) {
+        console.error(`⚠️ MAU deactivation tracking error:`, mauError);
+      }
+
+      console.log(
+        `✅ Deactivation complete for ${updatedUser.email}:`,
+        deactivationResults
+      );
+    }
+
+    // ========================================
+    // 🆕 NEW: HANDLE REACTIVATION
+    // ========================================
+    if (originalStatus === "deactivated" && newStatus === "active") {
+      console.log(`✅ User ${updatedUser.email} has been reactivated`);
+      // MAU tracking for reactivation is already handled above
+    }
+
     const company = await Company.findById(companyId);
     if (!company) {
       return res.status(404).json({
@@ -131,6 +263,15 @@ module.exports = async (req, res, next) => {
         month: mauResult.month,
         message:
           mauResult.message || `User ${mauResult.action} monthly active users`,
+      };
+    }
+
+    // 🆕 NEW: Add deactivation results to response
+    if (deactivationResults) {
+      response.deactivation = {
+        processed: true,
+        socketsDisconnected: deactivationResults.socketsDisconnected,
+        groupsRemoved: deactivationResults.groupsRemoved,
       };
     }
 

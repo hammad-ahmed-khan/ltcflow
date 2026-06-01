@@ -9,6 +9,9 @@ module.exports = (req, res, next) => {
     return res.status(400).json({ error: "Company ID required." });
   }
 
+  // 🆕 Determine if requesting user can see deactivated users
+  const canSeeDeactivated = ["admin", "root"].includes(req.user.level);
+
   // Updated query to include both member rooms and creator rooms
   Room.find({
     companyId,
@@ -31,6 +34,8 @@ module.exports = (req, res, next) => {
     .populate({
       path: "people",
       select: "-email -password -friends -__v",
+      // 🆕 Filter out deactivated users for non-admins
+      match: canSeeDeactivated ? {} : { status: { $ne: "deactivated" } },
       populate: {
         path: "picture",
       },
@@ -45,6 +50,25 @@ module.exports = (req, res, next) => {
         console.error(err);
         return res.status(500).json({ error: "Server error." });
       }
-      res.status(200).json({ rooms }); // Removed limit from response
+
+      // 🆕 For non-admins, filter out direct chats where the other person is deactivated
+      let filteredRooms = rooms;
+      if (!canSeeDeactivated) {
+        filteredRooms = rooms.filter((room) => {
+          if (room.isGroup) {
+            // Groups are always shown (deactivated members already filtered by populate match)
+            return true;
+          } else {
+            // For direct chats, check if the other person still exists after filtering
+            const otherPerson = room.people.find(
+              (p) => p && p._id && p._id.toString() !== req.user.id
+            );
+            // Hide room if other person was filtered out (deactivated)
+            return !!otherPerson;
+          }
+        });
+      }
+
+      res.status(200).json({ rooms: filteredRooms });
     });
 };

@@ -278,6 +278,77 @@ const initIO = (token) => (dispatch) => {
     }
   });
 
+  // 🆕 Handle user deactivation event - force logout
+  io.on("user-deactivated", async (data) => {
+    console.log("🚫 Received user-deactivated event:", data);
+
+    const currentUser = store.getState().user || getGlobal().user;
+
+    if (data && data.id && currentUser && currentUser.id === data.id) {
+      console.log("⚠️ Current user has been deactivated by an administrator");
+
+      // Show notification before logout
+      // Try using the toast system first, fall back to alert
+      try {
+        const { addToast } = await import("react-toast-notifications");
+        if (addToast) {
+          addToast(
+            "Your account has been deactivated by an administrator. You will be logged out.",
+            {
+              appearance: "warning",
+              autoDismiss: false,
+            }
+          );
+        }
+      } catch (e) {
+        // If toast fails, show browser alert
+        alert(
+          data.message ||
+            "Your account has been deactivated by an administrator."
+        );
+      }
+
+      // Clear all local storage
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("companyId");
+      localStorage.removeItem("subdomain");
+
+      // Update global state
+      await setGlobal({
+        token: null,
+        user: {},
+      });
+
+      // Disconnect socket
+      if (io && io.disconnect) {
+        io.disconnect();
+      }
+
+      // Redirect to login after short delay (allow user to see message)
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 2500);
+    }
+  });
+
+  // 🆕 Handle group member removal notification (when other users are deactivated)
+  io.on("group-member-removed", (data) => {
+    console.log("👥 Group member removed:", data);
+
+    if (data.reason === "user_deactivated") {
+      // Refresh rooms list to get updated group membership
+      getRooms()
+        .then((res) => {
+          console.log("✅ Rooms list refreshed after member deactivation");
+          store.dispatch({ type: Actions.SET_ROOMS, rooms: res.data.rooms });
+        })
+        .catch((err) => {
+          console.error("❌ Error refreshing rooms after deactivation:", err);
+        });
+    }
+  });
+
   io.on("typing", (data) => {
     if (
       store.getState().io.room &&

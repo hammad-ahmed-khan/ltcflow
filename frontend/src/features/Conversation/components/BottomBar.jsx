@@ -279,7 +279,7 @@ const sendImages = async (images) => {
             };
           });
         },
-        'square', // crop parameter for images
+        null, // crop parameter for images
         controller.signal // abort signal
       );
       

@@ -29,7 +29,7 @@ class DailyUsageJobScheduler {
       // - *: any day of week
 
       this.job = cron.schedule(
-        "*/5 * * * *",
+        "0 2 1 * *",
         async () => {
           console.log("🌙 [Outseta Cron] Starting daily usage recording...");
 
@@ -75,6 +75,8 @@ class DailyUsageJobScheduler {
   // Extract the main logic into a separate method
   async recordDailyUsage() {
     try {
+      const mongoose = require("mongoose");
+
       // 1️⃣ Fetch all companies that have an Outseta account ID
       const companies = await Company.find({
         outsetaAccountId: { $exists: true },
@@ -89,32 +91,25 @@ class DailyUsageJobScheduler {
       const results = [];
 
       for (const company of companies) {
-        // 2️⃣ Get detailed stats for current month
-        const detailedStats = await MonthlyActiveUser.getDetailedMonthlyStats(
-          company._id,
-          currentMonth
-        );
+        const totalActiveUsers = await MonthlyActiveUser.countDocuments({
+          companyId: new mongoose.Types.ObjectId(company._id),
+          month: currentMonth,
+        });
 
-        if (
-          detailedStats &&
-          typeof detailedStats === "object" &&
-          Object.keys(detailedStats).length !== 0
-        ) {
-          const activeUsersCount = detailedStats.activeRecords || 0;
-
+        if (totalActiveUsers > 0) {
           // 🆕 NEW: Calculate billable usage (active users above base limit)
           // Only count users above the BASE_USER_LIMIT as billable usage
-          const billableUsage = Math.max(0, activeUsersCount - BASE_USER_LIMIT);
+          const billableUsage = Math.max(0, totalActiveUsers - BASE_USER_LIMIT);
 
           console.log(
-            `📊 [${company.name}] Active users: ${activeUsersCount}, Base limit: ${BASE_USER_LIMIT}, Billable usage: ${billableUsage}`
+            `📊 [${company.name}] Active users: ${totalActiveUsers}, Base limit: ${BASE_USER_LIMIT}, Billable usage: ${billableUsage}`
           );
 
           // 3️⃣ Record usage to Outseta (only billable usage above base limit)
           const result = await outsetaApi.recordUsage(
             company.outsetaAccountId,
             billableUsage,
-            `Daily usage record for ${company.name} — ${activeUsersCount} total active users (${billableUsage} billable above ${BASE_USER_LIMIT} base limit)`
+            `Daily usage record for ${company.name} — ${totalActiveUsers} total active users (${billableUsage} billable above ${BASE_USER_LIMIT} base limit)`
           );
 
           if (result.success) {
@@ -123,7 +118,7 @@ class DailyUsageJobScheduler {
             );
             results.push({
               company: company.name,
-              activeUsers: activeUsersCount,
+              activeUsers: totalActiveUsers,
               baseLimit: BASE_USER_LIMIT,
               billableUsage: billableUsage,
               success: true,
@@ -134,7 +129,7 @@ class DailyUsageJobScheduler {
             );
             results.push({
               company: company.name,
-              activeUsers: activeUsersCount,
+              activeUsers: totalActiveUsers,
               baseLimit: BASE_USER_LIMIT,
               billableUsage: billableUsage,
               success: false,

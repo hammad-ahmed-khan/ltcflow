@@ -1,0 +1,15 @@
+[0;1;32m●[0m nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset: enabled)
+     Active: [0;1;32mactive (running)[0m since Thu 2025-09-25 18:47:37 UTC; 1 month 17 days ago
+       Docs: man:nginx(8)
+   Main PID: 753379 (nginx)
+      Tasks: 3 (limit: 4647)
+     Memory: 42.7M
+        CPU: 57min 14.402s
+     CGroup: /system.slice/nginx.service
+             ├─753379 "nginx: master process /usr/sbin/nginx -g daemon on; master_process on;"
+             ├─753380 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+             └─753381 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" "" ""
+
+Sep 25 18:47:37 ubuntu-s-2vcpu-4gb-amd-nyc3-01 systemd[1]: Starting A high performance web server and a reverse proxy server...
+Sep 25 18:47:37 ubuntu-s-2vcpu-4gb-amd-nyc3-01 systemd[1]: Started A high performance web server and a reverse proxy server.

@@ -1,3 +1,6 @@
+// backend/src/routes/search.js
+// UPDATED: Added deactivated user filtering for non-admin users
+
 const User = require("../models/User");
 const Config = require("../../config");
 const mongoose = require("mongoose");
@@ -21,22 +24,33 @@ module.exports = (req, res, next) => {
     return res.status(400).json({ status: 400, error: "INVALID_COMPANY_ID" });
   }
 
-  // ✅ REMOVED: No privilege-based filtering - all users visible in chat/groups/meetings
-  const baseMatch = { companyId: companyObjectId };
+  // 🆕 Determine if requesting user can see deactivated users
+  const canSeeDeactivated = ["admin", "root"].includes(req.user.level);
+
+  // 🆕 Build base match with status filter for non-admins
+  const baseMatch = {
+    companyId: companyObjectId,
+    // Only filter out deactivated users for non-admin users
+    ...(canSeeDeactivated ? {} : { status: { $ne: "deactivated" } }),
+  };
 
   console.log(
-    `User ${req.user.username} (${req.user.level}) searching all users in company - no privilege filtering applied`
+    `User ${req.user.username} (${
+      req.user.level
+    }) searching users - deactivated users ${
+      canSeeDeactivated ? "visible" : "hidden"
+    }`
   );
 
   User.aggregate()
-    .match(baseMatch) // ✅ Only company isolation, no privilege filtering
+    .match(baseMatch)
     .project({
       fullName: { $concat: ["$firstName", " ", "$lastName"] },
       firstName: 1,
       lastName: 1,
       username: 1,
       email: 1,
-      phone: 1, // ✅ ADD THIS LINE - Include phone field in projection
+      phone: 1,
       picture: 1,
       tagLine: 1,
       level: 1,
@@ -88,7 +102,11 @@ module.exports = (req, res, next) => {
         }));
 
         console.log(
-          `Search results: User ${req.user.username} (${req.user.level}) found ${users.length} users (all levels shown)`
+          `Search results: User ${req.user.username} (${
+            req.user.level
+          }) found ${users.length} users (deactivated ${
+            canSeeDeactivated ? "included" : "excluded"
+          })`
         );
 
         res.status(200).json({
@@ -100,7 +118,7 @@ module.exports = (req, res, next) => {
             searchTerm: search,
             companyId: companyId,
             requestingUserLevel: req.user.level,
-            filteringApplied: "none",
+            deactivatedIncluded: canSeeDeactivated, // 🆕 Added metadata
             timestamp: new Date().toISOString(),
           },
         });

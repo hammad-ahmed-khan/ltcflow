@@ -468,7 +468,7 @@ class OutsetaApiService {
   }
 
   // Record usage for a specific account
-  async recordUsage(outsetaAccountId, quantity = 1, note = "") {
+  async recordUsage(outsetaAccountId, amount = 1) {
     if (!this.isConfigured() || !outsetaAccountId) {
       console.warn(
         "Outseta not configured or missing account ID - skipping usage record"
@@ -477,24 +477,43 @@ class OutsetaApiService {
     }
 
     try {
-      const addonUid = process.env.OUTSETA_ADDON_UID;
-
-      if (!addonUid) {
-        throw new Error("Missing OUTSETA_ADDON_UID in environment variables");
-      }
+      const subdomain = this.baseURL.replace("https://", "").split(".")[0];
+      const addOnUid = process.env.OUTSETA_ADDON_UID;
 
       console.log(
-        `🔄 Recording usage for account ${outsetaAccountId} [Addon: ${addonUid}]`
+        `🔄 Fetching account ${outsetaAccountId} to locate SubscriptionAddOn...`
       );
 
+      // 1️⃣ Fetch the account with current subscription info
+      const accountRes = await this.client.get(
+        `/crm/accounts/${outsetaAccountId}?fields=Uid,Name,CurrentSubscription.*,CurrentSubscription.SubscriptionAddOns.*,CurrentSubscription.SubscriptionAddOns.AddOn.*`
+      );
+
+      const accountData = accountRes.data;
+      const addOnSubs =
+        accountData?.CurrentSubscription?.SubscriptionAddOns || [];
+
+      // 2️⃣ Find the subscription add-on UID
+      const target = addOnSubs.find((sa) => sa.AddOn?.Uid === addOnUid);
+      if (!target)
+        throw new Error(
+          `Add-on ${addOnUid} not found in account ${outsetaAccountId}`
+        );
+
+      console.log(`✅ Found SubscriptionAddOn UID: ${target.Uid}`);
+
+      // 3️⃣ Post usage entry
       const payload = {
-        Account: { Uid: outsetaAccountId },
-        AddOn: { Uid: addonUid },
-        Quantity: quantity,
-        Note: note,
+        UsageDate: new Date().toISOString(),
+        Amount: amount,
+        SubscriptionAddOn: { Uid: target.Uid },
       };
 
-      const response = await this.client.post("/billing/usage", payload);
+      console.log(
+        `🔄 Recording usage for SubscriptionAddOn ${target.Uid} (${amount} units)`
+      );
+
+      const usageRes = await this.client.post(`/billing/usage`, payload);
 
       console.log(
         `✅ Usage recorded successfully for account ${outsetaAccountId}`
@@ -502,7 +521,7 @@ class OutsetaApiService {
 
       return {
         success: true,
-        data: response.data,
+        data: usageRes.data,
       };
     } catch (error) {
       console.error(

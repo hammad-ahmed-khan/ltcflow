@@ -13,6 +13,9 @@ module.exports = (req, res, next) => {
     return res.status(400).json({ error: "Company ID required." });
   }
 
+  // 🆕 Determine if requesting user can see deactivated users
+  const canSeeDeactivated = ["admin", "root"].includes(req.user.level);
+
   const findMessagesAndEmit = (room) => {
     // Messages query includes companyId
     Message.find({ room: room._id, companyId })
@@ -21,6 +24,7 @@ module.exports = (req, res, next) => {
       .populate({
         path: "author",
         select: "-email -password -friends -__v",
+        // 🆕 Note: We do NOT filter authors - messages from deactivated users should still show
         populate: [
           {
             path: "picture",
@@ -43,10 +47,23 @@ module.exports = (req, res, next) => {
             },
           })
           .then((images) => {
+            // 🆕 Filter out deactivated users from people array for non-admins
+            let filteredPeople = room.people;
+            if (!canSeeDeactivated) {
+              filteredPeople = room.people.filter((person) => {
+                // Always keep current user visible
+                if (person._id.toString() === req.user.id.toString()) {
+                  return true;
+                }
+                // Filter out deactivated users
+                return person.status !== "deactivated";
+              });
+            }
+
             res.status(200).json({
               room: {
                 _id: room._id,
-                people: room.people,
+                people: filteredPeople, // 🆕 Use filtered people
                 title: room.title,
                 isGroup: room.isGroup,
                 lastUpdate: room.lastUpdate,
@@ -108,6 +125,7 @@ module.exports = (req, res, next) => {
       }
 
       // Updated permission check: Allow access if user is a member OR the creator
+      // 🆕 Note: Access check happens BEFORE filtering so current user can verify membership
       const isGroupMember =
         room.people.filter(
           (person) => req.user.id.toString() === person._id.toString()
