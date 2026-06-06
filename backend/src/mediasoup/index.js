@@ -23,7 +23,7 @@ const init = async () => {
   worker.on("died", () => {
     console.error(
       "mediasoup worker died, exiting in 2 seconds... [pid:%d]",
-      worker.pid
+      worker.pid,
     );
     setTimeout(() => process.exit(1), 2000);
   });
@@ -108,6 +108,27 @@ async function createConsumer(producer, rtpCapabilities, consumerTransport) {
 }
 
 const initSocket = (socket) => {
+  socket.on("restartIce", async (data, callback) => {
+    try {
+      const type = data && data.type; // 'producer' | 'consumer'
+      const transport =
+        type === "consumer"
+          ? consumerTransports[socket.id]
+          : producerTransports[socket.id];
+
+      if (!transport) {
+        if (callback) callback({ error: "No transport for socket" });
+        return;
+      }
+
+      const iceParameters = await transport.restartIce();
+      if (callback) callback({ iceParameters });
+    } catch (e) {
+      console.error("restartIce error:", e.message);
+      if (callback) callback({ error: e.message });
+    }
+  });
+
   socket.on("getRouterRtpCapabilities", (data, callback) => {
     callback(mediasoupRouter.rtpCapabilities);
   });
@@ -140,7 +161,7 @@ const initSocket = (socket) => {
       if (!transport) {
         console.error(
           "connectProducerTransport: no transport for socket",
-          socket.id
+          socket.id,
         );
         return callback({ error: "producer transport not found" });
       }
@@ -158,7 +179,7 @@ const initSocket = (socket) => {
       if (!transport) {
         console.error(
           "connectConsumerTransport: no transport for socket",
-          socket.id
+          socket.id,
         );
         return callback({ error: "consumer transport not found" });
       }
@@ -231,7 +252,7 @@ const initSocket = (socket) => {
         console.error(
           "consume: requested producer not found",
           data.socketID,
-          data.producerID
+          data.producerID,
         );
         return callback({ error: "producer not found" });
       }
@@ -245,7 +266,7 @@ const initSocket = (socket) => {
       const obj = await createConsumer(
         producers[data.socketID][data.producerID],
         data.rtpCapabilities,
-        cTransport
+        cTransport,
       );
 
       if (!obj) {
@@ -273,35 +294,41 @@ const initSocket = (socket) => {
     }
   });
 
-  socket.on("resume", async (data, callback) => {
+  socket.on("remove", async (data, callback) => {
     try {
-      if (!consumers[socket.id] || !consumers[socket.id][data.producerID]) {
-        console.error(
-          "Resume failed: consumer not found",
-          data.producerID,
-          socket.id
-        );
-        return callback({ error: "consumer not found" });
-      }
-
-      const consumer = consumers[socket.id][data.producerID];
-      if (consumer.closed) {
-        console.error("Cannot resume closed consumer:", data.producerID);
-        return callback({ error: "consumer closed" });
-      }
-
-      await consumer.resume();
-      console.log(
-        "Successfully resumed consumer:",
-        data.producerID,
-        "for socket:",
-        socket.id
+      await store.peers.asyncRemove(
+        { producerID: data.producerID },
+        { multi: true },
       );
-      callback();
-    } catch (error) {
-      console.error("Resume failed:", error);
-      callback({ error: error.message });
+    } catch (e) {
+      console.error("Error removing peer from store:", e);
     }
+
+    // Close the server-side producer so its m-section / RTP resources are freed
+    // and the producerclose cascade cleans up downstream consumers. Previously
+    // this was never closed -> leak + stale m-sections -> extension-id collisions.
+    try {
+      const p = producers[socket.id] && producers[socket.id][data.producerID];
+      if (p) {
+        try {
+          p.close();
+        } catch (e) {}
+        delete producers[socket.id][data.producerID];
+        if (Object.keys(producers[socket.id]).length === 0)
+          delete producers[socket.id];
+      }
+    } catch (e) {
+      console.error("remove: producer close error:", e);
+    }
+
+    try {
+      store.io.to(data.roomID || "general").emit("remove", {
+        producerID: data.producerID,
+        socketID: socket.id,
+      });
+    } catch (e) {}
+
+    if (callback) callback();
   });
 
   socket.on("create", async (data, callback) => {
@@ -320,7 +347,7 @@ const initSocket = (socket) => {
       // Get user with company information
       const currentUser = await User.findOne(
         { _id: userId },
-        { password: 0 }
+        { password: 0 },
       ).populate([{ path: "picture", strictPopulate: false }]);
 
       if (!currentUser) {
@@ -348,7 +375,7 @@ const initSocket = (socket) => {
       if (data.roomID) {
         await store.rooms.asyncUpdate(
           { _id: data.roomID },
-          { $set: { lastJoin: Date.now() } }
+          { $set: { lastJoin: Date.now() } },
         );
       }
 
@@ -376,7 +403,7 @@ const initSocket = (socket) => {
           lastEnter: Date.now(),
           $push: { peers: socket.id },
           $addToSet: { users: mongoose.Types.ObjectId(userId) },
-        }
+        },
       )
         .then((meeting) => {
           if (meeting) {
@@ -473,7 +500,7 @@ const initSocket = (socket) => {
       // Update meeting
       await Meeting.findOneAndUpdate(
         { _id: data.roomID, companyId },
-        { lastLeave: Date.now(), $pull: { peers: socket.id } }
+        { lastLeave: Date.now(), $pull: { peers: socket.id } },
       ).catch((err) => console.log("Meeting leave update error:", err));
 
       // Update consumer tracking
@@ -503,25 +530,6 @@ const initSocket = (socket) => {
       console.error("Error in socket leave:", error);
       if (callback) callback({ error: "Failed to leave room" });
     }
-  });
-
-  socket.on("remove", async (data, callback) => {
-    try {
-      await store.peers.asyncRemove(
-        { producerID: data.producerID },
-        { multi: true }
-      );
-    } catch (e) {
-      console.error("Error removing peer from store:", e);
-    }
-
-    try {
-      store.io
-        .to(data.roomID || "general")
-        .emit("remove", { producerID: data.producerID, socketID: socket.id });
-    } catch (e) {}
-
-    if (callback) callback();
   });
 
   // Notify peers before socket is fully torn down so socket.to(room) still works
@@ -605,6 +613,34 @@ const initSocket = (socket) => {
     } catch (err) {
       console.error("Error in disconnect cleanup:", err);
     }
+  });
+
+  socket.on("producer-paused", (data) => {
+    try {
+      const p = producers[socket.id] && producers[socket.id][data.producerID];
+      if (p && !p.closed && !p.paused) p.pause().catch(() => {});
+    } catch (e) {}
+    try {
+      socket.to(data.roomID || "general").emit("producer-paused", {
+        producerID: data.producerID,
+        socketID: socket.id,
+        kind: data.kind,
+      });
+    } catch (e) {}
+  });
+
+  socket.on("producer-resumed", (data) => {
+    try {
+      const p = producers[socket.id] && producers[socket.id][data.producerID];
+      if (p && !p.closed && p.paused) p.resume().catch(() => {});
+    } catch (e) {}
+    try {
+      socket.to(data.roomID || "general").emit("producer-resumed", {
+        producerID: data.producerID,
+        socketID: socket.id,
+        kind: data.kind,
+      });
+    } catch (e) {}
   });
 };
 

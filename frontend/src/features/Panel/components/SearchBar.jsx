@@ -115,6 +115,9 @@ function SearchBar() {
         // Load all users when switching to search tab with no query
         loadAllUsers();
       }
+    } else if (nav === 'missed') {
+      // Missed tab filters its own list locally off the `search` global —
+      // no server-side context search needed.
     } else if (searchText) {
       // Context search for other tabs
       debouncedSearch(searchText, nav);
@@ -129,6 +132,7 @@ function SearchBar() {
       case 'rooms': return 'Search chats...';
       case 'groups': return 'Search groups...';
       case 'favorites': return 'Search favorites...';
+      case 'missed': return 'Search missed calls...';
       default: return 'Search users...';
     }
   };
@@ -136,7 +140,10 @@ function SearchBar() {
   const handleSearch = (query) => {
     console.log("🔍 SearchBar - Handle search:", { query, nav });
     setSearch(query);
-    
+
+    // Missed tab filters locally off the `search` global; nothing to fetch.
+    if (nav === 'missed') return;
+
     const context = nav === 'search' ? 'search' : nav;
     
     if (!query.trim()) {

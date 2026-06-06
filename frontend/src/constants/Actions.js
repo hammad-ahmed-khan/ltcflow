@@ -1,3 +1,4 @@
+// frontend/src/constants/Actions.js
 const Actions = {
   IO_INIT: "IO_INIT",
   SET_MESSAGES: "SET_MESSAGES",
@@ -26,6 +27,14 @@ const Actions = {
   RTC_ANSWER: "RTC_ANSWER",
   RTC_SET_COUNTERPART: "RTC_SET_COUNTERPART",
 
+  // ── Phase 2: call lifecycle (driven by the server CallManager) ──
+  RTC_CALL_STATE: "RTC_CALL_STATE", // local/explicit state transition or server snapshot
+  RTC_CALL_ENDED: "RTC_CALL_ENDED", // whole call ended (carries reason)
+  RTC_PEER_JOINED: "RTC_PEER_JOINED",
+  RTC_PEER_LEFT: "RTC_PEER_LEFT",
+  RTC_PEER_RECONNECTING: "RTC_PEER_RECONNECTING",
+  RTC_PEER_RECONNECTED: "RTC_PEER_RECONNECTED",
+
   MESSAGES_ADD_ROOM_UNREAD: "MESSAGES_ADD_ROOM_UNREAD",
   MESSAGES_REMOVE_ROOM_UNREAD: "MESSAGES_REMOVE_ROOM_UNREAD",
   // REMOVED: CLEAR_UNREAD_STATE - no longer needed since we don't clear on logout
@@ -37,8 +46,8 @@ const Actions = {
   REFRESH_MEETINGS: "REFRESH_MEETINGS",
   MESSAGE_DELETED: "MESSAGE_DELETED",
 
-  REFRESH_MEETINGS: "REFRESH_MEETINGS",
-  MESSAGE_DELETED: "MESSAGE_DELETED",
+  RTC_PRODUCER_PAUSED: "RTC_PRODUCER_PAUSED",
+  RTC_PRODUCER_RESUMED: "RTC_PRODUCER_RESUMED",
 };
 
 export default Actions;

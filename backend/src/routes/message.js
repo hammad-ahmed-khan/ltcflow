@@ -35,7 +35,7 @@ module.exports = (req, res, next) => {
 
       // Check if user is a member of this room
       const isMember = room.people.some(
-        (person) => authorID.toString() === person.toString()
+        (person) => authorID.toString() === person.toString(),
       );
 
       if (!isMember) {
@@ -81,18 +81,18 @@ module.exports = (req, res, next) => {
                     lastMessage: message._id,
                     lastAuthor: authorID,
                   },
-                }
+                },
               );
 
               // 🆕 CRITICAL: Auto-mark sender as having read the room
               console.log(
-                `📖 Marking sender ${authorID} as read in room ${roomID}`
+                `📖 Marking sender ${authorID} as read in room ${roomID}`,
               );
 
               // Remove old lastRead entry for sender
               await Room.updateOne(
                 { _id: roomID },
-                { $pull: { lastReadByUser: { userId: authorID } } }
+                { $pull: { lastReadByUser: { userId: authorID } } },
               );
 
               // Add new lastRead entry with current timestamp
@@ -105,7 +105,7 @@ module.exports = (req, res, next) => {
                       lastReadAt: new Date(),
                     },
                   },
-                }
+                },
               );
 
               console.log(`✅ Sender marked as read`);
@@ -128,7 +128,7 @@ module.exports = (req, res, next) => {
               }
 
               console.log(
-                `📡 Emitting message to ${updatedRoom.people.length} room members (including sender's other devices)`
+                `📡 Emitting message to ${updatedRoom.people.length} room members (including sender's other devices)`,
               );
 
               // ✅ FIXED: Emit to ALL room members including sender
@@ -149,7 +149,7 @@ module.exports = (req, res, next) => {
               });
 
               console.log(
-                `✅ Message emitted to ${emittedCount} users (including all sender's devices)`
+                `✅ Message emitted to ${emittedCount} users (including all sender's devices)`,
               );
 
               res.status(200).json({ message, room: updatedRoom });

@@ -4,7 +4,7 @@ import './Message.sass';
 import emojiRegex from 'emoji-regex';
 import { useGlobal } from 'reactn';
 import ReactImageAppear from 'react-image-appear';
-import { FiDownloadCloud, FiMoreVertical, FiTrash2 } from 'react-icons/fi';
+import { FiDownloadCloud, FiMoreVertical, FiTrash2, FiPhone, FiPhoneOff, FiVideo } from 'react-icons/fi';
 import striptags from 'striptags';
 import Config from '../../../config';
 import { buildImageUrl, buildFileUrl } from '../../../utils/urlUtils';
@@ -282,6 +282,115 @@ const Message = memo(({
 
   const shouldShowDropdownButton = isMine && isHovered && window.innerWidth >= 768;
 
+  // ── Call event bubble (Phase 6b) ──
+  // A `type: 'call'` message is centered call history, not a left/right chat
+  // bubble. content is a small JSON blob written by the server on call end.
+  if (message.type === 'call') {
+    let meta = {};
+    try { meta = JSON.parse(message.content || '{}'); } catch (e) { meta = {}; }
+
+    const isVideo = meta.media === 'video';
+    const mediaWord = isVideo ? 'video' : 'voice';
+    const mediaLabel = isVideo ? 'Video call' : 'Voice call';
+    const answered = !!meta.answeredAt;
+    const isGroupCall = meta.type === 'group';
+    // For call messages the author IS the initiator, so `isMine` == "I started it".
+    const initiatorIsMe = isMine || String(meta.initiator) === String(user.id);
+
+    // Group calls are attributed to the initiator and labeled by action, not by
+    // a per-viewer "missed" outcome (which is ambiguous across many members and
+    // already shown per-member in the Missed tab). 1:1 stays viewer-relative.
+    if (isGroupCall) {
+      const who = initiatorIsMe
+        ? 'You'
+        : `${author.firstName || 'Someone'}`;
+      return (
+        <div
+          className="message message-call"
+          style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}
+        >
+          <div
+            className="call-event"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 14px',
+              borderRadius: 16,
+              fontSize: 13,
+              background: '#f0f0f0',
+              color: '#555',
+            }}
+          >
+            {isVideo ? <FiVideo style={{ flexShrink: 0 }} /> : <FiPhone style={{ flexShrink: 0 }} />}
+            <span>{`${who} started a ${mediaWord} call`}</span>
+            <span style={{ opacity: 0.5, marginLeft: 4 }}>
+              {moment(date).format('h:mm A')}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    // 1:1 — viewer-relative outcome.
+    let statusLabel;
+    if (answered) {
+      const secs = Number(meta.duration) || 0;
+      const mm = Math.floor(secs / 60);
+      const ss = String(secs % 60).padStart(2, '0');
+      statusLabel = secs > 0 ? `${mm}:${ss}` : 'Call ended';
+    } else {
+      switch (meta.outcome) {
+        case 'declined':
+          statusLabel = initiatorIsMe ? 'Declined' : 'Missed call';
+          break;
+        case 'cancelled':
+          statusLabel = initiatorIsMe ? 'Cancelled' : 'Missed call';
+          break;
+        case 'no_answer':
+          statusLabel = initiatorIsMe ? 'No answer' : 'Missed call';
+          break;
+        case 'abandoned':
+          statusLabel = 'Call ended';
+          break;
+        default:
+          statusLabel = initiatorIsMe ? 'No answer' : 'Missed call';
+      }
+    }
+
+    const isMissed = !answered && (statusLabel === 'Missed call' || statusLabel === 'No answer');
+    const Icon = isMissed ? FiPhoneOff : (isVideo ? FiVideo : FiPhone);
+
+    return (
+      <div
+        className="message message-call"
+        style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}
+      >
+        <div
+          className={`call-event${isMissed ? ' missed' : ''}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '8px 14px',
+            borderRadius: 16,
+            fontSize: 13,
+            background: isMissed ? '#fdecea' : '#f0f0f0',
+            color: isMissed ? '#d61314' : '#555',
+          }}
+        >
+          <Icon style={{ flexShrink: 0 }} />
+          <span style={{ fontWeight: 600 }}>{mediaLabel}</span>
+          <span style={{ opacity: 0.7 }}>·</span>
+          <span>{statusLabel}</span>
+          <span style={{ opacity: 0.5, marginLeft: 4 }}>
+            {moment(date).format('h:mm A')}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   if (message.isDeleted) {
     return (
       <div
@@ -401,7 +510,7 @@ const Message = memo(({
     prevProps.previous?._id === nextProps.previous?._id &&
     prevProps.next?._id === nextProps.next?._id
   );
-});
+}); 
 
 Message.displayName = 'Message';
 

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './Ringing.sass';
 import { FiVideo, FiPhone, FiPhoneOff } from 'react-icons/fi';
+import CallEnded from './CallEnded';
 import { useGlobal } from 'reactn';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -11,8 +12,12 @@ import postAnswer from '../../../actions/postAnswer';
 import Config from '../../../config';
 import ringSound from '../../../assets/ring.mp3';
 import Actions from '../../../constants/Actions';
+import { acceptCall, declineCall, cancelCall } from '../../../actions/callSignaling';
 
 function Ringing({ incoming, meetingID }) {
+  const io = useSelector((state) => state.io.io);
+  const callState = useSelector((state) => state.rtc.callState);
+  const endReason = useSelector((state) => state.rtc.endReason);
   const counterpart = useSelector((state) => state.rtc.counterpart) || {};
   const [isAudio, setAudio] = useGlobal('audio');
   const [isVideo, setVideo] = useGlobal('video');
@@ -20,7 +25,13 @@ function Ringing({ incoming, meetingID }) {
   const [videoStream, setVideoStream] = useGlobal('videoStream');
   const setAccepted = useGlobal('accepted')[1];
   const callData = useSelector((state) => state.rtc.callData) || {};
+  const callGroup = useGlobal('callGroup')[0] || null;
+  // Group identity: incoming comes from the call:ring payload (callData.group),
+  // outgoing from the callGroup global set by the initiator. null => 1:1.
+  const group = (incoming ? callData.group : callGroup) || null;
   const [acquireError, setAcquireError] = useState(false);
+  const [ended, setEnded] = useState(false);
+  const ringAudioRef = useRef(null);
   const closingState = useSelector((state) => state.rtc.closingState);
   const closed = useSelector((state) => state.rtc.closed);
 
@@ -60,19 +71,30 @@ function Ringing({ incoming, meetingID }) {
     if (isAudio) getAudio();
     if (isVideo) getVideo();
 
+    // Only the callee hears a ringtone. The caller (outgoing) waits silently.
+    if (!incoming) return undefined;
+
     const audio = document.createElement('audio');
     audio.style.display = 'none';
     audio.src = ringSound;
     audio.autoplay = true;
     audio.loop = true;
+    ringAudioRef.current = audio;
 
     return () => {
       if (audio) {
         audio.pause();
         audio.remove();
       }
+      ringAudioRef.current = null;
     };
   }, []);
+
+  const stopRing = () => {
+    try {
+      if (ringAudioRef.current) ringAudioRef.current.pause();
+    } catch (e) {}
+  };
 
   const close = (closingState) => {
     if (isVideo && videoStream) videoStream.getVideoTracks()[0].stop();
@@ -85,8 +107,12 @@ function Ringing({ incoming, meetingID }) {
   };
 
   useEffect(() => {
-    if (closingState && !closed) close(true);
-  }, [closingState, closed]);
+    if (callState !== 'ended') return;
+    stopRing();
+    setEnded(true);
+    const t = setTimeout(() => close(), 1200);
+    return () => clearTimeout(t);
+  }, [callState]);
 
   const join = async () => {
     await setAudio(true);
@@ -94,6 +120,7 @@ function Ringing({ incoming, meetingID }) {
     await getAudio();
     if (acquireError) return;
     setAccepted(true);
+    acceptCall(io, meetingID);            // ← add
     postAnswer({ userID: callData.caller, meetingID });
   };
 
@@ -105,10 +132,38 @@ function Ringing({ incoming, meetingID }) {
     await getAudio();
     if (acquireError) return;
     setAccepted(true);
+    acceptCall(io, meetingID);            // ← add
     postAnswer({ userID: callData.caller, meetingID });
   };
 
+  const decline = () => {
+    declineCall(io, meetingID);
+    close();
+  };
+
+  const cancel = () => {
+    cancelCall(io, meetingID);
+    close();
+  };
+
   function Picture() {
+    if (group) {
+      if (group.picture && group.picture.shieldedID) {
+        return (
+          <img
+            src={`${Config.url || ''}/api/images/${group.picture.shieldedID}/256`}
+            alt="Group"
+            className="picture"
+          />
+        );
+      }
+      const t = (group.title || 'Group').trim();
+      return (
+        <div className="img-wrapper">
+          <div className="img">{t.substr(0, 2).toUpperCase()}</div>
+        </div>
+      );
+    }
     if (!counterpart.firstName) counterpart.firstName = 'Anonymous';
     if (!counterpart.lastName) counterpart.lastName = 'User';
     if (counterpart.picture) {
@@ -141,15 +196,31 @@ function Ringing({ incoming, meetingID }) {
 
   return (
     <div className="join uk-flex uk-flex-middle uk-flex-center uk-flex-column">
+      {ended && <CallEnded reason={endReason} />}
       <img className="logo-little" src={logo} alt="Logo" />
       <p className="title">{getTitle()}</p>
-<p className="name">
-  {counterpart.firstName || 'Unknown'} {counterpart.lastName || 'User'}
-</p>      <div className="picture uk-margin-small">
+      {group ? (
+        <>
+          <p className="name">{group.title || 'Group'}</p>
+          {incoming && (
+            <p className="subtitle">
+              {(counterpart.firstName || 'Someone')}
+              {' · '}
+              {group.title || 'Group'}
+            </p>
+          )}
+        </>
+      ) : (
+        <p className="name">
+          {counterpart.firstName || 'Unknown'} {counterpart.lastName || 'User'}
+        </p>
+      )}
+      <div className="picture uk-margin-small">
         <Picture />
       </div>
+      {/* incoming: decline / answer (audio) / answer with video */}
       <div className="uk-flex" hidden={!incoming}>
-        <div className="rounded-button close" onClick={close}>
+        <div className="rounded-button close" onClick={decline}>
           <FiPhoneOff className="button-icon" />
         </div>
         <div className="rounded-button" onClick={join}>
@@ -159,8 +230,10 @@ function Ringing({ incoming, meetingID }) {
           <FiVideo className="button-icon" />
         </div>
       </div>
+
+      {/* outgoing: cancel */}
       <div className="uk-flex" hidden={incoming}>
-        <div className="rounded-button close" onClick={close}>
+        <div className="rounded-button close" onClick={cancel}>
           <FiPhoneOff className="button-icon" />
         </div>
       </div>

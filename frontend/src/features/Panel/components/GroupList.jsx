@@ -6,6 +6,7 @@ import { FiUsers, FiMessageCircle, FiSettings } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import moment from 'moment';
 import Picture from '../../../components/Picture';
+import messagePreview from '../../../utils/messagePreview';
 import './GroupList.sass';
 
 function GroupList() {
@@ -94,17 +95,7 @@ function GroupList() {
           messageText = 'No messages yet.';
         } else {
           if (lastMessage.author === user.id) messageText += 'You: ';
-          
-          switch (lastMessage.type) {
-            case 'file':
-              messageText += 'Sent a file.';
-              break;
-            case 'image':
-              messageText += 'Sent a picture.';
-              break;
-            default:
-              messageText += lastMessage.content || '';
-          }
+          messageText += messagePreview(lastMessage);
         }
         
         const date = lastMessage && isGroupMember ? moment(lastMessage.date).format('MMM D') : '';
@@ -188,7 +179,7 @@ function GroupList() {
               </div>
             )}
           </div>
-        );
+        ); 
       })}
     </>
   );

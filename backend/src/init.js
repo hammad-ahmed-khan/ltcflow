@@ -13,6 +13,7 @@ const passport = require("passport");
 const { Strategy, ExtractJwt } = require("passport-jwt");
 const { AsyncNedb } = require("nedb-async");
 const mediasoup = require("./mediasoup");
+const { initCallSocket } = require("./calls");
 const Meeting = require("./models/Meeting");
 
 module.exports = () => {
@@ -25,7 +26,7 @@ module.exports = () => {
       socketioJwt.authorize({
         secret: store.config.secret,
         timeout: 15000, // 15 seconds to send the authentication message
-      })
+      }),
     )
     .on("authenticated", (socket) => {
       const { email, id } = socket.decoded_token;
@@ -33,7 +34,7 @@ module.exports = () => {
 
       // ADD THIS: Enhanced connection logging
       console.log(
-        `🔌 Socket ${socket.id} authenticated for user ${id} (${email})`
+        `🔌 Socket ${socket.id} authenticated for user ${id} (${email})`,
       );
 
       // JOIN USER TO THEIR OWN ROOM (important for message deletion notifications)
@@ -42,10 +43,12 @@ module.exports = () => {
 
       mediasoup.initSocket(socket);
 
+      initCallSocket(socket);
+
       socket.join(id);
 
       events.forEach((event) =>
-        socket.on(event.tag, (data) => event.callback(socket, data))
+        socket.on(event.tag, (data) => event.callback(socket, data)),
       );
 
       store.socketIds.push(socket.id);
@@ -89,7 +92,7 @@ module.exports = () => {
           let roomID = store.roomIDs[socket.id];
           store.consumerUserIDs[roomID].splice(
             store.consumerUserIDs[roomID].indexOf(socket.id),
-            1
+            1,
           );
           socket.to(roomID).emit("consumers", {
             content: store.consumerUserIDs[roomID],
@@ -106,7 +109,7 @@ module.exports = () => {
         store.sockets[socket.id] = undefined;
         store.socketsByUserID[id] = removeSocket(
           store.socketsByUserID[id],
-          socket
+          socket,
         );
         User.findOneAndUpdate({ _id: id }, { $set: { lastOnline: Date.now() } })
           .then(() => console.log("last online " + id))
@@ -147,8 +150,8 @@ module.exports = () => {
             return done(null, false);
           })
           .catch((err) => console.log(err));
-      }
-    )
+      },
+    ),
   );
   //store.app.use("/api", router);
   // Apply formidable to all normal routes under /api
@@ -158,7 +161,7 @@ module.exports = () => {
     formidableMiddleware({
       maxFileSize: 500 * 1024 * 1024, // 500MB
     }),
-    router
+    router,
   );
 
   store.app.post(
@@ -170,7 +173,7 @@ module.exports = () => {
         req.rawBody = buf.toString("utf-8");
       },
     }),
-    require("./routes/outseta-webhook")
+    require("./routes/outseta-webhook"),
   );
 
   // 🆕 ADD THIS: Push Notification Routes (needs JSON parsing, not formidable)
@@ -178,13 +181,13 @@ module.exports = () => {
     "/push",
     express.json(),
     passport.authenticate("jwt", { session: false }),
-    require("./routes/pushSubscriptions")
+    require("./routes/pushSubscriptions"),
   );
 
   const mongooseConnect = () => {
     let connecting = setTimeout(
       () => console.log("Connecting to DB...".yellow),
-      1000
+      1000,
     );
 
     const { mongo } = store.config;
@@ -239,14 +242,14 @@ module.exports = () => {
               companyId: company._id,
             },
           },
-          { upsert: true, new: true }
+          { upsert: true, new: true },
         );
 
         console.log("Root user created/updated".green);
 
         // 3️⃣ Reset meetings peers
         await Meeting.updateMany({}, { $set: { peers: [] } }).catch((err) =>
-          console.log(err)
+          console.log(err),
         );
 
         console.log("Connected to DB".green);

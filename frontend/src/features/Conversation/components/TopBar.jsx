@@ -11,12 +11,13 @@ import moment from 'moment';
 import Picture from '../../../components/Picture';
 import toggleFavorite from '../../../actions/toggleFavorite';
 import getMeetingRoom from '../../../actions/getMeetingRoom';
-import postCall from '../../../actions/postCall';
+import { initiateCall } from '../../../actions/callSignaling';
 import Actions from '../../../constants/Actions';
 import Config from '../../../config';
 
 function TopBar({ back, loading }) {
   const onlineUsers = useSelector((state) => state.io.onlineUsers);
+  const io = useSelector((state) => state.io.io);
   const room = useSelector((state) => state.io.room) || {};
   const user = useGlobal('user')[0];
   const [favorites, setFavorites] = useGlobal('favorites');
@@ -25,6 +26,7 @@ function TopBar({ back, loading }) {
   const setVideo = useGlobal('video')[1];
   const setCallDirection = useGlobal('callDirection')[1];
   const setMeeting = useGlobal('meeting')[1];
+  const setCallGroup = useGlobal('callGroup')[1];
   const [showRoomInfo, setShowRoomInfo] = useGlobal('showRoomInfo');
 
   const { addToast } = useToasts();
@@ -71,6 +73,11 @@ function TopBar({ back, loading }) {
     await setVideo(isVideo);
     await setCallDirection('outgoing');
     dispatch({ type: Actions.RTC_SET_COUNTERPART, counterpart: other });
+    await setCallGroup(
+      room.isGroup
+        ? { _id: room._id, title: room.title, picture: room.picture }
+        : null,
+    );
     try {
       const res = await getMeetingRoom({
         startedAsCall: true,
@@ -80,8 +87,14 @@ function TopBar({ back, loading }) {
         group: room._id,
       });
       await setMeeting(res.data);
+      dispatch({ type: Actions.RTC_CALL_STATE, state: 'ringing_out' });
       navigate(`/meeting/${res.data._id}`, { replace: true });
-      await postCall({ roomID: room._id, meetingID: res.data._id });
+      await initiateCall(io, {
+        meetingId: res.data._id,
+        roomId: room._id,
+        type: room.isGroup ? 'group' : '1:1',
+        media: isVideo ? 'video' : 'audio',
+      });
     } catch (e) {
       errorToast('Server error. Unable to initiate call.');
     }
@@ -207,7 +220,7 @@ function TopBar({ back, loading }) {
                 </div>
               </div>
             )}
-            {Config.demo && (
+            {Config.demo && (  
               <div className="link" onClick={codeCanyon}>
                 CodeCanyon
                 <div className="icon">

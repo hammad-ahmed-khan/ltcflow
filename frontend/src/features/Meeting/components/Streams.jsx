@@ -15,7 +15,9 @@ function Streams({
 
   const actualConsumers = consumers.filter((c) => c !== socketID);
   const actualPeers = [];
-  
+
+  const pausedProducers = useSelector((state) => state.rtc.pausedProducers);
+
   actualConsumers.forEach((consumerID) => {
     const actualPeer = {
       ...peers[consumerID],
@@ -27,10 +29,11 @@ function Streams({
     const peerStreams = streams.filter((s) => s && s.socketID === consumerID);
     peerStreams.forEach((stream) => {
       if (!stream) return; // Safety check
-      
+
       actualPeer.streams = [...(actualPeer.streams || []), stream];
+
       if (stream.isVideo) {
-        actualPeer.video = stream;
+        actualPeer.video = pausedProducers.includes(stream.producerID) ? null : stream;
       } else {
         actualPeer.audio = stream;
       }
@@ -90,14 +93,6 @@ function Streams({
         </div>,
       );
       row = [];
-    }
-    
-    // FIX: Add safety checks for debugging
-    if (peer.video && peer.video.getTracks) {
-      const videoTracks = peer.video.getVideoTracks();
-      if (videoTracks.length > 0) {
-        console.log('video track state:', videoTracks[0].readyState);
-      }
     }
     
     row.push(

@@ -42,7 +42,7 @@ function initCleanupInterval() {
 
     if (cleanedCount > 0) {
       console.log(
-        `🧹 Cache cleanup: removed ${cleanedCount} expired entries, ${outsetaStatusCache.size} remaining`
+        `🧹 Cache cleanup: removed ${cleanedCount} expired entries, ${outsetaStatusCache.size} remaining`,
       );
     }
   }, CLEANUP_INTERVAL_MS);
@@ -167,11 +167,11 @@ async function getOutsetaStatus(company) {
   const requestPromise = (async () => {
     try {
       console.log(
-        `🔍 Checking Outseta account status for: ${company.name} [${accountId}]`
+        `🔍 Checking Outseta account status for: ${company.name} [${accountId}]`,
       );
 
       const outsetaResponse = await outsetaApi.client.get(
-        `/accounts/${accountId}`
+        `/accounts/${accountId}`,
       );
       const outsetaAccount = outsetaResponse.data;
 
@@ -183,7 +183,7 @@ async function getOutsetaStatus(company) {
       if (!ALLOWED_OUTSETA_STATES.includes(outsetaAccount.State)) {
         unknownStatesEncountered.add(outsetaAccount.State);
         console.warn(
-          `⚠️ Unknown Outseta state encountered: ${outsetaAccount.State} for company: ${company.name}`
+          `⚠️ Unknown Outseta state encountered: ${outsetaAccount.State} for company: ${company.name}`,
         );
 
         // In production, send alert to monitoring system
@@ -237,7 +237,7 @@ router.get("/check-subdomain", async (req, res) => {
     return res.status(400).json(
       createResponse(false, null, {
         message: "Subdomain required",
-      })
+      }),
     );
   }
 
@@ -253,28 +253,28 @@ router.get("/check-subdomain", async (req, res) => {
       return res.json(
         createResponse(false, null, {
           message: "Company not found",
-        })
+        }),
       );
     }
 
-    // Exception for demo subdomain - always allow access
-    if (normalizedSubdomain === "demo") {
+    // Exception for staging subdomain - always allow access
+    if (normalizedSubdomain === "staging") {
       console.log(`✅ Demo subdomain access granted: ${normalizedSubdomain}`);
       return res.json(
         createResponse(true, company, {
           isDemoAccount: true,
           message: "Demo account access granted",
-        })
+        }),
       );
     }
-
+    /*
     // Check if company has Outseta integration
     if (!company.outsetaAccountId) {
       console.log(`⚠️ Company ${company.name} has no Outseta account ID`);
       return res.json(
         createResponse(false, company, {
           message: "Company not properly configured with billing system",
-        })
+        }),
       );
     }
 
@@ -285,15 +285,16 @@ router.get("/check-subdomain", async (req, res) => {
         createResponse(true, company, {
           outsetaStatus: "not_configured",
           message: "Billing system not configured - access granted",
-        })
+        }),
       );
     }
+      */
 
     // Check cache first
     const cachedStatus = getCachedStatus(company.outsetaAccountId);
     if (cachedStatus) {
       console.log(
-        `📋 Using cached Outseta status for: ${company.name} [${cachedStatus.state}]`
+        `📋 Using cached Outseta status for: ${company.name} [${cachedStatus.state}]`,
       );
 
       const isActive = ALLOWED_OUTSETA_STATES.includes(cachedStatus.state);
@@ -304,7 +305,7 @@ router.get("/check-subdomain", async (req, res) => {
             ? "Company verified (cached)"
             : `Company account is ${cachedStatus.state.toLowerCase()}`,
           fromCache: true,
-        })
+        }),
       );
     }
 
@@ -314,12 +315,12 @@ router.get("/check-subdomain", async (req, res) => {
     if (!result.success) {
       if (result.reason === "account_not_found") {
         console.log(
-          `❌ Outseta account not found: ${company.outsetaAccountId}`
+          `❌ Outseta account not found: ${company.outsetaAccountId}`,
         );
         return res.json(
           createResponse(false, company, {
             message: "Company account not found in billing system",
-          })
+          }),
         );
       }
 
@@ -339,7 +340,7 @@ router.get("/check-subdomain", async (req, res) => {
           subdomain: normalizedSubdomain,
           error: result.error?.message,
           timestamp: new Date().toISOString(),
-        }
+        },
       );
 
       // Fail open (recommended for better user experience)
@@ -348,7 +349,7 @@ router.get("/check-subdomain", async (req, res) => {
           outsetaStatus: "check_failed",
           message:
             "Company found but billing status check failed - access granted",
-        })
+        }),
       );
     }
 
@@ -357,26 +358,26 @@ router.get("/check-subdomain", async (req, res) => {
 
     if (!isActive) {
       console.log(
-        `❌ Outseta account inactive: ${company.name} [${statusData.state}]`
+        `❌ Outseta account inactive: ${company.name} [${statusData.state}]`,
       );
       return res.json(
         createResponse(false, company, {
           outsetaStatus: statusData.state,
           message: `Company account is ${statusData.state.toLowerCase()}`,
-        })
+        }),
       );
     }
 
     // Account is active in Outseta
     console.log(
-      `✅ Outseta account verified as active: ${company.name} [${statusData.state}]`
+      `✅ Outseta account verified as active: ${company.name} [${statusData.state}]`,
     );
 
     return res.json(
       createResponse(true, company, {
         outsetaStatus: statusData.state,
         message: "Company verified and active",
-      })
+      }),
     );
   } catch (error) {
     console.error("Error checking subdomain:", {
@@ -388,7 +389,7 @@ router.get("/check-subdomain", async (req, res) => {
     res.status(500).json(
       createResponse(false, null, {
         message: "Server error",
-      })
+      }),
     );
   }
 });
@@ -423,7 +424,7 @@ router.delete("/check-subdomain/cache", requireAuth, (req, res) => {
   unknownStatesEncountered.clear();
 
   console.log(
-    `🧹 Outseta status cache cleared (${previousSize} entries removed)`
+    `🧹 Outseta status cache cleared (${previousSize} entries removed)`,
   );
   res.json({
     status: "cache cleared",

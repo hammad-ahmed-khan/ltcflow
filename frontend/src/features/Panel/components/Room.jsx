@@ -13,8 +13,11 @@ import Actions from '../../../constants/Actions';
 import removeRoom from '../../../actions/removeRoom';
 import getRooms from '../../../actions/getRooms';
 import getRoom from '../../../actions/getRoom';
+import { initiateCall } from '../../../actions/callSignaling';
+import messagePreview from '../../../utils/messagePreview';
 
 function Room({ room }) {
+  const io = useSelector((state) => state.io.io);
   const roomsWithNewMessages = useSelector((state) => state.messages.roomsWithNewMessages);
   const onlineUsers = useSelector((state) => state.io.onlineUsers);
   const currentRoom = useSelector((state) => state.io.room);
@@ -53,16 +56,7 @@ function Room({ room }) {
 
   if (lastMessage.author === user.id && !room.isGroup) text += 'You: ';
 
-  switch (lastMessage.type) {
-    case 'file':
-      text += 'Sent a file.';
-      break;
-    case 'image':
-      text += 'Sent a picture.';
-      break;
-    default:
-      text += lastMessage.content || '';
-  }
+  text += messagePreview(lastMessage);
 
   const date = lastMessage ? moment(lastMessage.date).format('MMM D') : '';
   const time = lastMessage ? moment(lastMessage.date).format('h:mm A') : '';
@@ -153,8 +147,14 @@ function Room({ room }) {
         group: room._id,
       });
       await setMeeting(res.data);
+      dispatch({ type: Actions.RTC_CALL_STATE, state: 'ringing_out' });
       navigate(`/meeting/${res.data._id}`, { replace: true });
-      await postCall({ roomID: room._id, meetingID: res.data._id });
+      await initiateCall(io, {
+        meetingId: res.data._id,
+        roomId: room._id,
+        type: room.isGroup ? 'group' : '1:1',
+        media: isVideo ? 'video' : 'audio',
+      });
     } catch (e) {
       errorToast('Server error. Unable to initiate call.');
     }

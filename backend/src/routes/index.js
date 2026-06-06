@@ -15,118 +15,118 @@ router.post("/login", require("./login"));
 router.post(
   "/typing",
   passport.authenticate("jwt", { session: false }, null),
-  require("./typing")
+  require("./typing"),
 );
 router.post("/check-user", require("./checkUser"));
 router.post(
   "/upload",
   passport.authenticate("jwt", { session: false }, null),
-  require("./upload")
+  require("./upload"),
 );
 router.post(
   "/upload/file",
   passport.authenticate("jwt", { session: false }, null),
-  require("./upload-file")
+  require("./upload-file"),
 );
 router.post("/register", require("./register"));
 router.post(
   "/user/delete",
   passport.authenticate("jwt", { session: false }, null),
-  require("./user-delete")
+  require("./user-delete"),
 );
 router.post(
   "/user/edit",
   passport.authenticate("jwt", { session: false }, null),
-  require("./user-edit")
+  require("./user-edit"),
 );
 router.post(
   "/user/list",
   passport.authenticate("jwt", { session: false }, null),
-  require("./user-list")
+  require("./user-list"),
 );
 
 router.post(
   "/edit-profile",
   passport.authenticate("jwt", { session: false }, null),
-  require("./edit-profile")
+  require("./edit-profile"),
 );
 
 router.post(
   "/picture/change",
   passport.authenticate("jwt", { session: false }, null),
-  require("./change-picture")
+  require("./change-picture"),
 );
 router.post(
   "/picture/remove",
   passport.authenticate("jwt", { session: false }, null),
-  require("./change-picture")
+  require("./change-picture"),
 );
 
 router.post(
   "/favorite/toggle",
   passport.authenticate("jwt", { session: false }, null),
-  require("./toggle-favorite")
+  require("./toggle-favorite"),
 );
 router.post(
   "/favorites/list",
   passport.authenticate("jwt", { session: false }, null),
-  require("./list-favorites")
+  require("./list-favorites"),
 );
 router.post(
   "/rooms/list",
   passport.authenticate("jwt", { session: false }, null),
-  require("./list-rooms")
+  require("./list-rooms"),
 );
 router.post(
   "/room/get",
   passport.authenticate("jwt", { session: false }, null),
-  require("./get-room")
+  require("./get-room"),
 );
 router.post(
   "/room/create",
   passport.authenticate("jwt", { session: false }, null),
-  require("./create-room")
+  require("./create-room"),
 );
 router.post(
   "/room/join",
   passport.authenticate("jwt", { session: false }, null),
-  require("./join-room")
+  require("./join-room"),
 );
 router.post(
   "/room/remove",
   passport.authenticate("jwt", { session: false }, null),
-  require("./remove-room")
+  require("./remove-room"),
 );
 router.post(
   "/search",
   passport.authenticate("jwt", { session: false }, null),
-  require("./search")
+  require("./search"),
 );
 router.post(
   "/message",
   passport.authenticate("jwt", { session: false }, null),
-  require("./message")
+  require("./message"),
 );
 router.post(
   "/messages/more",
   passport.authenticate("jwt", { session: false }, null),
-  require("./more-messages")
+  require("./more-messages"),
 );
 router.post(
   "/group/create",
   passport.authenticate("jwt", { session: false }, null),
-  require("./create-group")
+  require("./create-group"),
 );
 
 router.post(
   "/rtc/create",
   passport.authenticate("jwt", { session: false }, null),
-  require("./rtc/create")
+  require("./rtc/create"),
 );
 router.post(
   "/rtc/join",
   passport.authenticate("jwt", { session: false }, null),
-  require("./rtc/join")
+  require("./rtc/join"),
 );
 router.post("/rtc/peers", require("./rtc/peers"));
 
@@ -134,27 +134,27 @@ router.post("/meeting/get", require("./meeting/get"));
 router.post(
   "/meeting/call",
   passport.authenticate("jwt", { session: false }, null),
-  require("./meeting/call")
+  require("./meeting/call"),
 );
 router.post(
   "/meeting/add",
   passport.authenticate("jwt", { session: false }, null),
-  require("./meeting/add")
+  require("./meeting/add"),
 );
 router.post(
   "/meeting/answer",
   passport.authenticate("jwt", { session: false }, null),
-  require("./meeting/answer")
+  require("./meeting/answer"),
 );
 router.post(
   "/meeting/close",
   passport.authenticate("jwt", { session: false }, null),
-  require("./meeting/close")
+  require("./meeting/close"),
 );
 router.post(
   "/meeting/list",
   passport.authenticate("jwt", { session: false }, null),
-  require("./meeting/list")
+  require("./meeting/list"),
 );
 
 router.post("/auth/change", require("./auth/change"));
@@ -164,24 +164,24 @@ router.post("/auth/verify", require("./auth/verify"));
 router.post(
   "/users/change-password",
   passport.authenticate("jwt", { session: false }, null),
-  require("./users/change-password")
+  require("./users/change-password"),
 );
 
 router.get("/company/:id", require("./company"));
 router.get(
   "/company/subdomain/:subdomain",
-  require("./company").getCompanyBySubdomain
+  require("./company").getCompanyBySubdomain,
 );
 // 🆕 NEW: Company management routes (authenticated - root users only)
 router.post(
   "/company/update",
   passport.authenticate("jwt", { session: false }, null),
-  require("./company-management").updateCompany
+  require("./company-management").updateCompany,
 );
 router.post(
   "/company/logo/remove",
   passport.authenticate("jwt", { session: false }, null),
-  require("./company-management").removeCompanyLogo
+  require("./company-management").removeCompanyLogo,
 );
 router.post("/company/create", require("./create-company"));
 
@@ -189,7 +189,7 @@ router.post("/company/create", require("./create-company"));
 router.post(
   "/toggle-user-status",
   passport.authenticate("jwt", { session: false }, null),
-  require("./toggle-user-status")
+  require("./toggle-user-status"),
 );
 
 // Test email route (for development)
@@ -214,25 +214,25 @@ router.post("/cancel-activation", require("./cancel-activation"));
 router.post(
   "/group/add-member",
   passport.authenticate("jwt", { session: false }, null),
-  require("./group-add-member")
+  require("./group-add-member"),
 );
 
 router.post(
   "/group/remove-member",
   passport.authenticate("jwt", { session: false }, null),
-  require("./group-remove-member")
+  require("./group-remove-member"),
 );
 
 router.post(
   "/group/update-info",
   passport.authenticate("jwt", { session: false }, null),
-  require("./group-update-info")
+  require("./group-update-info"),
 );
 
 router.post(
   "/group/delete",
   passport.authenticate("jwt", { session: false }, null),
-  require("./group-delete")
+  require("./group-delete"),
 );
 
 // Webhook route
@@ -241,25 +241,25 @@ router.post("/webhook/outseta", require("./outseta-webhook"));
 router.post(
   "/message/delete",
   passport.authenticate("jwt", { session: false }, null),
-  require("./delete-message")
+  require("./delete-message"),
 );
 
 router.post(
   "/unread-summary",
   passport.authenticate("jwt", { session: false }),
-  require("./unread-summary")
+  require("./unread-summary"),
 );
 
 router.post(
   "/mark-room-read",
   passport.authenticate("jwt", { session: false }),
-  require("./mark-room-read")
+  require("./mark-room-read"),
 );
 
 router.post(
   "/room/media",
   passport.authenticate("jwt", { session: false }, null),
-  require("./get-room-media")
+  require("./get-room-media"),
 );
 router.get(
   "/billing/company/current",
@@ -282,7 +282,7 @@ router.get(
       // Get detailed stats for current month
       const detailedStats = await MonthlyActiveUser.getDetailedMonthlyStats(
         companyId,
-        currentMonth
+        currentMonth,
       );
 
       // 🔥 FIX: detailedStats is an object, not an array
@@ -322,7 +322,7 @@ router.get(
         message: error.message,
       });
     }
-  }
+  },
 );
 
 // Get billing for specific month
@@ -344,7 +344,7 @@ router.get(
 
       const billingData = await BillingHelper.getCompanyBillingData(
         companyId,
-        month
+        month,
       );
 
       res.json({
@@ -359,7 +359,7 @@ router.get(
         message: error.message,
       });
     }
-  }
+  },
 );
 
 // Get current month stats for a company (simpler version)
@@ -384,7 +384,7 @@ router.get(
         message: error.message,
       });
     }
-  }
+  },
 );
 
 // Admin-only route to get all companies billing (if needed)
@@ -412,11 +412,11 @@ router.get(
           totalCompanies: allBilling.length,
           totalUsers: allBilling.reduce(
             (sum, company) => sum + company.totalBillableUsers,
-            0
+            0,
           ),
           totalRevenue: allBilling.reduce(
             (sum, company) => sum + (company.billing?.totalAmount || 0),
-            0
+            0,
           ),
         },
       });
@@ -428,7 +428,7 @@ router.get(
         message: error.message,
       });
     }
-  }
+  },
 );
 
 // Get billing configuration for the authenticated user's company
@@ -486,9 +486,23 @@ router.get(
         message: error.message,
       });
     }
-  }
+  },
 );
-
+router.get(
+  "/calls/missed",
+  passport.authenticate("jwt", { session: false }),
+  require("./calls/missed"),
+);
+router.post(
+  "/calls/missed/clear",
+  passport.authenticate("jwt", { session: false }),
+  require("./calls/missed-clear"),
+);
+router.post(
+  "/calls/missed/seen",
+  passport.authenticate("jwt", { session: false }),
+  require("./calls/missed-seen"),
+);
 // Helper function to get currency symbol
 function getCurrencySymbol(currency) {
   const symbols = {

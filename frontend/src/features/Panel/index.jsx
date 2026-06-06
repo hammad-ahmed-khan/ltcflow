@@ -18,6 +18,7 @@ import search from '../../actions/search';
 import getFavorites from '../../actions/getFavorites';
 import Actions from '../../constants/Actions';
 import Settings from './components/Settings';
+import MissedCalls from './components/MissedCalls';
 
 function Panel() {
   const nav = useGlobal('nav')[0];
@@ -195,6 +196,9 @@ function Panel() {
             )}
           </>
         )}
+
+        {/* MISSED TAB */}
+        {nav === 'missed' && <MissedCalls />}
 
         {nav === 'settings' && <Settings />}
       </div>

@@ -29,8 +29,8 @@ import Ringing from './components/Ringing';
 import Streams from './components/Streams';
 import LittleStreams from './components/LittleStreams';
 import postClose from '../../actions/postClose';
-
-
+import { leaveCall, rejoinCall } from '../../actions/callSignaling';
+import CallEnded from './components/CallEnded';
 
 function Meeting() {
   const [device, setDevice] = useState(null);
@@ -40,12 +40,17 @@ function Meeting() {
   const audioProducerRef = useRef(null);
   const consumerTransportRef = useRef(null);
   const consumersRef = useRef({});
-const deviceRef = useRef(null);
-
+  const deviceRef = useRef(null);
   const consumerRetryCountRef = useRef(0);
-const producerRetryCountRef = useRef(0);
+  const producerRetryCountRef = useRef(0);
+  const reconnectingRef = useRef(false);
+  const callState = useSelector((state) => state.rtc.callState);
+  const endReason = useSelector((state) => state.rtc.endReason);
+  const endedIncrement = useSelector((state) => state.rtc.endedIncrement);
+  const reconnectingPeers = useSelector((state) => state.rtc.reconnectingPeers);
+  const [showEnded, setShowEnded] = useState(false);
 
-const MAX_RETRIES = 5;
+  const MAX_RETRIES = 5;
 
 // Retry helper
 const retry = (fn, counterRef) => {
@@ -57,6 +62,13 @@ const retry = (fn, counterRef) => {
   counterRef.current++;
   console.log(`Retrying in ${delay}ms...`);
   setTimeout(fn, delay);
+};
+
+const hangUp = async () => {
+  try {
+    await leaveCall(io, roomID);   // lifecycle: server decides if call ends
+  } catch (e) {}
+  close();                          // existing media teardown + navigate
 };
 
   const io = useSelector((state) => state.io.io);
@@ -136,7 +148,40 @@ const [reconnected, setReconnected] = useState(false);
       }
     };
   }, []);
+useEffect(() => {
+  if (callState !== 'ended') return;
+  setShowEnded(true);
+  const t = setTimeout(() => {
+    setShowEnded(false);
+    close();
+  }, 1500);
+  return () => clearTimeout(t);
+}, [endedIncrement]); // bump-based so repeat calls re-trigger cleanly
 
+// Reconnection: when the signaling socket drops and comes back (new socket.id),
+// re-attach to the call within the server's grace window (call:rejoin) and
+// rebuild media. The grace timer on the server holds the participant's seat as
+// 'reconnecting' until this fires (or the window expires).
+useEffect(() => {
+  if (!io) return undefined;
+  const onDisconnect = () => {
+    if (getGlobal().callStatus === 'in-call') setReconnecting(true);
+  };
+  const onReconnect = async () => {
+    if (getGlobal().callStatus !== 'in-call') return;
+    try { await rejoinCall(io, roomID); } catch (e) {}
+    await fullReconnect();
+  };
+  io.on('disconnect', onDisconnect);
+  io.on('reconnect', onReconnect);
+  // socket.io v4 surfaces manager-level reconnect on io.io
+  if (io.io && io.io.on) io.io.on('reconnect', onReconnect);
+  return () => {
+    try { io.off('disconnect', onDisconnect); } catch (e) {}
+    try { io.off('reconnect', onReconnect); } catch (e) {}
+    try { if (io.io && io.io.off) io.io.off('reconnect', onReconnect); } catch (e) {}
+  };
+}, [io, roomID]);
 const getAudio = async () => {
 
   const constraints = {
@@ -284,6 +329,92 @@ const stopScreen = async () => {
   }
 };
 
+// ── Camera toggle (Phase 5) ──
+// CRITICAL: never call transport.produce() more than once per kind per call.
+// A second produce() renegotiates (createOffer) and collides with the stale
+// m-section's RTP header-extension IDs ("RTP extension ID reassignment not
+// supported"), which is why turning the camera back on failed. So we create the
+// producer once, then pause + replaceTrack to turn it off/on with no
+// renegotiation. replaceTrack swaps the outgoing track without an offer.
+const toggleVideo = async () => {
+  try {
+    if (video) {
+      // OFF: pause the producer and release the camera (light off).
+      if (videoProducerRef.current) {
+        try { videoProducerRef.current.pause(); } catch (e) {}
+        try {
+          io.emit('producer-paused', {
+            producerID: videoProducerRef.current.id, roomID, kind: 'video',
+          });
+        } catch (e) {}
+      }
+      if (videoStream) videoStream.getVideoTracks().forEach((t) => t.stop());
+      await setVideo(false);
+    } else {
+      // ON
+      const stream = await getVideo();
+      await setVideo(true);
+      if (!videoProducerRef.current) {
+        // First time this call: create the single video producer.
+        await produceVideo(stream);
+      } else {
+        // Reuse the existing producer: swap in the fresh track, no renegotiation.
+        const track = stream.getVideoTracks()[0];
+        await videoProducerRef.current.replaceTrack({ track });
+        try { videoProducerRef.current.resume(); } catch (e) {}
+        await setLocalStream(stream);
+        try {
+          io.emit('producer-resumed', {
+            producerID: videoProducerRef.current.id, roomID, kind: 'video',
+          });
+        } catch (e) {}
+      }
+    }
+  } catch (e) {
+    console.error('toggleVideo failed:', e);
+    setVideo(false);
+  }
+};
+
+// ── Mic toggle (Phase 5) ──
+// Same principle: produce once, then pause/resume. We keep the mic track warm
+// (just disable it) so unmute is instant.
+const toggleAudio = async () => {
+  try {
+    if (audio) {
+      // MUTE
+      if (audioProducerRef.current) {
+        try { audioProducerRef.current.pause(); } catch (e) {}
+        try {
+          io.emit('producer-paused', {
+            producerID: audioProducerRef.current.id, roomID, kind: 'audio',
+          });
+        } catch (e) {}
+      }
+      if (audioStream) audioStream.getAudioTracks().forEach((t) => { t.enabled = false; });
+      await setAudio(false);
+    } else {
+      // UNMUTE
+      if (!audioProducerRef.current) {
+        const stream = await getAudio();
+        await setAudio(true);
+        await produceAudio(stream);
+      } else {
+        if (audioStream) audioStream.getAudioTracks().forEach((t) => { t.enabled = true; });
+        try { audioProducerRef.current.resume(); } catch (e) {}
+        await setAudio(true);
+        try {
+          io.emit('producer-resumed', {
+            producerID: audioProducerRef.current.id, roomID, kind: 'audio',
+          });
+        } catch (e) {}
+      }
+    }
+  } catch (e) {
+    console.error('toggleAudio failed:', e);
+  }
+};
+
   // Updated init function to create default transport
 const init = async () => {
   await setCallStatus('in-call');
@@ -346,73 +477,33 @@ deviceRef.current = device;
 transport.on('connectionstatechange', async (state) => {
   switch (state) {
     case 'connected':
-      console.log("Producer transport connected");
+      console.log('Producer transport connected');
       producerRetryCountRef.current = 0; // reset retries
-       //setReconnecting(false);
-      //setReconnected(true);
-      //setTimeout(() => setReconnected(false), 2000); // hide after 2s
+      setReconnecting(false);
+      setReconnected(true);
+      setTimeout(() => setReconnected(false), 2000); // hide after 2s
       break;
     case 'failed':
     case 'disconnected':
-    case 'closed':
-      /*
-     console.warn("Producer transport failed, reconnecting...");
-     
+      console.warn('Producer transport', state, '- attempting recovery');
       setReconnecting(true);
-      try { transport.close(); } catch (e) {}
-      transportRef.current = null;
-
-      retry(async () => {
-        if (!deviceRef.current) {
-          console.warn("Device not ready, skipping reconnect");
-          return;
-        }
-
-        console.log("Recreating producer transport...");
-
-        const data = await io.request('createProducerTransport', {
-          forceTcp: false,
-          rtpCapabilities: deviceRef.current.rtpCapabilities,
-          roomID,
-        });
-        if (data.error) {
-          console.error("Failed to recreate producer transport:", data.error);
-          return;
-        }
-
-        const newTransport = deviceRef.current.createSendTransport(data);
-        transportRef.current = newTransport;
-
-        // rebind handlers
-        newTransport.on("connect", ({ dtlsParameters }, callback, errback) => {
-          io.request("connectProducerTransport", { dtlsParameters })
-            .then(callback)
-            .catch(errback);
-        });
-
-        newTransport.on("produce", async ({ kind, rtpParameters, appData }, callback, errback) => {
-          try {
-            const { id } = await io.request("produce", {
-              transportId: newTransport.id,
-              kind,
-              rtpParameters,
-              roomID,
-              isScreen: appData && appData.isScreen,
-            });
-            callback({ id });
-          } catch (err) {
-            errback(err);
+      // If the socket is still alive, this is an ICE / network-path failure
+      // (e.g. Wi-Fi -> cellular). An ICE restart recovers it cheaply, keeping
+      // producers and consumers intact.
+      if (io && io.connected) {
+        try {
+          const res = await io.request('restartIce', { type: 'producer', roomID });
+          if (res && res.iceParameters) {
+            await transport.restartIce({ iceParameters: res.iceParameters });
           }
-        });
-
-        // 🔄 re-produce tracks (video/audio/screen if active)
-        if (getGlobal().videoStream) await produceVideo(getGlobal().videoStream);
-        if (getGlobal().audioStream) await produceAudio(getGlobal().audioStream);
-        if (getGlobal().screenStream) await produceScreen(getGlobal().screenStream);
-
-      }, producerRetryCountRef);
-      */
+        } catch (e) {
+          console.warn('Producer ICE restart failed:', e && e.message);
+        }
+      }
+      // If the socket itself dropped, the full rebuild + lifecycle rejoin runs
+      // on the socket 'reconnect' event (see the io-listener effect below).
       break;
+    case 'closed':
     default:
       break;
   }
@@ -420,6 +511,32 @@ transport.on('connectionstatechange', async (state) => {
 
   await produceAudio();
   await produceVideo();
+};
+
+// Full media rebuild after the signaling socket reconnects with a NEW socket.id.
+// The server destroyed all of this socket's mediasoup state on disconnect, so we
+// reset the dead transport refs, clear the stale producer list, and re-run init()
+// (which re-joins, recreates the device + transports, re-consumes peers via the
+// [producers] effect, and re-produces our active tracks). Guarded so the
+// transport-failure handlers and the socket 'reconnect' event can't rebuild twice.
+const fullReconnect = async () => {
+  if (reconnectingRef.current) return;
+  reconnectingRef.current = true;
+  setReconnecting(true);
+  try {
+    try { transportRef.current && transportRef.current.close(); } catch (e) {}
+    try { consumerTransportRef.current && consumerTransportRef.current.close(); } catch (e) {}
+    transportRef.current = null;
+    consumerTransportRef.current = null;
+    consumersRef.current = {};
+    dispatch({ type: Actions.RTC_RESET_PRODUCERS, producers: [], lastLeaveType: 'leave' });
+    await setStreams([]);
+    await init();
+  } catch (e) {
+    console.error('Full reconnect failed:', e);
+  } finally {
+    reconnectingRef.current = false;
+  }
 };
 
   useEffect(() => {
@@ -550,58 +667,29 @@ const consume = async (producer) => {
   });
 
   
-transport.on('connectionstatechange', (state) => {
+transport.on('connectionstatechange', async (state) => {
   switch (state) {
     case 'connected':
-      console.log("Consumer transport connected");
+      console.log('Consumer transport connected');
       consumerRetryCountRef.current = 0;
-      //setReconnecting(false);
-      //setReconnected(true);
-      //setTimeout(() => setReconnected(false), 2000); // hide after 2s      
-
-      // 🔄 Re-subscribe to existing producers inside async IIFE
-      /*
-      (async () => {
-        if (producers && producers.length > 0) {
-          for (const producer of producers) {
-            if (!consumersRef.current[producer.producerID]) {
-              try {
-                const stream = await consume(producer);
-                if (stream) {
-                  stream.producerID = producer.producerID;
-                  stream.socketID = producer.socketID;
-                  stream.userID = producer.userID;
-                  setStreams(prev => [...prev, stream]);
-                }
-              } catch (err) {
-                console.error("Failed to consume producer:", err);
-              }
-            }
-          }
-        }
-      })();
-      */
       break;
     case 'failed':
     case 'disconnected':
-    case "closed":
-      /*
-      console.warn("Consumer transport failed, reconnecting...");
+      console.warn('Consumer transport', state, '- attempting recovery');
       setReconnecting(true);
-      try { transport.close(); } catch (e) {}
-      consumerTransportRef.current = null;
-
-      retry(async () => {
-        if (!deviceRef.current) {
-          console.warn("Device not ready, skipping reconnect");
-          return;
+      if (io && io.connected) {
+        try {
+          const res = await io.request('restartIce', { type: 'consumer', roomID });
+          if (res && res.iceParameters) {
+            await transport.restartIce({ iceParameters: res.iceParameters });
+          }
+        } catch (e) {
+          console.warn('Consumer ICE restart failed:', e && e.message);
         }
-        console.log("Retrying subscribe after consumer failure...");
-        await subscribe(deviceRef.current);
-      }, consumerRetryCountRef);
-      */
+      }
+      // Full rebuild on socket 'reconnect' (see io-listener effect below).
       break;
-  
+    case 'closed':
     default:
       break;
   }
@@ -837,40 +925,14 @@ const close = async () => {
         <div className="meeting-controls" style={{ bottom: topBar || isGrid ? 0 : 95 }}>
           <div
     className="control"
-    onClick={async () => {
-      if (video && videoProducerRef.current) {
-        stopVideo();
-      } else {
-        try {
-          setVideo(true); // Set state immediately for UI feedback
-          const stream = await getVideo();
-          await produceVideo(stream);
-        } catch (error) {
-          console.error('Failed to start video:', error);
-          setVideo(false);
-        }
-      }
-    }}
+    onClick={toggleVideo}
   >
     {video ? <FiVideo /> : <FiVideoOff />}
   </div>
   
   <div
     className="control"
-    onClick={async () => {
-      if (audio && audioProducerRef.current) {
-        stopAudio();
-      } else {
-        try {
-          setAudio(true); // Set state immediately for UI feedback
-          const stream = await getAudio();
-          await produceAudio(stream);
-        } catch (error) {
-          console.error('Failed to start audio:', error);
-          setAudio(false);
-        }
-      }
-    }}
+    onClick={toggleAudio}
   >
     {audio ? <FiMic /> : <FiMicOff />}
   </div>
@@ -894,9 +956,10 @@ const close = async () => {
   >
     {isScreen ? <FiXOctagon /> : <FiMonitor />}
   </div>
-          <div className="close" onClick={close}>
-            <FiPhoneOff />
-          </div>
+          
+<div className="close" onClick={hangUp}>
+  <FiPhoneOff />
+</div>
           <div className="control" onClick={() => setAddPeers(true)}>
             <FiUserPlus />
           </div>
@@ -910,7 +973,7 @@ const close = async () => {
       </Streams>
       {!isGrid && !topBar && <TopBar localStream={localStream} />}
       {addPeers && <AddPeers onClose={() => setAddPeers(false)} />}
-      {reconnecting && (
+      {(reconnecting || reconnectingPeers.length > 0) && (
         <div className="reconnect-banner reconnecting">
           Reconnecting…
         </div>
@@ -919,7 +982,9 @@ const close = async () => {
         <div className="reconnect-banner reconnected">
           Reconnected
         </div>
-      )}        
+      )} 
+      {showEnded && <CallEnded reason={endReason} />}
+       
     </div>
   );
 }

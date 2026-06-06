@@ -31,6 +31,23 @@ const initIO = (token) => (dispatch) => {
     const currentRoom = store.getState().io.room;
     const currentMessages = store.getState().io.messages || [];
 
+    // Call-event bubble (type 'call'): render it in the open thread and reorder
+    // the rooms list, but do NOT notify or unread-badge — its content is a JSON
+    // blob, and missed-call:new + the Missed tab already handle call alerts.
+    if (message && message.type === "call") {
+      const viewingThisRoom = currentRoom && currentRoom._id === room._id;
+      const existsById = currentMessages.some((m) => m._id === message._id);
+      if (viewingThisRoom && !existsById) {
+        store.dispatch({ type: Actions.MESSAGE, message });
+      }
+      getRooms()
+        .then((res) =>
+          store.dispatch({ type: Actions.SET_ROOMS, rooms: res.data.rooms }),
+        )
+        .catch((err) => console.log(err));
+      return;
+    }
+
     /*
     // Check if message already exists to prevent duplicates
     const messageExists = currentMessages.some((existingMessage) => {
@@ -87,7 +104,7 @@ const initIO = (token) => (dispatch) => {
       "for room:",
       room._id,
       "isGroup:",
-      room.isGroup
+      room.isGroup,
     );
 
     // 🆕 CRITICAL: Notify using NotificationService
@@ -132,7 +149,7 @@ const initIO = (token) => (dispatch) => {
     if (!isViewingThisRoom && !isOwnMessage) {
       console.log(
         `📬 Adding unread badge for ${room.isGroup ? "group" : "room"}:`,
-        room._id
+        room._id,
       );
       store.dispatch({
         type: Actions.MESSAGES_ADD_ROOM_UNREAD,
@@ -146,7 +163,7 @@ const initIO = (token) => (dispatch) => {
         `👀 User is viewing this ${
           room.isGroup ? "group" : "room"
         }, not marking as unread:`,
-        room._id
+        room._id,
       );
     }
 
@@ -166,6 +183,13 @@ const initIO = (token) => (dispatch) => {
       console.log("💬 Adding message to current conversation");
       store.dispatch({ type: Actions.MESSAGE, message });
     }
+
+    getMissedCalls().then((res) =>
+      setGlobal({
+        missedCalls: res.data.calls || [],
+        missedUnseen: res.data.unseen || 0,
+      }),
+    );
   });
 
   io.on("newProducer", (data) => {
@@ -178,7 +202,7 @@ const initIO = (token) => (dispatch) => {
     console.log("leave", data);
     let { producers } = store.getState().rtc;
     producers = producers.filter(
-      (producer) => producer.socketID !== data.socketID
+      (producer) => producer.socketID !== data.socketID,
     );
     console.log("producers after leave", producers);
     store.dispatch({
@@ -212,6 +236,56 @@ const initIO = (token) => (dispatch) => {
     store.dispatch({ type: Actions.RTC_CLOSE, data });
   });
 
+  // ── Phase 2: call lifecycle ──
+  io.on("call:ring", (data) => {
+    console.log("call:ring", data);
+    // Reuse the existing incoming-call entry: setting counterpart + RTC_CALL
+    // makes pages/Home navigate the callee to /meeting/:id (callDirection=incoming).
+    store.dispatch({
+      type: Actions.RTC_SET_COUNTERPART,
+      counterpart: data.counterpart,
+    });
+    store.dispatch({
+      type: Actions.RTC_CALL,
+      data: {
+        meetingID: data.meetingId, // keep legacy field name Home/Ringing read
+        caller: data.caller,
+        type: data.type,
+        media: data.media,
+        roomId: data.roomId,
+        group: data.group || null, // group identity for group calls
+      },
+    });
+  });
+
+  io.on("call:ended", (data) => {
+    console.log("call:ended", data);
+    store.dispatch({ type: Actions.RTC_CALL_ENDED, reason: data.reason });
+  });
+
+  io.on("call:peer-joined", (data) =>
+    store.dispatch({ type: Actions.RTC_PEER_JOINED, userId: data.userId }),
+  );
+  io.on("call:peer-left", (data) =>
+    store.dispatch({ type: Actions.RTC_PEER_LEFT, userId: data.userId }),
+  );
+  io.on("call:peer-reconnecting", (data) =>
+    store.dispatch({
+      type: Actions.RTC_PEER_RECONNECTING,
+      userId: data.userId,
+    }),
+  );
+  io.on("call:peer-reconnected", (data) =>
+    store.dispatch({ type: Actions.RTC_PEER_RECONNECTED, userId: data.userId }),
+  );
+  io.on("call:state", (data) =>
+    store.dispatch({
+      type: Actions.RTC_CALL_STATE,
+      state: data.state,
+      roster: data.participants,
+    }),
+  );
+
   io.on("answer", (data) => {
     console.log("answer", data);
     store.dispatch({ type: Actions.RTC_ANSWER, data });
@@ -229,13 +303,13 @@ const initIO = (token) => (dispatch) => {
     const beforeCount = producers.length;
 
     producers = producers.filter(
-      (producer) => producer.producerID !== data.producerID
+      (producer) => producer.producerID !== data.producerID,
     );
 
     console.log(`🗑️ Filtered producers: ${beforeCount} → ${producers.length}`);
     console.log(
       "Remaining producer IDs:",
-      producers.map((p) => p.producerID)
+      producers.map((p) => p.producerID),
     );
 
     store.dispatch({
@@ -297,14 +371,14 @@ const initIO = (token) => (dispatch) => {
             {
               appearance: "warning",
               autoDismiss: false,
-            }
+            },
           );
         }
       } catch (e) {
         // If toast fails, show browser alert
         alert(
           data.message ||
-            "Your account has been deactivated by an administrator."
+            "Your account has been deactivated by an administrator.",
         );
       }
 
@@ -411,7 +485,7 @@ const initIO = (token) => (dispatch) => {
     const currentMessages = store.getState().io.messages || [];
 
     const messageToUpdate = currentMessages.find(
-      (msg) => msg._id === messageId
+      (msg) => msg._id === messageId,
     );
 
     if (!messageToUpdate) {
@@ -436,9 +510,37 @@ const initIO = (token) => (dispatch) => {
 
     getRooms()
       .then((res) =>
-        store.dispatch({ type: Actions.SET_ROOMS, rooms: res.data.rooms })
+        store.dispatch({ type: Actions.SET_ROOMS, rooms: res.data.rooms }),
       )
       .catch((err) => console.error("❌ Error updating rooms list:", err));
+  });
+
+  io.on("producer-paused", (data) =>
+    store.dispatch({
+      type: Actions.RTC_PRODUCER_PAUSED,
+      producerID: data.producerID,
+    }),
+  );
+
+  io.on("producer-resumed", (data) =>
+    store.dispatch({
+      type: Actions.RTC_PRODUCER_RESUMED,
+      producerID: data.producerID,
+    }),
+  );
+
+  io.on("missed-call:new", () => {
+    // Refresh the list + badge. Cheap; missed events are low-volume.
+    import("./missedCalls").then(({ getMissedCalls }) => {
+      getMissedCalls()
+        .then((res) => {
+          setGlobal({
+            missedCalls: res.data.calls || [],
+            missedUnseen: res.data.unseen || 0,
+          });
+        })
+        .catch((err) => console.log(err));
+    });
   });
 
   // Enhanced beforeunload with retry logic
