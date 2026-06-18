@@ -294,6 +294,35 @@ const initSocket = (socket) => {
     }
   });
 
+  // Video consumers are created paused on the server (see createConsumer:
+  // `paused: producer.kind === "video"`). The client calls "resume" once its
+  // recv-side consumer is ready so RTP actually flows; without this handler the
+  // remote video stays paused forever and the tile is stuck on "Connecting…".
+  socket.on("resume", async (data, callback) => {
+    try {
+      if (!consumers[socket.id] || !consumers[socket.id][data.producerID]) {
+        console.error(
+          "Resume failed: consumer not found",
+          data.producerID,
+          socket.id,
+        );
+        return callback && callback({ error: "consumer not found" });
+      }
+
+      const consumer = consumers[socket.id][data.producerID];
+      if (consumer.closed) {
+        console.error("Cannot resume closed consumer:", data.producerID);
+        return callback && callback({ error: "consumer closed" });
+      }
+
+      await consumer.resume();
+      if (callback) callback();
+    } catch (error) {
+      console.error("Resume failed:", error);
+      if (callback) callback({ error: error.message });
+    }
+  });
+
   socket.on("remove", async (data, callback) => {
     try {
       await store.peers.asyncRemove(
