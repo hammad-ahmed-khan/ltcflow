@@ -1,3 +1,4 @@
+const mongoose = require("mongoose"); // FIX: was used but never imported (ReferenceError on every past-month call)
 const MonthlyActiveUser = require("../models/MonthlyActiveUser");
 const dayjs = require("dayjs");
 
@@ -21,16 +22,20 @@ class BillingHelper {
       const billingData = await MonthlyActiveUser.aggregate([
         {
           $match: {
-            companyId: mongoose.Types.ObjectId(companyId),
+            companyId: new mongoose.Types.ObjectId(companyId), // FIX: added `new` (required on Mongoose 7+)
             month: targetMonth,
-            billable: true,
+            // FIX: removed `billable: true`. Snapshot rows never set this field,
+            // so it filtered out 100% of historical users. Counting all rows for
+            // the month matches how the /current endpoint counts (countDocuments).
           },
         },
         {
           $group: {
             _id: null,
             totalBillableUsers: { $sum: 1 },
-            userLevels: { $push: "$userLevel" },
+            // FIX: snapshot rows store `level`, activation rows store `userLevel`.
+            // Fall back so the level breakdown is correct regardless of source.
+            userLevels: { $push: { $ifNull: ["$userLevel", "$level"] } },
             sources: { $push: "$source" },
             addedDates: { $push: "$addedAt" },
           },
@@ -115,7 +120,7 @@ class BillingHelper {
       // Add billing calculation
       result.billing = await this.calculateBilling(
         result.totalBillableUsers,
-        result.breakdown
+        result.breakdown,
       );
 
       return result;
@@ -138,14 +143,15 @@ class BillingHelper {
         {
           $match: {
             month: targetMonth,
-            billable: true,
+            // FIX: removed `billable: true` for the same reason as above.
           },
         },
         {
           $group: {
             _id: "$companyId",
             totalBillableUsers: { $sum: 1 },
-            userLevels: { $push: "$userLevel" },
+            // FIX: handle both `userLevel` (activation) and `level` (snapshot).
+            userLevels: { $push: { $ifNull: ["$userLevel", "$level"] } },
             sources: { $push: "$source" },
           },
         },
@@ -236,7 +242,7 @@ class BillingHelper {
       for (let company of billingData) {
         company.billing = await this.calculateBilling(
           company.totalBillableUsers,
-          company.breakdown
+          company.breakdown,
         );
       }
 
