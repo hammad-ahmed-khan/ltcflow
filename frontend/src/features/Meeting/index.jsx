@@ -545,28 +545,48 @@ const fullReconnect = async () => {
   }, [lastLeave, lastLeaveType, setStreams, increment]);
 
   useEffect(() => {
-  const init = async () => {
-    const newStreams = [];
+  const run = async () => {
     for (const producer of producers) {
-      
-      if (!consumersRef.current[producer.producerID] && producer.roomID === roomID) {
-        console.log('Creating consumer for producer:', producer.producerID);
+      if (producer.roomID !== roomID) continue;
 
-        const stream = await consume(producer);
+      // Reserve this producer SYNCHRONOUSLY before awaiting. Without this, a
+      // second newProducer arriving mid-consume re-runs this effect and passes
+      // the guard again (consumersRef isn't set until consume() finishes), so
+      // the same producer gets consumed twice — orphaning a track and leaving
+      // remote video stuck on "Connecting…". consume() overwrites this marker
+      // with the real consumer on success.
+      if (consumersRef.current[producer.producerID]) continue;
+      consumersRef.current[producer.producerID] = 'pending';
 
-        if (stream) {
-          stream.producerID = producer.producerID;
-          stream.socketID = producer.socketID;
-          stream.userID = producer.userID;
-          newStreams.push(stream);
+      console.log('Creating consumer for producer:', producer.producerID);
 
-          io.request('resume', { producerID: producer.producerID, meetingID: roomID });
-        }
+      let stream = null;
+      try {
+        stream = await consume(producer);
+      } catch (e) {
+        console.error('consume failed for', producer.producerID, e);
+      }
+
+      if (stream) {
+        stream.producerID = producer.producerID;
+        stream.socketID = producer.socketID;
+        stream.userID = producer.userID;
+
+        // Functional + dedup update avoids a lost-update race between two
+        // concurrent runs of this effect both reading getGlobal().streams.
+        setStreams((prev) => {
+          if (prev.some((s) => s.producerID === producer.producerID)) return prev;
+          return [...prev, stream];
+        });
+
+        io.request('resume', { producerID: producer.producerID, meetingID: roomID });
+      } else if (consumersRef.current[producer.producerID] === 'pending') {
+        // consume failed — release the reservation so it can be retried.
+        delete consumersRef.current[producer.producerID];
       }
     }
-    setStreams([...getGlobal().streams, ...newStreams]);
   };
-  init();
+  run();
 }, [producers]);
 
 const consume = async (producer) => {
