@@ -12,6 +12,7 @@ import { useToasts } from 'react-toast-notifications';
 import deleteMessage from '../../../actions/deleteMessage';
 import { useDispatch } from 'react-redux';
 import Actions from '../../../constants/Actions';
+import ReadReceipt from './ReadReceipt';
 
 const Message = memo(({
   message, previous, next, onOpen,
@@ -191,12 +192,25 @@ const Message = memo(({
   }, [author.picture, author.firstName, author.lastName]);
 
   const Details = useMemo(() => {
+    // Read-receipt tick: only on my own, non-deleted chat messages.
+    const tick = isMine && !message.isDeleted ? <ReadReceipt status={message.status} /> : null;
+
     if (!attachNext) {
       const side = isMine ? 'right' : 'left';
-      return <div className={`message-details ${side}`}>{moment(date).format('MMM DD - h:mm A')}</div>;
+      return (
+        <div className={`message-details ${side}`}>
+          {moment(date).format('MMM DD - h:mm A')}
+          {tick}
+        </div>
+      );
+    }
+    // Messages attached to the next one hide the timestamp, but still show the
+    // tick so every own message reflects its delivery state (WhatsApp-like).
+    if (tick) {
+      return <div className="message-details right only-status">{tick}</div>;
     }
     return null;
-  }, [attachNext, isMine, date]);
+  }, [attachNext, isMine, date, message.isDeleted, message.status]);
 
   const PictureOrSpacer = useMemo(() => {
     if (attachPrevious) return <div className="spacer" />;
@@ -507,6 +521,8 @@ const Message = memo(({
     prevProps.message.content === nextProps.message.content &&
     prevProps.message.isDeleted === nextProps.message.isDeleted &&
     prevProps.message.type === nextProps.message.type &&
+    // Re-render when the read-receipt status changes (no page refresh needed).
+    prevProps.message.status === nextProps.message.status &&
     prevProps.previous?._id === nextProps.previous?._id &&
     prevProps.next?._id === nextProps.next?._id
   );

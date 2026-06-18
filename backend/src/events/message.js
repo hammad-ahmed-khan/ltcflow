@@ -114,6 +114,10 @@ module.exports = async (socket, data) => {
         date: message.date,
         room: roomID,
         companyId: companyId,
+        status: message.status || "sent",
+        sentAt: message.sentAt || message.date,
+        deliveredAt: message.deliveredAt || null,
+        readAt: message.readAt || null,
       },
       timestamp: Date.now(),
     };

@@ -13,6 +13,36 @@ const MessageSchema = new Schema(
       default: Date.now,
     },
 
+    // ── WhatsApp-style read receipts ──
+    // `status` is the denormalized state used to render the tick on the
+    // author's side. For a 1-to-1 room it tracks the single recipient; for a
+    // group it only advances to "delivered"/"read" once EVERY recipient has
+    // reached that state (so the design already supports groups).
+    status: {
+      type: String,
+      enum: ["sent", "delivered", "read"],
+      default: "sent",
+      index: true,
+    },
+    // Aggregate timestamps (1-to-1, or "everyone" for groups).
+    sentAt: { type: Date, default: Date.now },
+    deliveredAt: { type: Date, default: null },
+    readAt: { type: Date, default: null },
+    // Per-recipient detail — the source of truth that makes group receipts
+    // possible. Each recipient is recorded at most once (no regression).
+    deliveredTo: [
+      {
+        user: { type: Schema.ObjectId, ref: "users" },
+        at: { type: Date, default: Date.now },
+      },
+    ],
+    readBy: [
+      {
+        user: { type: Schema.ObjectId, ref: "users" },
+        at: { type: Date, default: Date.now },
+      },
+    ],
+
     // 🔹 Company reference for multi-tenancy
     companyId: {
       type: Schema.Types.ObjectId,
