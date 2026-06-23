@@ -572,12 +572,15 @@ const fullReconnect = async () => {
         stream.socketID = producer.socketID;
         stream.userID = producer.userID;
 
-        // Functional + dedup update avoids a lost-update race between two
-        // concurrent runs of this effect both reading getGlobal().streams.
-        setStreams((prev) => {
-          if (prev.some((s) => s.producerID === producer.producerID)) return prev;
-          return [...prev, stream];
-        });
+        // Dedup + append. NOTE: reactn's per-property setter (useGlobal) does
+        // NOT support functional updaters — passing a function stores the
+        // function itself as `streams`, which then crashes Streams.filter(...)
+        // and white-screens the call. So read the latest value with getGlobal()
+        // and set a concrete array.
+        const prevStreams = getGlobal().streams || [];
+        if (!prevStreams.some((s) => s && s.producerID === producer.producerID)) {
+          await setStreams([...prevStreams, stream]);
+        }
 
         io.request('resume', { producerID: producer.producerID, meetingID: roomID });
       } else if (consumersRef.current[producer.producerID] === 'pending') {
