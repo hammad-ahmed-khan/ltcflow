@@ -205,9 +205,11 @@ const Message = memo(({
     // Read-receipt tick: only on my own, non-deleted chat messages.
     const tick = isMine && !message.isDeleted ? <ReadReceipt status={message.status} /> : null;
 
-    // Inline "Read by N of M" summary for my own group messages. Counts come
-    // live from message-status events; fall back to the stored arrays on the
-    // initial load before any event has arrived.
+    // Inline "Read by N of M" summary for my own group messages. Shown ONLY
+    // while it adds information the tick can't — i.e. partial progress. Once
+    // everyone has read (double-blue) or everyone has received (double-gray),
+    // the tick already says it, so we don't repeat it. Counts come live from
+    // message-status events; fall back to the stored arrays on initial load.
     let groupSummary = null;
     if (isMine && isGroup && !message.isDeleted) {
       const recipientCount = message.recipientCount != null
@@ -220,20 +222,21 @@ const Message = memo(({
         ? message.deliveredCount
         : (Array.isArray(message.deliveredTo) ? message.deliveredTo.length : 0);
 
-      if (recipientCount > 0) {
-        if (readCount > 0) {
-          groupSummary = (
-            <span className="group-receipt read" style={{ color: '#53bdeb', marginLeft: 6 }}>
-              Read by {readCount} of {recipientCount}
-            </span>
-          );
-        } else if (deliveredCount > 0) {
-          groupSummary = (
-            <span className="group-receipt delivered" style={{ color: '#8696a0', marginLeft: 6 }}>
-              Delivered to {deliveredCount} of {recipientCount}
-            </span>
-          );
-        }
+      if (recipientCount > 0 && readCount > 0 && readCount < recipientCount) {
+        groupSummary = (
+          <span className="group-receipt read" style={{ color: '#53bdeb', marginLeft: 6 }}>
+            Read by {readCount} of {recipientCount}
+          </span>
+        );
+      } else if (
+        recipientCount > 0 && readCount === 0
+        && deliveredCount > 0 && deliveredCount < recipientCount
+      ) {
+        groupSummary = (
+          <span className="group-receipt delivered" style={{ color: '#8696a0', marginLeft: 6 }}>
+            Delivered to {deliveredCount} of {recipientCount}
+          </span>
+        );
       }
     }
 
