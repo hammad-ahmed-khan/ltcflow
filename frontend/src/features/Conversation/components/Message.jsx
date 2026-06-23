@@ -4,15 +4,16 @@ import './Message.sass';
 import emojiRegex from 'emoji-regex';
 import { useGlobal } from 'reactn';
 import ReactImageAppear from 'react-image-appear';
-import { FiDownloadCloud, FiMoreVertical, FiTrash2, FiPhone, FiPhoneOff, FiVideo } from 'react-icons/fi';
+import { FiDownloadCloud, FiMoreVertical, FiTrash2, FiPhone, FiPhoneOff, FiVideo, FiInfo } from 'react-icons/fi';
 import striptags from 'striptags';
 import Config from '../../../config';
 import { buildImageUrl, buildFileUrl } from '../../../utils/urlUtils';
 import { useToasts } from 'react-toast-notifications';
 import deleteMessage from '../../../actions/deleteMessage';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import Actions from '../../../constants/Actions';
 import ReadReceipt from './ReadReceipt';
+import MessageInfo from './MessageInfo';
 
 const Message = memo(({
   message, previous, next, onOpen,
@@ -23,10 +24,12 @@ const Message = memo(({
   const user = useGlobal('user')[0];
   const { addToast } = useToasts();
   const dispatch = useDispatch();
+  const isGroup = useSelector((state) => state.io.room?.isGroup);
 
   // Context menu states
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const [touchStartTime, setTouchStartTime] = useState(0);
@@ -102,9 +105,15 @@ const Message = memo(({
     }
   }, [message, user.id, dispatch, addToast]);
 
+  const handleShowInfo = useCallback(() => {
+    setShowInfo(true);
+    setShowContextMenu(false);
+    setShowDropdown(false);
+  }, []);
+
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();
-    
+
     if (!isMine) return;
     
     const menuWidth = 200;
@@ -484,6 +493,12 @@ const Message = memo(({
               
               {showDropdown && (
                 <div className="message-dropdown-menu">
+                  {isGroup && (
+                    <div className="dropdown-item" onClick={handleShowInfo}>
+                      <FiInfo />
+                      <span>Message Info</span>
+                    </div>
+                  )}
                   <div className="dropdown-item delete-item" onClick={handleDeleteMessage}>
                     <FiTrash2 />
                     <span>Delete Message</span>
@@ -507,11 +522,21 @@ const Message = memo(({
             zIndex: 1000,
           }}
         >
+          {isGroup && (
+            <div className="context-menu-item" onClick={handleShowInfo}>
+              <FiInfo />
+              <span>Message Info</span>
+            </div>
+          )}
           <div className="context-menu-item delete-item" onClick={handleDeleteMessage}>
             <FiTrash2 />
             <span>Delete Message</span>
           </div>
         </div>
+      )}
+
+      {showInfo && (
+        <MessageInfo messageId={message._id} onClose={() => setShowInfo(false)} />
       )}
     </div>
   );
