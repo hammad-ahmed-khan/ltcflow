@@ -217,6 +217,9 @@ const initIO = (token) => (dispatch) => {
       status: data.status,
       deliveredAt: data.deliveredAt,
       readAt: data.readAt,
+      deliveredCount: data.deliveredCount,
+      readCount: data.readCount,
+      recipientCount: data.recipientCount,
     });
   });
 

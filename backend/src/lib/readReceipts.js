@@ -66,15 +66,18 @@ async function applyReceipts({ roomID, userId, messageIds, kind }) {
   for (const msg of messages) {
     // 1) Record this recipient idempotently. The `$ne` guard means a repeat
     //    acknowledgement is a no-op, and entries are only ever added.
-    await Message.updateOne(
+    const delRes = await Message.updateOne(
       { _id: msg._id, "deliveredTo.user": { $ne: userId } },
       { $push: { deliveredTo: { user: userId, at: now } } },
     );
+    let changed = delRes.modifiedCount > 0;
+
     if (kind === "read") {
-      await Message.updateOne(
+      const readRes = await Message.updateOne(
         { _id: msg._id, "readBy.user": { $ne: userId } },
         { $push: { readBy: { user: userId, at: now } } },
       );
+      changed = changed || readRes.modifiedCount > 0;
     }
 
     // 2) Re-read the fresh arrays and recompute the aggregate status.
@@ -93,28 +96,45 @@ async function applyReceipts({ roomID, userId, messageIds, kind }) {
     else if ((fresh.deliveredTo || []).length >= recipientCount)
       newStatus = "delivered";
 
-    if (RANK[newStatus] <= RANK[fresh.status || "sent"]) continue;
-
     // 3) Advance the denormalized status atomically (forward-only).
-    const set = { status: newStatus };
-    if (newStatus === "delivered" && !fresh.deliveredAt) set.deliveredAt = now;
-    if (newStatus === "read") {
-      if (!fresh.readAt) set.readAt = now;
-      if (!fresh.deliveredAt) set.deliveredAt = now;
+    let finalStatus = fresh.status || "sent";
+    let finalDeliveredAt = fresh.deliveredAt || null;
+    let finalReadAt = fresh.readAt || null;
+
+    if (RANK[newStatus] > RANK[fresh.status || "sent"]) {
+      const set = { status: newStatus };
+      if (newStatus === "delivered" && !fresh.deliveredAt) set.deliveredAt = now;
+      if (newStatus === "read") {
+        if (!fresh.readAt) set.readAt = now;
+        if (!fresh.deliveredAt) set.deliveredAt = now;
+      }
+
+      const result = await Message.updateOne(
+        { _id: msg._id, status: { $in: ADVANCE_FROM[newStatus] } },
+        { $set: set },
+      );
+
+      if (result.modifiedCount > 0) {
+        finalStatus = newStatus;
+        finalDeliveredAt = set.deliveredAt || fresh.deliveredAt || null;
+        finalReadAt = set.readAt || fresh.readAt || null;
+        changed = true;
+      }
     }
 
-    const result = await Message.updateOne(
-      { _id: msg._id, status: { $in: ADVANCE_FROM[newStatus] } },
-      { $set: set },
-    );
-
-    if (result.modifiedCount > 0) {
+    // Emit whenever the recipient set changed OR the status advanced — this is
+    // what lets an inline "Read by N of M" counter update live even while the
+    // aggregate status is still "delivered" (not everyone has read yet).
+    if (changed) {
       updates.push({
         roomID: roomID.toString(),
         messageId: msg._id.toString(),
-        status: newStatus,
-        deliveredAt: set.deliveredAt || fresh.deliveredAt || null,
-        readAt: set.readAt || fresh.readAt || null,
+        status: finalStatus,
+        deliveredAt: finalDeliveredAt,
+        readAt: finalReadAt,
+        deliveredCount: (fresh.deliveredTo || []).length,
+        readCount: (fresh.readBy || []).length,
+        recipientCount,
       });
     }
   }

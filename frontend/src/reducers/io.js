@@ -134,6 +134,9 @@ const reducer = (state = initialState, action) => {
             status: action.status,
             deliveredAt: action.deliveredAt ?? msg.deliveredAt,
             readAt: action.readAt ?? msg.readAt,
+            deliveredCount: action.deliveredCount ?? msg.deliveredCount,
+            readCount: action.readCount ?? msg.readCount,
+            recipientCount: action.recipientCount ?? msg.recipientCount,
           };
         }),
       };

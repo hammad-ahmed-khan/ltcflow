@@ -25,6 +25,7 @@ const Message = memo(({
   const { addToast } = useToasts();
   const dispatch = useDispatch();
   const isGroup = useSelector((state) => state.io.room?.isGroup);
+  const peopleCount = useSelector((state) => state.io.room?.people?.length || 0);
 
   // Context menu states
   const [showContextMenu, setShowContextMenu] = useState(false);
@@ -204,22 +205,59 @@ const Message = memo(({
     // Read-receipt tick: only on my own, non-deleted chat messages.
     const tick = isMine && !message.isDeleted ? <ReadReceipt status={message.status} /> : null;
 
+    // Inline "Read by N of M" summary for my own group messages. Counts come
+    // live from message-status events; fall back to the stored arrays on the
+    // initial load before any event has arrived.
+    let groupSummary = null;
+    if (isMine && isGroup && !message.isDeleted) {
+      const recipientCount = message.recipientCount != null
+        ? message.recipientCount
+        : Math.max(0, peopleCount - 1);
+      const readCount = message.readCount != null
+        ? message.readCount
+        : (Array.isArray(message.readBy) ? message.readBy.length : 0);
+      const deliveredCount = message.deliveredCount != null
+        ? message.deliveredCount
+        : (Array.isArray(message.deliveredTo) ? message.deliveredTo.length : 0);
+
+      if (recipientCount > 0) {
+        if (readCount > 0) {
+          groupSummary = (
+            <span className="group-receipt read" style={{ color: '#53bdeb', marginLeft: 6 }}>
+              Read by {readCount} of {recipientCount}
+            </span>
+          );
+        } else if (deliveredCount > 0) {
+          groupSummary = (
+            <span className="group-receipt delivered" style={{ color: '#8696a0', marginLeft: 6 }}>
+              Delivered to {deliveredCount} of {recipientCount}
+            </span>
+          );
+        }
+      }
+    }
+
     if (!attachNext) {
       const side = isMine ? 'right' : 'left';
       return (
         <div className={`message-details ${side}`}>
           {moment(date).format('MMM DD - h:mm A')}
           {tick}
+          {groupSummary}
         </div>
       );
     }
     // Messages attached to the next one hide the timestamp, but still show the
-    // tick so every own message reflects its delivery state (WhatsApp-like).
-    if (tick) {
-      return <div className="message-details right only-status">{tick}</div>;
+    // tick (and group summary) so every own message reflects its state.
+    if (tick || groupSummary) {
+      return <div className="message-details right only-status">{tick}{groupSummary}</div>;
     }
     return null;
-  }, [attachNext, isMine, date, message.isDeleted, message.status]);
+  }, [
+    attachNext, isMine, date, message.isDeleted, message.status,
+    isGroup, peopleCount, message.readCount, message.deliveredCount,
+    message.recipientCount, message.readBy, message.deliveredTo,
+  ]);
 
   const PictureOrSpacer = useMemo(() => {
     if (attachPrevious) return <div className="spacer" />;
@@ -546,8 +584,10 @@ const Message = memo(({
     prevProps.message.content === nextProps.message.content &&
     prevProps.message.isDeleted === nextProps.message.isDeleted &&
     prevProps.message.type === nextProps.message.type &&
-    // Re-render when the read-receipt status changes (no page refresh needed).
+    // Re-render when the read-receipt status or group counts change.
     prevProps.message.status === nextProps.message.status &&
+    prevProps.message.readCount === nextProps.message.readCount &&
+    prevProps.message.deliveredCount === nextProps.message.deliveredCount &&
     prevProps.previous?._id === nextProps.previous?._id &&
     prevProps.next?._id === nextProps.next?._id
   );
