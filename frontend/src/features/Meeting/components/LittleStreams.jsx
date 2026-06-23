@@ -37,7 +37,11 @@ useEffect(() => {
   };
 }, []);
 
-  const actualConsumers = consumers.filter((c) => c !== socketID);
+  // Defensive: never let a transient non-array white-screen the whole call.
+  const safeStreams = Array.isArray(streams) ? streams : [];
+  const safeConsumers = Array.isArray(consumers) ? consumers : [];
+
+  const actualConsumers = safeConsumers.filter((c) => c !== socketID);
   const actualPeers = [];
   actualConsumers.forEach((consumerID) => {
     const actualPeer = {
@@ -46,7 +50,7 @@ useEffect(() => {
       audio: null,
       screen: null,
     };
-    const peerStreams = streams.filter((s) => s.socketID === consumerID);
+    const peerStreams = safeStreams.filter((s) => s && s.socketID === consumerID);
     peerStreams.forEach((stream) => {
       actualPeer.streams = [...(actualPeer.streams || []), stream];
       if (stream.isVideo) return (actualPeer.video = stream);

@@ -6,6 +6,7 @@ const Actions = {
   MESSAGE: "MESSAGE",
   REMOVE_MESSAGE: "REMOVE_MESSAGE", // ✨ NEW ACTION
   MESSAGE_UPDATE: "MESSAGE_UPDATE", // ✨ ADD THIS
+  MESSAGE_STATUS: "MESSAGE_STATUS", // read-receipt status (sent/delivered/read)
 
   SET_ROOM: "SET_ROOM",
   SET_ROOMS: "SET_ROOMS",

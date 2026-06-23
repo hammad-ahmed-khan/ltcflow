@@ -257,6 +257,12 @@ router.post(
 );
 
 router.post(
+  "/message-info",
+  passport.authenticate("jwt", { session: false }),
+  require("./message-info"),
+);
+
+router.post(
   "/room/media",
   passport.authenticate("jwt", { session: false }, null),
   require("./get-room-media"),

@@ -118,6 +118,30 @@ const reducer = (state = initialState, action) => {
         messages: [...state.messages, action.message],
       };
 
+    case Actions.MESSAGE_STATUS: {
+      // Read-receipt update from the server. Apply forward-only so a late
+      // "delivered" event can never pull a message back from "read" (req 8).
+      const RANK = { sent: 0, delivered: 1, read: 2 };
+      return {
+        ...state,
+        messages: state.messages.map((msg) => {
+          if (msg._id !== action.messageId) return msg;
+          const current = RANK[msg.status] ?? 0;
+          const incoming = RANK[action.status] ?? 0;
+          if (incoming < current) return msg;
+          return {
+            ...msg,
+            status: action.status,
+            deliveredAt: action.deliveredAt ?? msg.deliveredAt,
+            readAt: action.readAt ?? msg.readAt,
+            deliveredCount: action.deliveredCount ?? msg.deliveredCount,
+            readCount: action.readCount ?? msg.readCount,
+            recipientCount: action.recipientCount ?? msg.recipientCount,
+          };
+        }),
+      };
+    }
+
     case Actions.REMOVE_MESSAGE:
       console.log("🗑️ Removing message from state:", action.messageId);
       return {

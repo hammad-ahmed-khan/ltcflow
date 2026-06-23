@@ -13,7 +13,12 @@ function Streams({
   const socketID = useSelector((state) => state.io.id);
   const [mainStream, setMainStream] = useGlobal('mainStream');
 
-  const actualConsumers = consumers.filter((c) => c !== socketID);
+  // Defensive: never let a transient non-array white-screen the whole call.
+  const safeStreams = Array.isArray(streams) ? streams : [];
+  const safeConsumers = Array.isArray(consumers) ? consumers : [];
+  const safeProducers = Array.isArray(producers) ? producers : [];
+
+  const actualConsumers = safeConsumers.filter((c) => c !== socketID);
   const actualPeers = [];
 
   const pausedProducers = useSelector((state) => state.rtc.pausedProducers);
@@ -25,8 +30,8 @@ function Streams({
       audio: null,
       screen: null,
     };
-    
-    const peerStreams = streams.filter((s) => s && s.socketID === consumerID);
+
+    const peerStreams = safeStreams.filter((s) => s && s.socketID === consumerID);
     peerStreams.forEach((stream) => {
       if (!stream) return; // Safety check
 
@@ -38,9 +43,9 @@ function Streams({
         actualPeer.audio = stream;
       }
     });
-    
+
     const isScreen = (actualPeer.video || actualPeer.screen) &&
-      producers.filter((p) => p && p.producerID === (actualPeer.video?.producerID) && p.isScreen).length > 0;
+      safeProducers.filter((p) => p && p.producerID === (actualPeer.video?.producerID) && p.isScreen).length > 0;
     
     actualPeers.push({ ...actualPeer, isScreen });
   });

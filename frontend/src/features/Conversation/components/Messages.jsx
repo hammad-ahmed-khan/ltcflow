@@ -10,11 +10,13 @@ import Actions from '../../../constants/Actions';
 import Picture from '../../../components/Picture';
 import { buildImageUrl } from '../../../utils/urlUtils';
 import typing from '../../../actions/typing';
+import { emitDelivered, emitRead } from '../../../actions/readReceipts';
 
 function Messages() {
   const user = useGlobal('user')[0];
   const messages = useSelector((state) => state.io.messages) || [];
   const room = useSelector((state) => state.io.room);
+  const io = useSelector((state) => state.io.io);
   const [loading, setLoading] = useState(false);
   const typingUsers = useSelector((state) => state.messages.typingUsers) || [];
   const [isPicker, showPicker] = useGlobal('isPicker');
@@ -179,8 +181,48 @@ function Messages() {
     }
   };
 
+  // ── WhatsApp-style read receipts (recipient side) ──
+  // Mark the other party's messages as READ only while this conversation is
+  // open AND the tab is actually visible (req 3: receiving alone isn't enough).
+  // Delivery is acknowledged unconditionally for any not-yet-delivered message
+  // (covers the offline → reconnect → open-room catch-up). The server dedups
+  // and never regresses, so re-emitting on every change/focus is safe.
+  useEffect(() => {
+    if (!room || !io || messages.length === 0) return undefined;
+
+    const fromOthers = messages.filter(
+      (m) =>
+        m.author &&
+        m.author._id !== user.id &&
+        typeof m._id === 'string' &&
+        !m._id.startsWith('temp-'),
+    );
+    if (fromOthers.length === 0) return undefined;
+
+    const deliverIds = fromOthers
+      .filter((m) => m.status === 'sent' || !m.status)
+      .map((m) => m._id);
+    emitDelivered(io, room._id, deliverIds);
+
+    const markRead = () => {
+      if (document.hidden) return;
+      const readIds = fromOthers
+        .filter((m) => m.status !== 'read')
+        .map((m) => m._id);
+      emitRead(io, room._id, readIds);
+    };
+
+    markRead();
+    document.addEventListener('visibilitychange', markRead);
+    window.addEventListener('focus', markRead);
+    return () => {
+      document.removeEventListener('visibilitychange', markRead);
+      window.removeEventListener('focus', markRead);
+    };
+  }, [room?._id, io, messages, user.id]);
+
   // Filter out current user and check if others are typing
-  const otherTypingUsers = typingUsers.filter(typingUser => 
+  const otherTypingUsers = typingUsers.filter(typingUser =>
     typingUser.id !== user.id && typingUser._id !== user.id
   );
 

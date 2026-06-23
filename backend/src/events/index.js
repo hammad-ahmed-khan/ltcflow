@@ -19,4 +19,12 @@ module.exports = [
     tag: "message",
     callback: require("./message"),
   },
+  {
+    tag: "message-delivered",
+    callback: require("./message-delivered"),
+  },
+  {
+    tag: "message-read",
+    callback: require("./message-read"),
+  },
 ];

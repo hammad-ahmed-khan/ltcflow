@@ -145,6 +145,20 @@ const initIO = (token) => (dispatch) => {
     const isOwnMessage =
       message.author && currentUser && message.author._id === currentUser.id;
 
+    // Read receipts: the message has reached this device, so acknowledge
+    // delivery (double gray tick on the author's side). Read is reported
+    // separately, only when the conversation is actually open and visible.
+    if (!isOwnMessage && message && message._id) {
+      try {
+        io.emit("message-delivered", {
+          roomID: room._id,
+          messageIds: [message._id],
+        });
+      } catch (e) {
+        console.warn("Failed to emit message-delivered:", e);
+      }
+    }
+
     // Add unread badge only if NOT viewing this room AND NOT own message
     if (!isViewingThisRoom && !isOwnMessage) {
       console.log(
@@ -190,6 +204,23 @@ const initIO = (token) => (dispatch) => {
         missedUnseen: res.data.unseen || 0,
       }),
     );
+  });
+
+  // Read-receipt status update for one of MY sent messages (or, for groups,
+  // any tracked message). Update the bubble's tick in real time — across every
+  // device and tab, with no page refresh.
+  io.on("message-status", (data) => {
+    if (!data || !data.messageId) return;
+    store.dispatch({
+      type: Actions.MESSAGE_STATUS,
+      messageId: data.messageId,
+      status: data.status,
+      deliveredAt: data.deliveredAt,
+      readAt: data.readAt,
+      deliveredCount: data.deliveredCount,
+      readCount: data.readCount,
+      recipientCount: data.recipientCount,
+    });
   });
 
   io.on("newProducer", (data) => {

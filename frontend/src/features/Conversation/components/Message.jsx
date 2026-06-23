@@ -4,14 +4,16 @@ import './Message.sass';
 import emojiRegex from 'emoji-regex';
 import { useGlobal } from 'reactn';
 import ReactImageAppear from 'react-image-appear';
-import { FiDownloadCloud, FiMoreVertical, FiTrash2, FiPhone, FiPhoneOff, FiVideo } from 'react-icons/fi';
+import { FiDownloadCloud, FiMoreVertical, FiTrash2, FiPhone, FiPhoneOff, FiVideo, FiInfo } from 'react-icons/fi';
 import striptags from 'striptags';
 import Config from '../../../config';
 import { buildImageUrl, buildFileUrl } from '../../../utils/urlUtils';
 import { useToasts } from 'react-toast-notifications';
 import deleteMessage from '../../../actions/deleteMessage';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import Actions from '../../../constants/Actions';
+import ReadReceipt from './ReadReceipt';
+import MessageInfo from './MessageInfo';
 
 const Message = memo(({
   message, previous, next, onOpen,
@@ -22,10 +24,13 @@ const Message = memo(({
   const user = useGlobal('user')[0];
   const { addToast } = useToasts();
   const dispatch = useDispatch();
+  const isGroup = useSelector((state) => state.io.room?.isGroup);
+  const peopleCount = useSelector((state) => state.io.room?.people?.length || 0);
 
   // Context menu states
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
   const [touchStartTime, setTouchStartTime] = useState(0);
@@ -101,9 +106,15 @@ const Message = memo(({
     }
   }, [message, user.id, dispatch, addToast]);
 
+  const handleShowInfo = useCallback(() => {
+    setShowInfo(true);
+    setShowContextMenu(false);
+    setShowDropdown(false);
+  }, []);
+
   const handleContextMenu = useCallback((e) => {
     e.preventDefault();
-    
+
     if (!isMine) return;
     
     const menuWidth = 200;
@@ -191,12 +202,65 @@ const Message = memo(({
   }, [author.picture, author.firstName, author.lastName]);
 
   const Details = useMemo(() => {
+    // Read-receipt tick: only on my own, non-deleted chat messages.
+    const tick = isMine && !message.isDeleted ? <ReadReceipt status={message.status} /> : null;
+
+    // Inline "Read by N of M" summary for my own group messages. Shown ONLY
+    // while it adds information the tick can't — i.e. partial progress. Once
+    // everyone has read (double-blue) or everyone has received (double-gray),
+    // the tick already says it, so we don't repeat it. Counts come live from
+    // message-status events; fall back to the stored arrays on initial load.
+    let groupSummary = null;
+    if (isMine && isGroup && !message.isDeleted) {
+      const recipientCount = message.recipientCount != null
+        ? message.recipientCount
+        : Math.max(0, peopleCount - 1);
+      const readCount = message.readCount != null
+        ? message.readCount
+        : (Array.isArray(message.readBy) ? message.readBy.length : 0);
+      const deliveredCount = message.deliveredCount != null
+        ? message.deliveredCount
+        : (Array.isArray(message.deliveredTo) ? message.deliveredTo.length : 0);
+
+      if (recipientCount > 0 && readCount > 0 && readCount < recipientCount) {
+        groupSummary = (
+          <span className="group-receipt read" style={{ color: '#53bdeb', marginLeft: 6 }}>
+            Read by {readCount} of {recipientCount}
+          </span>
+        );
+      } else if (
+        recipientCount > 0 && readCount === 0
+        && deliveredCount > 0 && deliveredCount < recipientCount
+      ) {
+        groupSummary = (
+          <span className="group-receipt delivered" style={{ color: '#8696a0', marginLeft: 6 }}>
+            Delivered to {deliveredCount} of {recipientCount}
+          </span>
+        );
+      }
+    }
+
     if (!attachNext) {
       const side = isMine ? 'right' : 'left';
-      return <div className={`message-details ${side}`}>{moment(date).format('MMM DD - h:mm A')}</div>;
+      return (
+        <div className={`message-details ${side}`}>
+          {moment(date).format('MMM DD - h:mm A')}
+          {tick}
+          {groupSummary}
+        </div>
+      );
+    }
+    // Messages attached to the next one hide the timestamp, but still show the
+    // tick (and group summary) so every own message reflects its state.
+    if (tick || groupSummary) {
+      return <div className="message-details right only-status">{tick}{groupSummary}</div>;
     }
     return null;
-  }, [attachNext, isMine, date]);
+  }, [
+    attachNext, isMine, date, message.isDeleted, message.status,
+    isGroup, peopleCount, message.readCount, message.deliveredCount,
+    message.recipientCount, message.readBy, message.deliveredTo,
+  ]);
 
   const PictureOrSpacer = useMemo(() => {
     if (attachPrevious) return <div className="spacer" />;
@@ -470,6 +534,12 @@ const Message = memo(({
               
               {showDropdown && (
                 <div className="message-dropdown-menu">
+                  {isGroup && (
+                    <div className="dropdown-item" onClick={handleShowInfo}>
+                      <FiInfo />
+                      <span>Message Info</span>
+                    </div>
+                  )}
                   <div className="dropdown-item delete-item" onClick={handleDeleteMessage}>
                     <FiTrash2 />
                     <span>Delete Message</span>
@@ -493,11 +563,21 @@ const Message = memo(({
             zIndex: 1000,
           }}
         >
+          {isGroup && (
+            <div className="context-menu-item" onClick={handleShowInfo}>
+              <FiInfo />
+              <span>Message Info</span>
+            </div>
+          )}
           <div className="context-menu-item delete-item" onClick={handleDeleteMessage}>
             <FiTrash2 />
             <span>Delete Message</span>
           </div>
         </div>
+      )}
+
+      {showInfo && (
+        <MessageInfo messageId={message._id} onClose={() => setShowInfo(false)} />
       )}
     </div>
   );
@@ -507,6 +587,10 @@ const Message = memo(({
     prevProps.message.content === nextProps.message.content &&
     prevProps.message.isDeleted === nextProps.message.isDeleted &&
     prevProps.message.type === nextProps.message.type &&
+    // Re-render when the read-receipt status or group counts change.
+    prevProps.message.status === nextProps.message.status &&
+    prevProps.message.readCount === nextProps.message.readCount &&
+    prevProps.message.deliveredCount === nextProps.message.deliveredCount &&
     prevProps.previous?._id === nextProps.previous?._id &&
     prevProps.next?._id === nextProps.next?._id
   );
