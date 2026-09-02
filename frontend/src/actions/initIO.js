@@ -1,17 +1,19 @@
 import IO from "socket.io-client";
 import { setGlobal, getGlobal } from "reactn";
-import Config from "../config";
 import Actions from "../constants/Actions";
 import store from "../store";
 import getRooms from "./getRooms";
 import messageSound from "../assets/message.mp3";
 import socketPromise from "../lib/socket.io-promise";
+import { getBackendUrl } from "../utils/platform";
 
 // Track played sounds to prevent duplicates
 let playedSounds = new Set();
 
 const initIO = (token) => (dispatch) => {
-  const io = IO(`${Config.url || ""}/`);
+  // Web: empty base -> same-origin "/". Native: absolute VITE_BACKEND_URL, since
+  // the app is served from capacitor://localhost and has no server of its own.
+  const io = IO(`${getBackendUrl()}/`);
   io.request = socketPromise(io);
 
   io.on("connect", () => {
