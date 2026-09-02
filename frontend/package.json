@@ -8,6 +8,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "cap:sync": "npm run build && cap sync",
+    "cap:ios": "npm run build && cap sync ios && cap open ios",
+    "cap:android": "npm run build && cap sync android && cap open android",
     "format:check": "prettier --check .",
     "format:write": "prettier --write .",
     "lint:check": "eslint .",
@@ -29,6 +32,10 @@
     ]
   },
   "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/app": "^6.0.1",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/ios": "^6.1.2",
     "@emoji-mart/data": "1.1.2",
     "@vitejs/plugin-react-swc": "3.6.0",
     "axios": "1.6.7",
@@ -62,6 +69,7 @@
     "xss": "1.0.15"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.1.2",
     "@babel/core": "7.23.9",
     "@babel/eslint-parser": "7.23.10",
     "@babel/plugin-proposal-private-property-in-object": "7.21.11",
