@@ -154,15 +154,20 @@ self.addEventListener("push", (event) => {
 
   let data = {};
   if (event.data) {
-    data = event.data.json();
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data = {};
+    }
   }
 
   const title = data.title || "LTC Flow";
   const options = {
     body: data.body || "You have a new message",
-    icon: "/icons/icon-192x192.png",
-    badge: "/icons/badge-72x72.png",
+    icon: data.icon || "/flowicon192.webp",
+    badge: data.badge || "/flowicon192.webp",
     tag: data.tag || "default",
+    renotify: data.renotify || false,
     requireInteraction: data.requireInteraction || false,
     data: {
       url: data.url || "/",
@@ -174,7 +179,33 @@ self.addEventListener("push", (event) => {
     ],
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    (async () => {
+      // If the user is actively looking at THIS conversation in a visible
+      // window, don't buzz them again — the in-app UI already shows it. Any
+      // other case (app backgrounded, on a different room, on another device)
+      // still gets the notification, which is what fixes the missed alerts.
+      try {
+        const wins = await self.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        });
+        const activeOnRoom = wins.some(
+          (c) =>
+            c.visibilityState === "visible" &&
+            data.roomId &&
+            c.url.includes(`/room/${data.roomId}`),
+        );
+        if (activeOnRoom) {
+          console.log("[SW] Suppressing push — user active on this room");
+          return;
+        }
+      } catch (e) {
+        // fall through and show
+      }
+      await self.registration.showNotification(title, options);
+    })(),
+  );
 });
 
 // Handle notification clicks

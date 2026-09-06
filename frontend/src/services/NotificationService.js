@@ -115,7 +115,7 @@ class NotificationService {
 
       // Fetch VAPID public key from backend
       if (!this.vapidPublicKey) {
-        const response = await fetch(`${Config.url}/push/vapid-public-key`, {
+        const response = await fetch(`${Config.url || ""}/push/vapid-public-key`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -139,7 +139,7 @@ class NotificationService {
       });
 
       // Send subscription to backend
-      const saveResponse = await fetch(`${Config.url}/push/subscribe`, {
+      const saveResponse = await fetch(`${Config.url || ""}/push/subscribe`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -175,7 +175,7 @@ class NotificationService {
 
       if (subscription) {
         // Remove from backend first
-        await fetch(`${Config.url}/push/unsubscribe`, {
+        await fetch(`${Config.url || ""}/push/unsubscribe`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -223,7 +223,7 @@ class NotificationService {
     if (!this.pushSubscription) return;
 
     try {
-      const response = await fetch(`${Config.url}/push/subscribe`, {
+      const response = await fetch(`${Config.url || ""}/push/subscribe`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -250,7 +250,7 @@ class NotificationService {
     }
 
     try {
-      const response = await fetch(`${Config.url}/push/test`, {
+      const response = await fetch(`${Config.url || ""}/push/test`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -631,8 +631,13 @@ class NotificationService {
     if (this.isDocumentVisible) {
       const soundPlayed = this.playSound(messageID);
       console.log("🔊 Foreground sound played:", soundPlayed);
-    } else {
-      console.log("📱 App is in background, using browser notification");
+    } else if (!this.pushSubscription) {
+      // Background AND this device has no Web Push subscription → fall back to
+      // an in-app Notification so the user is still alerted. When a push
+      // subscription exists, the server-sent Web Push (handled by the service
+      // worker) is the single source of background alerts — showing one here
+      // too would double-notify.
+      console.log("📱 Background, no push subscription — in-app fallback");
 
       const senderName = message.author?.name || "Someone";
       const roomName = room.isGroup ? room.name : senderName;
@@ -642,11 +647,14 @@ class NotificationService {
       this.showBrowserNotification(`New message from ${roomName}`, {
         body: messagePreview,
         tag: room._id,
+        renotify: true,
         requireInteraction: false,
         silent: false,
       });
 
       this.playSound(messageID);
+    } else {
+      console.log("📱 Background with push subscription — Web Push handles it");
     }
 
     this.updateFaviconBadge();
