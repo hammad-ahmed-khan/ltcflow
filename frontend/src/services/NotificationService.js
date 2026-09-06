@@ -115,7 +115,7 @@ class NotificationService {
 
       // Fetch VAPID public key from backend
       if (!this.vapidPublicKey) {
-        const response = await fetch(`${Config.url}/push/vapid-public-key`, {
+        const response = await fetch(`${Config.url || ""}/push/vapid-public-key`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
           },
@@ -139,7 +139,7 @@ class NotificationService {
       });
 
       // Send subscription to backend
-      const saveResponse = await fetch(`${Config.url}/push/subscribe`, {
+      const saveResponse = await fetch(`${Config.url || ""}/push/subscribe`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -175,7 +175,7 @@ class NotificationService {
 
       if (subscription) {
         // Remove from backend first
-        await fetch(`${Config.url}/push/unsubscribe`, {
+        await fetch(`${Config.url || ""}/push/unsubscribe`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -223,7 +223,7 @@ class NotificationService {
     if (!this.pushSubscription) return;
 
     try {
-      const response = await fetch(`${Config.url}/push/subscribe`, {
+      const response = await fetch(`${Config.url || ""}/push/subscribe`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -250,7 +250,7 @@ class NotificationService {
     }
 
     try {
-      const response = await fetch(`${Config.url}/push/test`, {
+      const response = await fetch(`${Config.url || ""}/push/test`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
