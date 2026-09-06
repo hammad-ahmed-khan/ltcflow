@@ -4,6 +4,15 @@ const Room = require("../models/Room");
 const store = require("../store");
 const xss = require("xss");
 
+// Web Push (VAPID). Graceful fallback if the service can't load so message
+// sending never breaks because of a push problem.
+let PushNotificationService = null;
+try {
+  PushNotificationService = require("../services/PushNotificationService");
+} catch (e) {
+  console.warn("⚠️ PushNotificationService not available — web push disabled");
+}
+
 module.exports = (req, res, next) => {
   const { roomID, authorID, content, type, fileID } = req.fields;
   const companyId = req.headers["x-company-id"];
@@ -151,6 +160,69 @@ module.exports = (req, res, next) => {
               console.log(
                 `✅ Message emitted to ${emittedCount} users (including all sender's devices)`,
               );
+
+              // 🔔 WEB PUSH — send to every recipient DEVICE (except the author),
+              // regardless of whether the user has another device online.
+              //
+              // This is the fix for missed notifications on multiple devices:
+              // previously messages were delivered only over Socket.IO, so a
+              // backgrounded / locked / closed device (whose socket has dropped)
+              // received nothing. A user with the desktop open therefore missed
+              // items on their phone. sendToUsers() fans out to ALL of each
+              // recipient's push subscriptions and prunes dead ones.
+              if (PushNotificationService) {
+                try {
+                  const authorIdStr = authorID.toString();
+                  const recipientIds = updatedRoom.people
+                    .map((p) => p._id.toString())
+                    .filter((id) => id !== authorIdStr);
+
+                  if (recipientIds.length > 0) {
+                    const author = message.author || {};
+                    const senderName =
+                      [author.firstName, author.lastName]
+                        .filter(Boolean)
+                        .join(" ") ||
+                      author.name ||
+                      "New message";
+
+                    let bodyText;
+                    if (type === "image") bodyText = "📷 Photo";
+                    else if (type === "file") bodyText = "📎 File";
+                    else
+                      bodyText =
+                        (content || "").toString().substring(0, 140) ||
+                        "New message";
+
+                    const isGroup = !!updatedRoom.isGroup;
+                    const pushPayload = {
+                      title: isGroup
+                        ? updatedRoom.title || "New message"
+                        : senderName,
+                      body: isGroup ? `${senderName}: ${bodyText}` : bodyText,
+                      tag: roomID,
+                      roomId: roomID,
+                      url: `/room/${roomID}`,
+                      icon: "/flowicon192.webp",
+                      badge: "/flowicon192.webp",
+                      renotify: true,
+                    };
+
+                    // Fire-and-forget: never block or fail the message on push.
+                    PushNotificationService.sendToUsers(
+                      recipientIds,
+                      pushPayload,
+                    ).catch((err) =>
+                      console.error("⚠️ Web push failed (non-critical):", err),
+                    );
+                  }
+                } catch (pushErr) {
+                  console.error(
+                    "⚠️ Web push setup error (non-critical):",
+                    pushErr,
+                  );
+                }
+              }
 
               res.status(200).json({ message, room: updatedRoom });
             })
