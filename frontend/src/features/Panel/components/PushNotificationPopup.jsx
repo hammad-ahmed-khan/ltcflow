@@ -86,10 +86,13 @@ function PushNotificationPopup({ onClose }) {
       }
     } catch (error) {
       console.error('Toggle push notification error:', error);
-      addToast('Failed to update push notification settings', {
-        appearance: 'error',
-        autoDismiss: true,
-      });
+      addToast(
+        `Failed to enable notifications: ${error?.message || 'unknown error'}`,
+        {
+          appearance: 'error',
+          autoDismiss: false,
+        },
+      );
     } finally {
       setIsLoading(false);
     }

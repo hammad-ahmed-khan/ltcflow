@@ -79,7 +79,25 @@ class NotificationService {
   }
 
   /**
-   * Subscribe to push notifications
+   * Race a promise against a timeout so a hung step fails loudly with a label
+   * instead of spinning forever. iOS Safari (standalone PWA) can leave
+   * serviceWorker.ready / pushManager.subscribe pending indefinitely — this
+   * turns that into a visible error naming the stage.
+   */
+  withTimeout(promise, ms, label) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`Timed out at: ${label} (${ms}ms)`)),
+        ms,
+      );
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  }
+
+  /**
+   * Subscribe to push notifications.
+   * Throws (with a stage-labeled message) on failure so callers can show it.
    */
   async subscribeToPush() {
     if (!this.isUserLoggedIn()) {
@@ -88,77 +106,95 @@ class NotificationService {
     }
 
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-      console.log("📱 Push notifications not supported");
-      return null;
+      throw new Error("Push notifications are not supported on this device");
     }
 
+    // Guard against concurrent subscribe calls (e.g. AutoPushPrompt firing at
+    // the same time as the settings popup). iOS can deadlock on parallel
+    // pushManager.subscribe() calls, which shows up as a stuck spinner.
+    if (this._subscribeInFlight) return this._subscribeInFlight;
+    this._subscribeInFlight = this._doSubscribe();
     try {
-      // Request notification permission first
+      return await this._subscribeInFlight;
+    } finally {
+      this._subscribeInFlight = null;
+    }
+  }
+
+  async _doSubscribe() {
+    // 1) Permission (must come from a user gesture on iOS).
+    if (this.notificationPermission !== "granted") {
+      await this.withTimeout(this.requestPermission(), 60000, "requestPermission");
+      this.notificationPermission =
+        typeof Notification !== "undefined" ? Notification.permission : "denied";
       if (this.notificationPermission !== "granted") {
-        await this.requestPermission();
-        if (this.notificationPermission !== "granted") {
-          console.log("🔕 Notification permission denied");
-          return null;
-        }
+        throw new Error("Notification permission was not granted");
       }
+    }
 
-      const registration = await navigator.serviceWorker.ready;
+    // 2) Service worker must be active/controlling.
+    const registration = await this.withTimeout(
+      navigator.serviceWorker.ready,
+      8000,
+      "serviceWorker.ready",
+    );
 
-      // Check if already subscribed
-      let subscription = await registration.pushManager.getSubscription();
+    // Already subscribed?
+    let subscription = await registration.pushManager.getSubscription();
+    if (subscription) {
+      console.log("📱 Already subscribed to push notifications");
+      this.pushSubscription = subscription;
+      return subscription;
+    }
 
-      if (subscription) {
-        console.log("📱 Already subscribed to push notifications");
-        this.pushSubscription = subscription;
-        return subscription;
+    // 3) VAPID public key.
+    if (!this.vapidPublicKey) {
+      const response = await this.withTimeout(
+        fetch(`${Config.url || ""}/push/vapid-public-key`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }),
+        15000,
+        "fetch vapid-public-key",
+      );
+      if (!response.ok) {
+        throw new Error(`Failed to fetch VAPID public key (${response.status})`);
       }
+      const data = await response.json();
+      this.vapidPublicKey = data.publicKey;
+    }
 
-      // Fetch VAPID public key from backend
-      if (!this.vapidPublicKey) {
-        const response = await fetch(`${Config.url || ""}/push/vapid-public-key`, {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        });
+    const convertedVapidKey = this.urlBase64ToUint8Array(this.vapidPublicKey);
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch VAPID public key");
-        }
-
-        const data = await response.json();
-        this.vapidPublicKey = data.publicKey;
-      }
-
-      // Convert VAPID key
-      const convertedVapidKey = this.urlBase64ToUint8Array(this.vapidPublicKey);
-
-      // Subscribe to push
-      subscription = await registration.pushManager.subscribe({
+    // 4) Browser/OS push subscription (the step iOS most often hangs on).
+    subscription = await this.withTimeout(
+      registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: convertedVapidKey,
-      });
+      }),
+      20000,
+      "pushManager.subscribe",
+    );
 
-      // Send subscription to backend
-      const saveResponse = await fetch(`${Config.url || ""}/push/subscribe`, {
+    // 5) Save to backend.
+    const saveResponse = await this.withTimeout(
+      fetch(`${Config.url || ""}/push/subscribe`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify({ subscription }),
-      });
-
-      if (!saveResponse.ok) {
-        throw new Error("Failed to save subscription to backend");
-      }
-
-      this.pushSubscription = subscription;
-      console.log("✅ Successfully subscribed to push notifications");
-      return subscription;
-    } catch (error) {
-      console.error("❌ Failed to subscribe to push notifications:", error);
-      return null;
+      }),
+      15000,
+      "save subscription",
+    );
+    if (!saveResponse.ok) {
+      throw new Error(`Failed to save subscription (${saveResponse.status})`);
     }
+
+    this.pushSubscription = subscription;
+    console.log("✅ Successfully subscribed to push notifications");
+    return subscription;
   }
 
   /**
