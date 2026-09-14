@@ -143,3 +143,26 @@ Run the app on a real device (simulators can't use a camera) and confirm:
    ConnectionService (Android) so calls ring on a closed app.
 5. **Polish & submit** — safe-area insets, splash/icons, deep links, store
    submission.
+
+---
+
+## Building the web app on Windows
+
+`npm run cap:*` first runs `vite build`. A clean checkout builds first try now
+that `react-is` + `terser` are declared and `frontend/.npmrc` sets
+`legacy-peer-deps=true`. If you still hit trouble:
+
+```powershell
+cd frontend
+rmdir /s /q node_modules & del package-lock.json   # clean slate
+npm install
+npm run build            # -> frontend\dist
+```
+
+- **`'vite' is not recognized`** → dependencies aren't installed; run `npm install` in `frontend`.
+- **`ERESOLVE ... emoji-mart` peer conflict** → handled by `.npmrc`; otherwise `npm install --legacy-peer-deps`.
+- **`Cannot find module @rollup/rollup-win32-x64-msvc`** → npm optional-deps bug; delete `node_modules` + `package-lock.json` and reinstall.
+- **`Rollup failed to resolve import "react-is"`** → now declared; if seen on an old checkout, `npm install react-is@18.2.0`.
+- **`terser not found`** → now declared; if seen on an old checkout, `npm install -D terser`.
+
+iOS still cannot be built on Windows — use a Mac or CI (see above).
