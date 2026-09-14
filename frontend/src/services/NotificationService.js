@@ -61,7 +61,7 @@ class NotificationService {
 
     try {
       // Wait for service worker to be ready
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await this.getActiveRegistration();
 
       // Check existing subscription
       this.pushSubscription = await registration.pushManager.getSubscription();
@@ -76,6 +76,43 @@ class NotificationService {
     } catch (error) {
       console.error("❌ Failed to initialize push notifications:", error);
     }
+  }
+
+  /**
+   * Get an ACTIVE service worker registration WITHOUT using
+   * navigator.serviceWorker.ready, which is a known WebKit bug: it never
+   * resolves in an installed iOS (standalone) PWA even though the worker is
+   * registered and active. getRegistration()/register() do work there.
+   */
+  async getActiveRegistration() {
+    let reg = null;
+    try {
+      reg = await navigator.serviceWorker.getRegistration();
+    } catch (e) {
+      reg = null;
+    }
+    if (!reg) {
+      reg = await navigator.serviceWorker.register("/service-worker.js");
+    }
+    if (reg.active) return reg;
+
+    // Bounded wait for the installing/waiting worker to activate.
+    await new Promise((resolve) => {
+      if (reg.active) {
+        resolve();
+        return;
+      }
+      const onState = () => {
+        if (reg.active) resolve();
+      };
+      const worker = reg.installing || reg.waiting;
+      if (worker) worker.addEventListener("statechange", onState);
+      reg.addEventListener("updatefound", () => {
+        const w = reg.installing;
+        if (w) w.addEventListener("statechange", onState);
+      });
+    });
+    return reg;
   }
 
   /**
@@ -132,10 +169,11 @@ class NotificationService {
       }
     }
 
-    // 2) Service worker must be active/controlling.
+    // 2) Service worker must be active. Use getActiveRegistration() (NOT
+    //    serviceWorker.ready — hangs in iOS standalone PWAs).
     const registration = await this.withTimeout(
-      navigator.serviceWorker.ready,
-      8000,
+      this.getActiveRegistration(),
+      10000,
       "serviceWorker.ready",
     );
 
@@ -206,7 +244,7 @@ class NotificationService {
     }
 
     try {
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await this.getActiveRegistration();
       const subscription = await registration.pushManager.getSubscription();
 
       if (subscription) {
@@ -243,7 +281,7 @@ class NotificationService {
     }
 
     try {
-      const registration = await navigator.serviceWorker.ready;
+      const registration = await this.getActiveRegistration();
       const subscription = await registration.pushManager.getSubscription();
       return !!subscription;
     } catch (error) {
