@@ -8,6 +8,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
+      // Do NOT auto-register the generated workbox `sw.js`. The app registers
+      // its own `/service-worker.js` (which has the push + notificationclick
+      // handlers). Without this, both register at scope "/" and the workbox SW
+      // (no push handler) would win control — so Web Push was delivered but
+      // never shown. See NotificationService / public/service-worker.js.
+      injectRegister: null,
       includeAssets: [
         'favicon.ico', 
         'flowicon 32.webp', 
