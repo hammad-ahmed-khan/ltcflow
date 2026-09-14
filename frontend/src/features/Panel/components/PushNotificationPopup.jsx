@@ -86,6 +86,19 @@ function PushNotificationPopup({ onClose }) {
       }
     } catch (error) {
       console.error('Toggle push notification error:', error);
+      // TEMP DIAGNOSTIC: unmissable on iOS so we can see the real failure.
+      try {
+        // eslint-disable-next-line no-alert
+        window.alert(
+          'Push enable failed\n\n' +
+            `name: ${error?.name || 'Error'}\n` +
+            `message: ${error?.message || String(error)}\n\n` +
+            `permission: ${typeof Notification !== 'undefined' ? Notification.permission : 'n/a'}\n` +
+            `standalone: ${window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches}\n` +
+            `ua: ${navigator.userAgent}\n\n` +
+            `stack:\n${(error?.stack || '').slice(0, 500)}`,
+        );
+      } catch (e) {}
       addToast(
         `Failed to enable notifications: ${error?.message || 'unknown error'}`,
         {
